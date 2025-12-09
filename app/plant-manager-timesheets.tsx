@@ -12,8 +12,8 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { FileSpreadsheet, ChevronDown, ChevronUp, Check, Calendar, CheckCircle2, X, Wrench, AlertTriangle, CloudRain } from 'lucide-react-native';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy } from 'firebase/firestore';
+import { FileSpreadsheet, ChevronDown, ChevronUp, Check, Calendar, CheckCircle2, X, Wrench, AlertTriangle, CloudRain, Trash2 } from 'lucide-react-native';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { HeaderTitleWithSync, StandardHeaderRight } from '@/components/HeaderSyncStatus';
@@ -361,6 +361,40 @@ export default function PlantManagerTimesheetsScreen() {
 
 
 
+  const deleteTimesheet = async (entryId: string, plantAssetDocId?: string, isPlantTab: boolean = true) => {
+    Alert.alert(
+      'Delete Timesheet',
+      'Are you sure you want to permanently delete this timesheet?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (isPlantTab && plantAssetDocId) {
+                const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
+                await deleteDoc(timesheetRef);
+                console.log('[PlantManager] Deleted plant timesheet:', entryId);
+                Alert.alert('Success', 'Plant timesheet deleted');
+                loadPlantTimesheets();
+              } else {
+                const timesheetRef = doc(db, 'operatorTimesheets', entryId);
+                await deleteDoc(timesheetRef);
+                console.log('[PlantManager] Deleted man hours timesheet:', entryId);
+                Alert.alert('Success', 'Man hours timesheet deleted');
+                loadManHoursTimesheets();
+              }
+            } catch (error) {
+              console.error('[PlantManager] Error deleting timesheet:', error);
+              Alert.alert('Error', 'Failed to delete timesheet');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const verifyTimesheet = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
     Alert.alert(
       'Verify Timesheet',
@@ -689,6 +723,12 @@ export default function PlantManagerTimesheetsScreen() {
                             >
                               <CheckCircle2 size={16} color="#fff" />
                             </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId, true)}
+                            >
+                              <Trash2 size={16} color="#fff" />
+                            </TouchableOpacity>
                           </View>
                         )}
                       </View>
@@ -817,6 +857,12 @@ export default function PlantManagerTimesheetsScreen() {
                               onPress={() => verifyTimesheet(entry.id)}
                             >
                               <CheckCircle2 size={16} color="#fff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => deleteTimesheet(entry.id, undefined, false)}
+                            >
+                              <Trash2 size={16} color="#fff" />
                             </TouchableOpacity>
                           </View>
                         )}
@@ -1270,7 +1316,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionsCol: {
-    width: 180,
+    width: 230,
   },
   checkbox: {
     width: 20,
@@ -1316,6 +1362,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: '#ef4444',
+  },
+  deleteButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#dc2626',
   },
 
 });

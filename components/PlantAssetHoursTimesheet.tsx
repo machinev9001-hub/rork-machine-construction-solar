@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Switch
 } from 'react-native';
-import { Clock, FileText, Send, Calendar, CloudRain, AlertCircle, Gauge, Link2, Lock } from 'lucide-react-native';
-import { collection, addDoc, doc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { Clock, FileText, Send, Calendar, CloudRain, AlertCircle, Gauge, Link2, Lock, Trash2 } from 'lucide-react-native';
+import { collection, addDoc, doc, serverTimestamp, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { queueFirestoreOperation } from '@/utils/offlineQueue';
 import NetInfo from '@react-native-community/netinfo';
@@ -195,6 +195,51 @@ export default function PlantAssetHoursTimesheet({
     }
 
     return true;
+  };
+
+  const handleDeleteTimesheet = async () => {
+    Alert.alert(
+      'Delete Timesheet',
+      'Are you sure you want to delete today\'s timesheet? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const assetDocRef = doc(db, 'plantAssets', plantAssetDocId);
+              const timesheetsQuery = query(
+                collection(assetDocRef, 'timesheets'),
+                where('date', '==', today),
+                where('operatorId', '==', operatorId)
+              );
+              
+              const snapshot = await getDocs(timesheetsQuery);
+              
+              if (!snapshot.empty) {
+                const timesheetDocId = snapshot.docs[0].id;
+                await deleteDoc(doc(db, 'plantAssets', plantAssetDocId, 'timesheets', timesheetDocId));
+                console.log('[PlantAssetHoursTimesheet] Deleted timesheet:', timesheetDocId);
+                
+                Alert.alert('Success', 'Timesheet deleted successfully');
+                
+                // Clear form and reset state
+                clearForm();
+                setHasSubmittedToday(false);
+                setIsLocked(false);
+              } else {
+                Alert.alert('Error', 'No timesheet found to delete');
+              }
+            } catch (error) {
+              console.error('[PlantAssetHoursTimesheet] Error deleting timesheet:', error);
+              Alert.alert('Error', 'Failed to delete timesheet');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSubmitTimesheet = async () => {
@@ -604,20 +649,30 @@ export default function PlantAssetHoursTimesheet({
         )}
         
         {hasSubmittedToday && !isLocked && (
-          <TouchableOpacity
-            style={[styles.updateButton, isSubmitting && styles.submitButtonDisabled]}
-            onPress={handleSubmitTimesheet}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Send size={20} color="#fff" />
-                <Text style={styles.submitButtonText}>Update Plant Hours</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.updateButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleSubmitTimesheet}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Send size={20} color="#fff" />
+                  <Text style={styles.submitButtonText}>Update Plant Hours</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButtonMain}
+              onPress={handleDeleteTimesheet}
+              disabled={isSubmitting}
+            >
+              <Trash2 size={20} color="#fff" />
+              <Text style={styles.deleteButtonText}>Delete Timesheet</Text>
+            </TouchableOpacity>
+          </>
         )}
         
         {isLocked && (
@@ -985,6 +1040,21 @@ const styles = StyleSheet.create({
   },
   lockedButtonText: {
     color: '#dc2626',
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  deleteButtonMain: {
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600' as const,
   },

@@ -1,0 +1,15 @@
+{
+  "ignore_dirs": [
+    "node_modules",
+    ".git",
+    ".expo",
+    "dist",
+    "web-build",
+    "coverage",
+    "__tests__/coverage",
+    "jest-results",
+    ".cache",
+    "docs"
+  ],
+  "settle": 2000
+}

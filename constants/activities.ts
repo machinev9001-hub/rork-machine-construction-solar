@@ -1,0 +1,235 @@
+import { ActivityModuleConfig } from '@/types';
+
+export type ActivityItem = {
+  id: string;
+  name: string;
+  unit?: string;
+  scopePolicy?: 'NORMAL' | 'NONE';
+  cablingHandoff?: {
+    targetModule: 'mv-cable' | 'dc-cable' | 'lv-cable';
+  };
+  terminationHandoff?: {
+    targetModule: 'dc-terminations' | 'lv-terminations';
+  };
+  drillingHandoff?: boolean;
+  surveyorHandoff?: boolean;
+  moduleConfig?: ActivityModuleConfig;
+};
+
+export const mainMenuItems = [
+  { id: 'trenching', name: 'Trenching' },
+  { id: 'cabling', name: 'Cabling' },
+  { id: 'terminations', name: 'Terminations' },
+  { id: 'inverters', name: 'Inverters' },
+  { id: 'drilling', name: 'Drilling' },
+  { id: 'mechanical', name: 'Mechanical' },
+  { id: 'commissioning', name: 'Commissioning' },
+] as const;
+
+export const subMenuActivities: Record<string, ActivityItem[]> = {
+  'mv-cable-trench': [
+    { id: 'excavation', name: 'EXCAVATION' },
+    { id: 'cleaning', name: 'CLEANING' },
+    { id: 'first-layer-bedding-sand', name: '1ST LAYER BEDDING SAND' },
+    { id: 'mv-cable-laying', name: 'MV CABLE LAYING', scopePolicy: 'NONE', cablingHandoff: { targetModule: 'mv-cable' } },
+    { id: 'overbed-layer-sand', name: 'OVERBED LAYER SAND' },
+    { id: 'backfill', name: 'BACKFILL' },
+    { id: 'danger-tape', name: 'DANGER TAPE' },
+    { id: 'final-backfill', name: 'FINAL BACKFILL' },
+    { id: 'compaction', name: 'COMPACTION' },
+    { id: 'cable-markers', name: 'CABLE MARKERS' },
+  ],
+  'dc-cable-trench': [
+    { id: 'excavation', name: 'EXCAVATION' },
+    { id: 'cleaning', name: 'CLEANING' },
+    { id: 'first-layer-bedding-sand', name: '1ST LAYER BEDDING SAND' },
+    { id: 'dc-cable-laying', name: 'DC CABLE LAYING', scopePolicy: 'NONE', cablingHandoff: { targetModule: 'dc-cable' } },
+    { id: 'overbed-layer-sand', name: 'OVERBED LAYER SAND' },
+    { id: 'backfill', name: 'BACKFILL' },
+    { id: 'danger-tape', name: 'DANGER TAPE' },
+    { id: 'final-backfill', name: 'FINAL BACKFILL' },
+    { id: 'compaction', name: 'COMPACTION' },
+    { id: 'cable-markers', name: 'CABLE MARKERS' },
+  ],
+  'lv-cable-trench': [
+    { id: 'excavation', name: 'EXCAVATION' },
+    { id: 'cleaning', name: 'CLEANING' },
+    { id: 'first-layer-bedding-sand', name: '1ST LAYER BEDDING SAND' },
+    { id: 'lv-cable-laying', name: 'LV CABLE LAYING', scopePolicy: 'NONE', cablingHandoff: { targetModule: 'lv-cable' } },
+    { id: 'overbed-layer-sand', name: 'OVERBED LAYER SAND' },
+    { id: 'backfill', name: 'BACKFILL' },
+    { id: 'danger-tape', name: 'DANGER TAPE' },
+    { id: 'final-backfill', name: 'FINAL BACKFILL' },
+    { id: 'compaction', name: 'COMPACTION' },
+    { id: 'cable-markers', name: 'CABLE MARKERS' },
+  ],
+  'road-crossings': [
+    { id: 'excavation', name: 'EXCAVATION' },
+    { id: 'cleaning', name: 'CLEANING' },
+    { id: 'pipe-laying', name: 'PIPE LAYING' },
+    { id: 'cable-pulling', name: 'CABLE PULLING' },
+    { id: 'grouting', name: 'GROUTING' },
+    { id: 'backfilling', name: 'BACKFILLING' },
+    { id: 'compaction', name: 'COMPACTION' },
+    { id: 'road-surface-restoration', name: 'ROAD SURFACE RESTORATION' },
+  ],
+  'mv-cable': [
+    { id: 'cable-preparation', name: 'CABLE PREPARATION' },
+    { id: 'cable-laying', name: 'CABLE LAYING' },
+    { id: 'cable-jointing', name: 'CABLE JOINTING' },
+    { id: 'cable-testing', name: 'CABLE TESTING' },
+    { id: 'cable-termination', name: 'CABLE TERMINATION', scopePolicy: 'NONE', terminationHandoff: { targetModule: 'lv-terminations' } },
+    { id: 'cable-tagging', name: 'CABLE TAGGING' },
+  ],
+  'dc-cable': [
+    { id: 'cable-preparation', name: 'CABLE PREPARATION' },
+    { id: 'cable-laying', name: 'CABLE LAYING' },
+    { id: 'cable-termination-mc4', name: 'CABLE TERMINATION (MC4)', scopePolicy: 'NONE', terminationHandoff: { targetModule: 'dc-terminations' } },
+    { id: 'cable-testing', name: 'CABLE TESTING' },
+    { id: 'cable-tagging', name: 'CABLE TAGGING' },
+    { id: 'polarity-check', name: 'POLARITY CHECK' },
+  ],
+  'lv-cable': [
+    { id: 'cable-preparation', name: 'CABLE PREPARATION' },
+    { id: 'cable-laying', name: 'CABLE LAYING' },
+    { id: 'cable-jointing', name: 'CABLE JOINTING' },
+    { id: 'cable-testing', name: 'CABLE TESTING' },
+    { id: 'cable-termination', name: 'CABLE TERMINATION', scopePolicy: 'NONE', terminationHandoff: { targetModule: 'lv-terminations' } },
+    { id: 'cable-tagging', name: 'CABLE TAGGING' },
+  ],
+  'earthing': [
+    { id: 'earth-pit-excavation', name: 'EARTH PIT EXCAVATION' },
+    { id: 'earth-electrode-installation', name: 'EARTH ELECTRODE INSTALLATION' },
+    { id: 'earthing-conductor-laying', name: 'EARTHING CONDUCTOR LAYING' },
+    { id: 'earth-pit-backfilling', name: 'EARTH PIT BACKFILLING' },
+    { id: 'earth-resistance-testing', name: 'EARTH RESISTANCE TESTING' },
+    { id: 'earthing-bonding', name: 'EARTHING BONDING' },
+    { id: 'earthing-tagging', name: 'EARTHING TAGGING' },
+  ],
+  'dc-terminations': [
+    { id: 'dc-stringing-mc4-terminations', name: 'DC STRINGING & MC4\'S TERMINATIONS' },
+    { id: 'interconnecting-modules', name: 'INTERCONNECTING MODULES' },
+    { id: 'dc-termination-at-inverter', name: 'DC TERMINATION AT INVERTER' },
+    { id: 'cable-tagging', name: 'CABLE TAGGING' },
+  ],
+  'lv-terminations': [
+    { id: 'sts-terminations', name: 'STS TERMINATIONS' },
+    { id: 'inverter-terminations', name: 'INVERTER TERMINATIONS' },
+  ],
+  'mv-terminations': [
+    { id: 'sts-terminations', name: 'STS TERMINATIONS' },
+    { id: 'joints-terminations', name: 'JOINTS TERMINATIONS' },
+  ],
+  'inverter-stations': [
+    { id: 'foundation-preparation', name: 'FOUNDATION PREPARATION' },
+    { id: 'inverter-mounting', name: 'INVERTER MOUNTING' },
+    { id: 'dc-cable-termination', name: 'DC CABLE TERMINATION' },
+    { id: 'ac-cable-termination', name: 'AC CABLE TERMINATION' },
+    { id: 'earthing-connection', name: 'EARTHING CONNECTION' },
+    { id: 'communication-cable', name: 'COMMUNICATION CABLE' },
+    { id: 'inverter-testing', name: 'INVERTER TESTING' },
+    { id: 'commissioning', name: 'COMMISSIONING' },
+  ],
+  'inverter-installations': [
+    { id: 'site-preparation', name: 'SITE PREPARATION' },
+    { id: 'inverter-positioning', name: 'INVERTER POSITIONING' },
+    { id: 'dc-input-wiring', name: 'DC INPUT WIRING' },
+    { id: 'ac-output-wiring', name: 'AC OUTPUT WIRING' },
+    { id: 'grounding-installation', name: 'GROUNDING INSTALLATION' },
+    { id: 'control-wiring', name: 'CONTROL WIRING' },
+    { id: 'functional-testing', name: 'FUNCTIONAL TESTING' },
+    { id: 'commissioning', name: 'COMMISSIONING' },
+  ],
+  'pile-drilling': [
+    { id: 'site-marking', name: 'SITE MARKING' },
+    { id: 'drill-setup', name: 'DRILL SETUP' },
+    { id: 'pilot-hole-drilling', name: 'PILOT HOLE DRILLING' },
+    { id: 'pile-hole-drilling', name: 'PILE HOLE DRILLING' },
+    { id: 'depth-verification', name: 'DEPTH VERIFICATION' },
+    { id: 'hole-cleaning', name: 'HOLE CLEANING' },
+    { id: 'pile-installation', name: 'PILE INSTALLATION' },
+    { id: 'grouting', name: 'GROUTING' },
+  ],
+  'foundation-drilling': [
+    { id: 'site-marking', name: 'SITE MARKING' },
+    { id: 'excavation', name: 'EXCAVATION' },
+    { id: 'foundation-drilling', name: 'FOUNDATION DRILLING' },
+    { id: 'depth-verification', name: 'DEPTH VERIFICATION' },
+    { id: 'rebar-installation', name: 'REBAR INSTALLATION' },
+    { id: 'concrete-pouring', name: 'CONCRETE POURING' },
+    { id: 'curing', name: 'CURING' },
+    { id: 'final-inspection', name: 'FINAL INSPECTION' },
+  ],
+  'cable-drilling': [
+    { id: 'bore-path-marking', name: 'BORE PATH MARKING' },
+    { id: 'drilling-machine-setup', name: 'DRILLING MACHINE SETUP' },
+    { id: 'pilot-drilling', name: 'PILOT DRILLING' },
+    { id: 'hole-reaming', name: 'HOLE REAMING' },
+    { id: 'conduit-installation', name: 'CONDUIT INSTALLATION' },
+    { id: 'cable-pulling', name: 'CABLE PULLING' },
+    { id: 'grouting', name: 'GROUTING' },
+    { id: 'testing', name: 'TESTING' },
+  ],
+  'foundation': [
+    { id: 'backfill', name: 'Backfill' },
+    { id: 'pilling', name: 'Pilling' },
+    { id: 'concrete-cap', name: 'Concrete Cap' },
+  ],
+  'torque-tightening': [
+    { id: 'torquing', name: 'TORQUING' },
+  ],
+  'module-installation': [
+    { id: 'module-installations', name: 'MODULE INSTALLATIONS' },
+  ],
+  'tracker-assembly': [
+    { id: 'foundation-inspection', name: 'FOUNDATION INSPECTION' },
+    { id: 'bearing-assembly', name: 'BEARING ASSEMBLY' },
+    { id: 'torque-tube-installation', name: 'TORQUE TUBE INSTALLATION' },
+    { id: 'purlin-mounting', name: 'PURLIN MOUNTING' },
+    { id: 'motor-installation', name: 'MOTOR INSTALLATION' },
+    { id: 'controller-mounting', name: 'CONTROLLER MOUNTING' },
+    { id: 'drive-system-assembly', name: 'DRIVE SYSTEM ASSEMBLY' },
+    { id: 'tracker-alignment', name: 'TRACKER ALIGNMENT' },
+    { id: 'mechanical-testing', name: 'MECHANICAL TESTING' },
+    { id: 'limit-switch-calibration', name: 'LIMIT SWITCH CALIBRATION' },
+    { id: 'motor-wiring', name: 'MOTOR WIRING' },
+    { id: 'controller-wiring', name: 'CONTROLLER WIRING' },
+    { id: 'commissioning-test', name: 'COMMISSIONING TEST' },
+    { id: 'final-inspection', name: 'FINAL INSPECTION' },
+  ],
+  'functional-testing': [
+    { id: 'system-pre-check', name: 'SYSTEM PRE-CHECK', unit: 'Units' },
+    { id: 'inverter-startup', name: 'INVERTER STARTUP', unit: 'Units' },
+    { id: 'string-voltage-check', name: 'STRING VOLTAGE CHECK', unit: 'Units' },
+    { id: 'polarity-verification', name: 'POLARITY VERIFICATION', unit: 'Units' },
+    { id: 'grid-synchronization', name: 'GRID SYNCHRONIZATION', unit: 'Units' },
+    { id: 'power-output-test', name: 'POWER OUTPUT TEST', unit: 'Units' },
+    { id: 'monitoring-system-check', name: 'MONITORING SYSTEM CHECK', unit: 'Units' },
+    { id: 'tracker-operation-test', name: 'TRACKER OPERATION TEST', unit: 'Units' },
+    { id: 'emergency-shutdown-test', name: 'EMERGENCY SHUTDOWN TEST', unit: 'Units' },
+    { id: 'functional-test-report', name: 'FUNCTIONAL TEST REPORT', unit: 'Units' },
+  ],
+  'performance-testing': [
+    { id: 'irradiance-measurement', name: 'IRRADIANCE MEASUREMENT', unit: 'Units' },
+    { id: 'module-temperature-check', name: 'MODULE TEMPERATURE CHECK', unit: 'Units' },
+    { id: 'power-curve-analysis', name: 'POWER CURVE ANALYSIS', unit: 'Units' },
+    { id: 'efficiency-calculation', name: 'EFFICIENCY CALCULATION', unit: 'Units' },
+    { id: 'performance-ratio-test', name: 'PERFORMANCE RATIO TEST', unit: 'Units' },
+    { id: 'load-test', name: 'LOAD TEST', unit: 'Units' },
+    { id: 'degradation-assessment', name: 'DEGRADATION ASSESSMENT', unit: 'Units' },
+    { id: 'data-logging-verification', name: 'DATA LOGGING VERIFICATION', unit: 'Units' },
+    { id: 'performance-test-report', name: 'PERFORMANCE TEST REPORT', unit: 'Units' },
+  ],
+  'safety-compliance': [
+    { id: 'electrical-safety-test', name: 'ELECTRICAL SAFETY TEST', unit: 'Units' },
+    { id: 'earthing-resistance-test', name: 'EARTHING RESISTANCE TEST', unit: 'Units' },
+    { id: 'insulation-resistance-test', name: 'INSULATION RESISTANCE TEST', unit: 'Units' },
+    { id: 'arc-flash-assessment', name: 'ARC FLASH ASSESSMENT', unit: 'Units' },
+    { id: 'fire-safety-inspection', name: 'FIRE SAFETY INSPECTION', unit: 'Units' },
+    { id: 'structural-safety-check', name: 'STRUCTURAL SAFETY CHECK', unit: 'Units' },
+    { id: 'environmental-compliance', name: 'ENVIRONMENTAL COMPLIANCE', unit: 'Units' },
+    { id: 'ppe-verification', name: 'PPE VERIFICATION', unit: 'Units' },
+    { id: 'safety-signage-check', name: 'SAFETY SIGNAGE CHECK', unit: 'Units' },
+    { id: 'compliance-documentation', name: 'COMPLIANCE DOCUMENTATION', unit: 'Units' },
+  ],
+};

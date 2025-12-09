@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Index Setup - Rork App</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a73e8;
+            margin: 0 0 10px 0;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .instructions h2 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .index-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .index-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        .index-number {
+            display: inline-block;
+            background: #1a73e8;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .field-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            gap: 15px;
+        }
+        .field-label {
+            min-width: 40px;
+            font-weight: 600;
+            color: #666;
+        }
+        .field-value {
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex: 1;
+            border: 1px solid #ddd;
+        }
+        .field-order {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 100px;
+            text-align: center;
+        }
+        .collection-name {
+            color: #1a73e8;
+            font-weight: 600;
+        }
+        .copy-btn {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #1557b0;
+        }
+        .firebase-link {
+            display: inline-block;
+            background: #ea4335;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .firebase-link:hover {
+            background: #c5221f;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔥 Firebase Composite Indexes Setup</h1>
+        <p>Project: <strong>Rork App</strong> | Total Indexes: <strong>25</strong></p>
+    </div>
+
+    <div class="instructions">
+        <h2>📋 Quick Setup Instructions</h2>
+        <ol>
+            <li><strong>Open Firebase Console:</strong> Click the button below to open your Firestore Database</li>
+            <li><strong>Go to Indexes Tab:</strong> In Firestore, click on "Indexes" (next to "Data" tab)</li>
+            <li><strong>Create Composite Index:</strong> Click "Create Index" button</li>
+            <li><strong>Copy Values:</strong> For each index below, copy the collection name and field paths exactly as shown</li>
+            <li><strong>Select Order:</strong> Choose ASCENDING or DESCENDING for each field as indicated</li>
+            <li><strong>Click CREATE:</strong> Firebase will build the index (may take a few minutes)</li>
+            <li><strong>Repeat:</strong> Create all 25 indexes one by one</li>
+        </ol>
+        <a href="https://console.firebase.google.com/project/rork-app-v2/firestore/indexes" target="_blank" class="firebase-link">
+            🚀 Open Firebase Console
+        </a>
+        <div class="warning">
+            ⚠️ <strong>Important:</strong> Copy values exactly as shown. Typos will cause queries to fail!
+        </div>
+    </div>
+
+    <!-- INDEX 1 -->
+    <div class="index-card">
+        <h3><span class="index-number">1/25</span> tasks - subActivity + taskId</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">subActivity</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('subActivity')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 2 -->
+    <div class="index-card">
+        <h3><span class="index-number">2/25</span> tasks - activity + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">activity</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('activity')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 3 -->
+    <div class="index-card">
+        <h3><span class="index-number">3/25</span> tasks - supervisorId + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">supervisorId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('supervisorId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 4 -->
+    <div class="index-card">
+        <h3><span class="index-number">4/25</span> activities - taskId + activityId</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">activityId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('activityId')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 5 -->
+    <div class="index-card">
+        <h3><span class="index-number">5/25</span> activities - taskId + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 6 -->
+    <div class="index-card">
+        <h3><span class="index-number">6/25</span> activities - taskId + updatedAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">updatedAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('updatedAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 7 -->
+    <div class="index-card">
+        <h3><span class="index-number">7/25</span> requests - type + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 8 -->
+    <div class="index-card">
+        <h3><span class="index-number">8/25</span> requests - requestedBy + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">requestedBy</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('requestedBy')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 9 -->
+    <div class="index-card">
+        <h3><span class="index-number">9/25</span> requests - taskId + activityId + type</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">activityId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('activityId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 10 -->
+    <div class="index-card">
+        <h3><span class="index-number">10/25</span> requests - targetModule + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">targetModule</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('targetModule')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 11 -->
+    <div class="index-card">
+        <h3><span class="index-number">11/25</span> requests - type + siteId</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 12 -->
+    <div class="index-card">
+        <h3><span class="index-number">12/25</span> activities - scopeRequested + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">scopeRequested</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('scopeRequested')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 13 -->
+    <div class="index-card">
+        <h3><span class="index-number">13/25</span> activities - qcRequested + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">qcRequested</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('qcRequested')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 14 -->
+    <div class="index-card">
+        <h3><span class="index-number">14/25</span> activities - cablingRequested + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">activities</div>
+                <button class="copy-btn" onclick="copyText('activities')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">cablingRequested</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('cablingRequested')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 15 -->
+    <div class="index-card">
+        <h3><span class="index-number">15/25</span> tasks - subActivity + supervisorId</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">subActivity</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('subActivity')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">supervisorId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('supervisorId')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 16 -->
+    <div class="index-card">
+        <h3><span class="index-number">16/25</span> requests - type + taskId + activityId + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">taskId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('taskId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">activityId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('activityId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 4:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 17 -->
+    <div class="index-card">
+        <h3><span class="index-number">17/25</span> users - role + isActive</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">users</div>
+                <button class="copy-btn" onclick="copyText('users')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">role</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('role')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">isActive</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('isActive')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 18 -->
+    <div class="index-card">
+        <h3><span class="index-number">18/25</span> users - createdBy + role</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">users</div>
+                <button class="copy-btn" onclick="copyText('users')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">createdBy</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdBy')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">role</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('role')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 19 -->
+    <div class="index-card">
+        <h3><span class="index-number">19/25</span> requests - siteId + type</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 20 -->
+    <div class="index-card">
+        <h3><span class="index-number">20/25</span> requests - siteId + type + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">type</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('type')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 21 -->
+    <div class="index-card">
+        <h3><span class="index-number">21/25</span> requests - siteId + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 22 -->
+    <div class="index-card">
+        <h3><span class="index-number">22/25</span> requests - siteId + targetModule + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">requests</div>
+                <button class="copy-btn" onclick="copyText('requests')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">targetModule</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('targetModule')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 23 -->
+    <div class="index-card">
+        <h3><span class="index-number">23/25</span> tasks - siteId + status + createdAt</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">createdAt</div>
+                <div class="field-order">DESCENDING</div>
+                <button class="copy-btn" onclick="copyText('createdAt')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 24 -->
+    <div class="index-card">
+        <h3><span class="index-number">24/25</span> tasks - siteId + supervisorId + status</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">tasks</div>
+                <button class="copy-btn" onclick="copyText('tasks')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">supervisorId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('supervisorId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">status</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('status')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INDEX 25 -->
+    <div class="index-card">
+        <h3><span class="index-number">25/25</span> users - siteId + role + isActive</h3>
+        <div class="field-group">
+            <div class="field-row">
+                <div class="field-label">Collection:</div>
+                <div class="field-value collection-name">users</div>
+                <button class="copy-btn" onclick="copyText('users')">Copy</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 10px 0;">
+            <div class="field-row">
+                <div class="field-label">Field 1:</div>
+                <div class="field-value">siteId</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('siteId')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 2:</div>
+                <div class="field-value">role</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('role')">Copy</button>
+            </div>
+            <div class="field-row">
+                <div class="field-label">Field 3:</div>
+                <div class="field-value">isActive</div>
+                <div class="field-order">ASCENDING</div>
+                <button class="copy-btn" onclick="copyText('isActive')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions" style="margin-top: 30px;">
+        <h2>✅ After You Finish</h2>
+        <p>Once all 25 indexes are created in Firebase Console:</p>
+        <ol>
+            <li>They will show "Building" status initially</li>
+            <li>Wait for all to show "Enabled" status (usually 5-10 minutes)</li>
+            <li>Test your app - all queries should work without errors</li>
+            <li>Check Firebase Console logs for any remaining index errors</li>
+        </ol>
+    </div>
+
+    <script>
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#34a853';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#1a73e8';
+                }, 2000);
+            }).catch(err => {
+                alert('Failed to copy: ' + err);
+            });
+        }
+    </script>
+</body>
+</html>

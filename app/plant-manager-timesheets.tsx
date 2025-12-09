@@ -172,8 +172,7 @@ export default function PlantManagerTimesheetsScreen() {
 
         const timesheetsSnapshot = await getDocs(timesheetsQuery);
         const allTimesheets = timesheetsSnapshot.docs
-          .map(doc => ({ id: doc.id, plantAssetDocId: asset.id, ...doc.data() } as TimesheetEntry))
-          .filter(t => !t.verified);
+          .map(doc => ({ id: doc.id, plantAssetDocId: asset.id, ...doc.data() } as TimesheetEntry));
 
         const originalTimesheets = allTimesheets.filter(t => !t.isAdjustment);
 
@@ -225,8 +224,7 @@ export default function PlantManagerTimesheetsScreen() {
 
       const snapshot = await getDocs(timesheetsQuery);
       const allTimesheets = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as ManHoursEntry))
-        .filter(t => !t.verified);
+        .map(doc => ({ id: doc.id, ...doc.data() } as ManHoursEntry));
 
       const originalTimesheets = allTimesheets.filter(t => !t.isAdjustment);
 
@@ -759,7 +757,9 @@ export default function PlantManagerTimesheetsScreen() {
             <Text style={styles.groupWeek}>
               Week: {group.weekStart} to {group.weekEnd}
             </Text>
-            <Text style={styles.groupCount}>{group.timesheets.length} unverified entries</Text>
+            <Text style={styles.groupCount}>
+              {group.timesheets.filter(t => !t.verified).length} unverified / {group.timesheets.length} total
+            </Text>
           </View>
           {isExpanded ? (
             <ChevronUp size={24} color="#64748b" />
@@ -791,21 +791,25 @@ export default function PlantManagerTimesheetsScreen() {
 
                 {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
+                  const isVerified = entry.verified;
                   const uniqueKey = `${entry.plantAssetDocId}-${entry.id}-${idx}`;
-                  const canEdit = isEditMode && isAdjustmentRow;
+                  const canEdit = isEditMode && isAdjustmentRow && !isVerified;
                   const editedData = editedPlantEntries.get(entry.id) || {};
                   const displayOpenHours = editedData.openHours ?? entry.openHours;
                   const displayCloseHours = editedData.closeHours ?? entry.closeHours;
                   const displayTotalHours = editedData.totalHours ?? entry.totalHours;
 
                   return (
-                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment, isVerified && styles.tableRowVerified]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                         </Text>
                         {isAdjustmentRow && (
                           <Text style={styles.adjustmentBadge}>PM EDIT</Text>
+                        )}
+                        {isVerified && (
+                          <Text style={styles.verifiedBadge}>SUBMITTED</Text>
                         )}
                       </View>
                       
@@ -896,12 +900,14 @@ export default function PlantManagerTimesheetsScreen() {
 
                       <View style={[styles.tableCell, styles.actionsCol]}>
                         <View style={styles.actionButtons}>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId, true)}
-                          >
-                            <Trash2 size={16} color="#fff" />
-                          </TouchableOpacity>
+                          {!isVerified && (
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId, true)}
+                            >
+                              <Trash2 size={16} color="#fff" />
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     </View>
@@ -931,7 +937,9 @@ export default function PlantManagerTimesheetsScreen() {
             <Text style={styles.groupWeek}>
               Week: {group.weekStart} to {group.weekEnd}
             </Text>
-            <Text style={styles.groupCount}>{group.timesheets.length} unverified entries</Text>
+            <Text style={styles.groupCount}>
+              {group.timesheets.filter(t => !t.verified).length} unverified / {group.timesheets.length} total
+            </Text>
           </View>
           {isExpanded ? (
             <ChevronUp size={24} color="#64748b" />
@@ -956,8 +964,9 @@ export default function PlantManagerTimesheetsScreen() {
 
                 {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
+                  const isVerified = entry.verified;
                   const uniqueKey = `${group.operatorId}-${entry.id}-${idx}`;
-                  const canEdit = isEditMode && isAdjustmentRow;
+                  const canEdit = isEditMode && isAdjustmentRow && !isVerified;
                   const editedData = editedManEntries.get(entry.id) || {};
                   const displayStartTime = editedData.startTime ?? entry.startTime;
                   const displayStopTime = editedData.stopTime ?? entry.stopTime;
@@ -966,13 +975,16 @@ export default function PlantManagerTimesheetsScreen() {
                   const displayOvertimeHours = editedData.overtimeHours ?? entry.overtimeHours;
 
                   return (
-                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment, isVerified && styles.tableRowVerified]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                         </Text>
                         {isAdjustmentRow && (
                           <Text style={styles.adjustmentBadge}>PM EDIT</Text>
+                        )}
+                        {isVerified && (
+                          <Text style={styles.verifiedBadge}>SUBMITTED</Text>
                         )}
                       </View>
                       
@@ -1030,12 +1042,14 @@ export default function PlantManagerTimesheetsScreen() {
 
                       <View style={[styles.tableCell, styles.actionsCol]}>
                         <View style={styles.actionButtons}>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => deleteTimesheet(entry.id, undefined, false)}
-                          >
-                            <Trash2 size={16} color="#fff" />
-                          </TouchableOpacity>
+                          {!isVerified && (
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => deleteTimesheet(entry.id, undefined, false)}
+                            >
+                              <Trash2 size={16} color="#fff" />
+                            </TouchableOpacity>
+                          )}
                         </View>
                       </View>
                     </View>
@@ -1477,6 +1491,10 @@ const styles = StyleSheet.create({
   tableRowAdjustment: {
     backgroundColor: '#dbeafe',
   },
+  tableRowVerified: {
+    backgroundColor: '#f0fdf4',
+    opacity: 0.7,
+  },
   tableCell: {
     fontSize: 13,
     color: '#475569',
@@ -1491,6 +1509,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1d4ed8',
     backgroundColor: '#dbeafe',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  verifiedBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#15803d',
+    backgroundColor: '#bbf7d0',
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,

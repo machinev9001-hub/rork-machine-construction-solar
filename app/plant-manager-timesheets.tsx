@@ -285,6 +285,100 @@ export default function PlantManagerTimesheetsScreen() {
     });
   };
 
+  const createAdjustmentForEntry = async (originalEntry: TimesheetEntry | ManHoursEntry, isPlant: boolean) => {
+    console.log('[createAdjustment] Creating adjustment for:', originalEntry.id);
+    
+    if (isPlant) {
+      const plantEntry = originalEntry as TimesheetEntry;
+      if (!plantEntry.plantAssetDocId) return;
+      
+      const adjustmentData = {
+        ...plantEntry,
+        isAdjustment: true,
+        originalEntryId: plantEntry.id,
+        adjustedBy: user?.name || user?.userId,
+        adjustedAt: new Date().toISOString(),
+        verified: false,
+      };
+      delete (adjustmentData as any).id;
+      delete (adjustmentData as any).plantAssetDocId;
+      
+      const adjustmentRef = await addDoc(
+        collection(db, 'plantAssets', plantEntry.plantAssetDocId, 'timesheets'),
+        adjustmentData
+      );
+      
+      await updateDoc(
+        doc(db, 'plantAssets', plantEntry.plantAssetDocId, 'timesheets', plantEntry.id),
+        {
+          hasAdjustment: true,
+          adjustmentId: adjustmentRef.id,
+        }
+      );
+      
+      console.log('[createAdjustment] ✅ Created adjustment:', adjustmentRef.id);
+    } else {
+      const manEntry = originalEntry as ManHoursEntry;
+      
+      const adjustmentData = {
+        ...manEntry,
+        isAdjustment: true,
+        originalEntryId: manEntry.id,
+        adjustedBy: user?.name || user?.userId,
+        adjustedAt: new Date().toISOString(),
+        verified: false,
+      };
+      delete (adjustmentData as any).id;
+      
+      const adjustmentRef = await addDoc(
+        collection(db, 'operatorTimesheets'),
+        adjustmentData
+      );
+      
+      await updateDoc(
+        doc(db, 'operatorTimesheets', manEntry.id),
+        {
+          hasAdjustment: true,
+          adjustmentId: adjustmentRef.id,
+        }
+      );
+      
+      console.log('[createAdjustment] ✅ Created adjustment:', adjustmentRef.id);
+    }
+  };
+
+  const handleEnterEditMode = async () => {
+    console.log('[handleEnterEditMode] Creating adjustment entries...');
+    setIsEditMode(true);
+    
+    try {
+      if (activeTab === 'plant') {
+        for (const group of plantTimesheetGroups) {
+          for (const entry of group.timesheets) {
+            if (!entry.isAdjustment && !entry.hasAdjustment) {
+              await createAdjustmentForEntry(entry, true);
+            }
+          }
+        }
+        await loadPlantTimesheets();
+      } else {
+        for (const group of manHoursGroups) {
+          for (const entry of group.timesheets) {
+            if (!entry.isAdjustment && !entry.hasAdjustment) {
+              await createAdjustmentForEntry(entry, false);
+            }
+          }
+        }
+        await loadManHoursTimesheets();
+      }
+      console.log('[handleEnterEditMode] ✅ All adjustment entries created');
+    } catch (error) {
+      console.error('[handleEnterEditMode] ❌ Error creating adjustments:', error);
+      Alert.alert('Error', 'Failed to enter edit mode');
+      setIsEditMode(false);
+    }
+  };
+
   const handleSave = async () => {
     const hasEdits = activeTab === 'plant' 
       ? editedPlantEntries.size > 0 
@@ -1076,7 +1170,7 @@ export default function PlantManagerTimesheetsScreen() {
               setEditedPlantEntries(new Map());
               setEditedManEntries(new Map());
             } else {
-              setIsEditMode(true);
+              handleEnterEditMode();
             }
           }}
         >

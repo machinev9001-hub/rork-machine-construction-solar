@@ -373,21 +373,39 @@ export default function PlantManagerTimesheetsScreen() {
           onPress: async () => {
             try {
               if (isPlantTab && plantAssetDocId) {
+                const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
+                const entry = group?.timesheets.find(t => t.id === entryId);
+                
+                if (entry?.hasAdjustment && entry.adjustmentId) {
+                  const adjustmentRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entry.adjustmentId);
+                  await deleteDoc(adjustmentRef);
+                  console.log('[PlantManager] Deleted adjustment:', entry.adjustmentId);
+                }
+                
                 const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
                 await deleteDoc(timesheetRef);
                 console.log('[PlantManager] Deleted plant timesheet:', entryId);
                 Alert.alert('Success', 'Plant timesheet deleted');
-                loadPlantTimesheets();
+                await loadPlantTimesheets();
               } else {
+                const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
+                const entry = group?.timesheets.find(t => t.id === entryId);
+                
+                if (entry?.hasAdjustment && entry.adjustmentId) {
+                  const adjustmentRef = doc(db, 'operatorTimesheets', entry.adjustmentId);
+                  await deleteDoc(adjustmentRef);
+                  console.log('[PlantManager] Deleted adjustment:', entry.adjustmentId);
+                }
+                
                 const timesheetRef = doc(db, 'operatorTimesheets', entryId);
                 await deleteDoc(timesheetRef);
                 console.log('[PlantManager] Deleted man hours timesheet:', entryId);
                 Alert.alert('Success', 'Man hours timesheet deleted');
-                loadManHoursTimesheets();
+                await loadManHoursTimesheets();
               }
             } catch (error) {
               console.error('[PlantManager] Error deleting timesheet:', error);
-              Alert.alert('Error', 'Failed to delete timesheet');
+              Alert.alert('Error', `Failed to delete timesheet: ${error}`);
             }
           },
         },

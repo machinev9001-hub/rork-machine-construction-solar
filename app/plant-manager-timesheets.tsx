@@ -271,15 +271,9 @@ export default function PlantManagerTimesheetsScreen() {
       if (activeTab === 'plant' && plantAssetDocId) {
         const originalTimesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
         
-        // Check if this entry already has an adjustment
-        const originalSnapshot = await getDocs(
-          query(
-            collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
-            where('__name__', '==', entryId)
-          )
-        );
-        const originalData = originalSnapshot.docs[0]?.data();
-        const existingAdjustmentId = originalData?.adjustmentId;
+        const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
+        const originalEntry = group?.timesheets.find(t => t.id === entryId);
+        const existingAdjustmentId = originalEntry?.adjustmentId;
 
         const adjustmentEntry = {
           ...editedValues,
@@ -314,15 +308,9 @@ export default function PlantManagerTimesheetsScreen() {
       } else if (activeTab === 'man') {
         const originalTimesheetRef = doc(db, 'operatorTimesheets', entryId);
 
-        // Check if this entry already has an adjustment
-        const originalSnapshot = await getDocs(
-          query(
-            collection(db, 'operatorTimesheets'),
-            where('__name__', '==', entryId)
-          )
-        );
-        const originalData = originalSnapshot.docs[0]?.data();
-        const existingAdjustmentId = originalData?.adjustmentId;
+        const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
+        const originalEntry = group?.timesheets.find(t => t.id === entryId);
+        const existingAdjustmentId = originalEntry?.adjustmentId;
 
         const adjustmentEntry = {
           ...editedValues,

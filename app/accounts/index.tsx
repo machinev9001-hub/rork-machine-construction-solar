@@ -192,14 +192,6 @@ export default function AccountsIndexScreen() {
     }
   };
 
-  const handleAssetPress = (assetId: string) => {
-    console.log('[Accounts] Asset pressed:', assetId);
-  };
-
-  const handleWorkerPress = (workerId: string) => {
-    console.log('[Accounts] Worker pressed:', workerId);
-  };
-
   const handleDownloadJob = (jobId: string) => {
     console.log('[Accounts] Download job:', jobId);
     const job = jobs.find((j) => j.id === jobId);
@@ -294,13 +286,8 @@ export default function AccountsIndexScreen() {
 
       {activeTab === 'assets' && (
         <PlantAssetsTimesheetsTab
-          assets={[]}
-          workers={[]}
-          loading={false}
           filters={filters}
           onFiltersChange={setFilters}
-          onAssetPress={handleAssetPress}
-          onWorkerPress={handleWorkerPress}
           onExport={handleExport}
         />
       )}

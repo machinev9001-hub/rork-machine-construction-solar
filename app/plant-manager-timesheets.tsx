@@ -95,8 +95,9 @@ export default function PlantManagerTimesheetsScreen() {
   const [plantTimesheetGroups, setPlantTimesheetGroups] = useState<PlantTimesheetGroup[]>([]);
   const [manHoursGroups, setManHoursGroups] = useState<ManHoursGroup[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [editingEntry, setEditingEntry] = useState<string | null>(null);
-  const [editedValues, setEditedValues] = useState<any>({});
+  const [editMode, setEditMode] = useState(false);
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [editedEntries, setEditedEntries] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadSubcontractors();
@@ -286,14 +287,33 @@ export default function PlantManagerTimesheetsScreen() {
     });
   };
 
-  const startEditing = (entryId: string, currentValues: any) => {
-    setEditingEntry(entryId);
-    setEditedValues(currentValues);
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
+    setSelectedEntries(new Set());
+    setEditedEntries(new Map());
   };
 
-  const cancelEditing = () => {
-    setEditingEntry(null);
-    setEditedValues({});
+  const toggleEntrySelection = (entryId: string) => {
+    setSelectedEntries(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId);
+        const newMap = new Map(editedEntries);
+        newMap.delete(entryId);
+        setEditedEntries(newMap);
+      } else {
+        newSet.add(entryId);
+      }
+      return newSet;
+    });
+  };
+
+  const updateEntryValue = (entryId: string, values: any) => {
+    setEditedEntries(prev => {
+      const newMap = new Map(prev);
+      newMap.set(entryId, values);
+      return newMap;
+    });
   };
 
   const saveEdit = async (entryId: string, plantAssetDocId?: string) => {

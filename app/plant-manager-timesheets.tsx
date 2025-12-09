@@ -1329,10 +1329,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#ef4444',
   },
-  deleteButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#ef4444',
-  },
+
 });

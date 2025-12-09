@@ -856,15 +856,42 @@ export default function PlantManagerTimesheetsScreen() {
                       </Text>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        <View style={[styles.checkbox, entry.hasAttachment && styles.checkboxChecked]} />
+                        {canEdit ? (
+                          <TouchableOpacity
+                            onPress={() => updatePlantEditedEntry(entry.id, 'hasAttachment', !(editedData.hasAttachment ?? entry.hasAttachment))}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.checkbox, (editedData.hasAttachment ?? entry.hasAttachment) && styles.checkboxChecked]} />
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.checkbox, entry.hasAttachment && styles.checkboxChecked]} />
+                        )}
                       </View>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        <View style={[styles.checkbox, entry.isBreakdown && styles.checkboxChecked]} />
+                        {canEdit ? (
+                          <TouchableOpacity
+                            onPress={() => updatePlantEditedEntry(entry.id, 'isBreakdown', !(editedData.isBreakdown ?? entry.isBreakdown))}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.checkbox, (editedData.isBreakdown ?? entry.isBreakdown) && styles.checkboxChecked]} />
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.checkbox, entry.isBreakdown && styles.checkboxChecked]} />
+                        )}
                       </View>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        <View style={[styles.checkbox, entry.inclementWeather && styles.checkboxChecked]} />
+                        {canEdit ? (
+                          <TouchableOpacity
+                            onPress={() => updatePlantEditedEntry(entry.id, 'inclementWeather', !(editedData.inclementWeather ?? entry.inclementWeather))}
+                            activeOpacity={0.7}
+                          >
+                            <View style={[styles.checkbox, (editedData.inclementWeather ?? entry.inclementWeather) && styles.checkboxChecked]} />
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.checkbox, entry.inclementWeather && styles.checkboxChecked]} />
+                        )}
                       </View>
 
                       <View style={[styles.tableCell, styles.actionsCol]}>

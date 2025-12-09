@@ -12,8 +12,8 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { FileSpreadsheet, ChevronDown, ChevronUp, Check, Calendar, CheckCircle2, X, Wrench, AlertTriangle, CloudRain, Trash2 } from 'lucide-react-native';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
+import { FileSpreadsheet, ChevronDown, ChevronUp, Check, Calendar, CheckCircle2, X, Wrench, AlertTriangle, CloudRain } from 'lucide-react-native';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { HeaderTitleWithSync, StandardHeaderRight } from '@/components/HeaderSyncStatus';
@@ -371,71 +371,7 @@ export default function PlantManagerTimesheetsScreen() {
     }
   };
 
-  const deleteTimesheet = async (entryId: string, plantAssetDocId?: string) => {
-    Alert.alert(
-      'Delete Timesheet',
-      'Are you sure you want to delete this timesheet entry? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (activeTab === 'plant' && plantAssetDocId) {
-                const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
-                
-                const timesheetSnapshot = await getDocs(
-                  query(
-                    collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
-                    where('__name__', '==', entryId)
-                  )
-                );
-                const timesheetData = timesheetSnapshot.docs[0]?.data();
 
-                if (timesheetData?.adjustmentId) {
-                  await deleteDoc(
-                    doc(db, 'plantAssets', plantAssetDocId, 'timesheets', timesheetData.adjustmentId)
-                  );
-                  console.log('[PlantManager] Deleted adjustment:', timesheetData.adjustmentId);
-                }
-
-                await deleteDoc(timesheetRef);
-                console.log('[PlantManager] Deleted timesheet:', entryId);
-
-                Alert.alert('Success', 'Timesheet deleted successfully');
-                loadPlantTimesheets();
-              } else if (activeTab === 'man') {
-                const timesheetSnapshot = await getDocs(
-                  query(
-                    collection(db, 'operatorTimesheets'),
-                    where('__name__', '==', entryId)
-                  )
-                );
-                const timesheetData = timesheetSnapshot.docs[0]?.data();
-
-                if (timesheetData?.adjustmentId) {
-                  await deleteDoc(
-                    doc(db, 'operatorTimesheets', timesheetData.adjustmentId)
-                  );
-                  console.log('[PlantManager] Deleted adjustment:', timesheetData.adjustmentId);
-                }
-
-                await deleteDoc(doc(db, 'operatorTimesheets', entryId));
-                console.log('[PlantManager] Deleted timesheet:', entryId);
-
-                Alert.alert('Success', 'Timesheet deleted successfully');
-                loadManHoursTimesheets();
-              }
-            } catch (error) {
-              console.error('Error deleting timesheet:', error);
-              Alert.alert('Error', 'Failed to delete timesheet');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const verifyTimesheet = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
     Alert.alert(
@@ -765,12 +701,6 @@ export default function PlantManagerTimesheetsScreen() {
                             >
                               <CheckCircle2 size={16} color="#fff" />
                             </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId)}
-                            >
-                              <Trash2 size={16} color="#fff" />
-                            </TouchableOpacity>
                           </View>
                         )}
                       </View>
@@ -899,12 +829,6 @@ export default function PlantManagerTimesheetsScreen() {
                               onPress={() => verifyTimesheet(entry.id)}
                             >
                               <CheckCircle2 size={16} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => deleteTimesheet(entry.id)}
-                            >
-                              <Trash2 size={16} color="#fff" />
                             </TouchableOpacity>
                           </View>
                         )}

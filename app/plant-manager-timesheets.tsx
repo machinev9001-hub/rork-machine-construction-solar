@@ -6,13 +6,11 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  Switch,
   Alert,
   Platform,
 } from 'react-native';
-import { FileSpreadsheet, ChevronDown, ChevronUp, Check, Calendar, CheckCircle2, X, Wrench, AlertTriangle, CloudRain, Trash2 } from 'lucide-react-native';
+import { FileSpreadsheet, ChevronDown, ChevronUp, Calendar, CheckCircle2, Wrench, AlertTriangle, CloudRain, Trash2 } from 'lucide-react-native';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,9 +93,7 @@ export default function PlantManagerTimesheetsScreen() {
   const [plantTimesheetGroups, setPlantTimesheetGroups] = useState<PlantTimesheetGroup[]>([]);
   const [manHoursGroups, setManHoursGroups] = useState<ManHoursGroup[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [editMode, setEditMode] = useState(false);
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
-  const [editedEntries, setEditedEntries] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadSubcontractors();
@@ -287,10 +283,54 @@ export default function PlantManagerTimesheetsScreen() {
     });
   };
 
-  const toggleEditMode = () => {
-    setEditMode(!editMode);
-    setSelectedEntries(new Set());
-    setEditedEntries(new Map());
+  const verifyAllSelected = async () => {
+    if (selectedEntries.size === 0) {
+      Alert.alert('No Selection', 'Please select at least one timesheet to verify.');
+      return;
+    }
+
+    Alert.alert(
+      'Verify Timesheets',
+      `Are you sure you want to verify ${selectedEntries.size} timesheet(s)?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Verify All',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const entriesToVerify = Array.from(selectedEntries);
+              
+              for (const entryId of entriesToVerify) {
+                if (activeTab === 'plant') {
+                  const group = plantTimesheetGroups.find(g => 
+                    g.timesheets.some(t => t.id === entryId)
+                  );
+                  const entry = group?.timesheets.find(t => t.id === entryId);
+                  if (entry && group) {
+                    await verifyTimesheet(entryId, entry.plantAssetDocId, group.asset);
+                  }
+                } else {
+                  await verifyTimesheet(entryId);
+                }
+              }
+              
+              setSelectedEntries(new Set());
+              Alert.alert('Success', `${entriesToVerify.length} timesheet(s) verified successfully`);
+              
+              if (activeTab === 'plant') {
+                loadPlantTimesheets();
+              } else {
+                loadManHoursTimesheets();
+              }
+            } catch (error) {
+              console.error('Error verifying timesheets:', error);
+              Alert.alert('Error', 'Failed to verify some timesheets');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const toggleEntrySelection = (entryId: string) => {
@@ -298,145 +338,11 @@ export default function PlantManagerTimesheetsScreen() {
       const newSet = new Set(prev);
       if (newSet.has(entryId)) {
         newSet.delete(entryId);
-        const newMap = new Map(editedEntries);
-        newMap.delete(entryId);
-        setEditedEntries(newMap);
       } else {
         newSet.add(entryId);
       }
       return newSet;
     });
-  };
-
-  const updateEntryValue = (entryId: string, values: any) => {
-    setEditedEntries(prev => {
-      const newMap = new Map(prev);
-      newMap.set(entryId, values);
-      return newMap;
-    });
-  };
-
-  const saveEdit = async (entryId: string, plantAssetDocId?: string) => {
-    try {
-      if (activeTab === 'plant' && plantAssetDocId) {
-        const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
-        const currentEntry = group?.timesheets.find(t => t.id === entryId);
-        
-        if (currentEntry?.isAdjustment) {
-          // Editing an existing adjustment - just update it
-          await updateDoc(
-            doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId),
-            {
-              ...editedValues,
-              adjustedBy: user?.name || user?.userId,
-              adjustedAt: new Date().toISOString(),
-              updatedAt: new Date(),
-            }
-          );
-          console.log('[PlantManager] Updated adjustment directly:', entryId);
-        } else {
-          // Editing original entry - check if adjustment exists
-          const originalTimesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
-          const existingAdjustmentId = currentEntry?.adjustmentId;
-
-          const adjustmentEntry = {
-            ...editedValues,
-            isAdjustment: true,
-            originalEntryId: entryId,
-            adjustedBy: user?.name || user?.userId,
-            adjustedAt: new Date().toISOString(),
-            updatedAt: new Date(),
-          };
-
-          if (existingAdjustmentId) {
-            // Update existing adjustment
-            await updateDoc(
-              doc(db, 'plantAssets', plantAssetDocId, 'timesheets', existingAdjustmentId),
-              adjustmentEntry
-            );
-            console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
-          } else {
-            // Create new adjustment
-            adjustmentEntry.createdAt = new Date();
-            const adjustmentRef = await addDoc(
-              collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
-              adjustmentEntry
-            );
-
-            await updateDoc(originalTimesheetRef, {
-              hasAdjustment: true,
-              adjustmentId: adjustmentRef.id,
-            });
-            console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
-          }
-        }
-      } else if (activeTab === 'man') {
-        const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
-        const currentEntry = group?.timesheets.find(t => t.id === entryId);
-        
-        if (currentEntry?.isAdjustment) {
-          // Editing an existing adjustment - just update it
-          await updateDoc(
-            doc(db, 'operatorTimesheets', entryId),
-            {
-              ...editedValues,
-              adjustedBy: user?.name || user?.userId,
-              adjustedAt: new Date().toISOString(),
-              updatedAt: new Date(),
-            }
-          );
-          console.log('[PlantManager] Updated adjustment directly:', entryId);
-        } else {
-          // Editing original entry - check if adjustment exists
-          const originalTimesheetRef = doc(db, 'operatorTimesheets', entryId);
-          const existingAdjustmentId = currentEntry?.adjustmentId;
-
-          const adjustmentEntry = {
-            ...editedValues,
-            isAdjustment: true,
-            originalEntryId: entryId,
-            adjustedBy: user?.name || user?.userId,
-            adjustedAt: new Date().toISOString(),
-            updatedAt: new Date(),
-          };
-
-          if (existingAdjustmentId) {
-            // Update existing adjustment
-            await updateDoc(
-              doc(db, 'operatorTimesheets', existingAdjustmentId),
-              adjustmentEntry
-            );
-            console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
-          } else {
-            // Create new adjustment
-            adjustmentEntry.createdAt = new Date();
-            const adjustmentRef = await addDoc(
-              collection(db, 'operatorTimesheets'),
-              adjustmentEntry
-            );
-
-            await updateDoc(originalTimesheetRef, {
-              hasAdjustment: true,
-              adjustmentId: adjustmentRef.id,
-            });
-            console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
-          }
-        }
-      }
-
-      Alert.alert('Success', 'Adjustment saved successfully');
-      setEditingEntry(null);
-      setEditedValues({});
-      
-      if (activeTab === 'plant') {
-        loadPlantTimesheets();
-      } else {
-        loadManHoursTimesheets();
-      }
-    } catch (error) {
-      console.error('Error saving edit:', error);
-      Alert.alert('Error', 'Failed to save adjustment');
-    }
   };
 
 
@@ -709,6 +615,7 @@ export default function PlantManagerTimesheetsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={true}>
               <View style={styles.spreadsheetTable}>
                 <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderCell, styles.selectCol]}>Select</Text>
                   <Text style={[styles.tableHeaderCell, styles.dateCol]}>Date</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Open</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Close</Text>
@@ -725,13 +632,18 @@ export default function PlantManagerTimesheetsScreen() {
                   <Text style={[styles.tableHeaderCell, styles.actionsCol]}>Actions</Text>
                 </View>
 
-                {group.timesheets.map((entry) => {
-                  const isEditing = editingEntry === entry.id;
-                  const rowValues = isEditing ? editedValues : entry;
+                {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
+                  const uniqueKey = `${entry.plantAssetDocId}-${entry.id}-${idx}`;
 
                   return (
-                    <View key={entry.id} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                      <TouchableOpacity
+                        style={[styles.tableCell, styles.selectCol]}
+                        onPress={() => toggleEntrySelection(entry.id)}
+                      >
+                        <View style={[styles.checkbox, selectedEntries.has(entry.id) && styles.checkboxChecked]} />
+                      </TouchableOpacity>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -741,113 +653,34 @@ export default function PlantManagerTimesheetsScreen() {
                         )}
                       </View>
                       
-                      {isEditing ? (
-                        <>
-                          <TextInput
-                            style={[styles.tableCell, styles.timeCol, styles.editableCell]}
-                            value={rowValues.openHours?.toString() || ''}
-                            onChangeText={(text) => setEditedValues({ ...rowValues, openHours: parseFloat(text) || 0 })}
-                            keyboardType="numeric"
-                          />
-                          <TextInput
-                            style={[styles.tableCell, styles.timeCol, styles.editableCell]}
-                            value={rowValues.closeHours?.toString() || ''}
-                            onChangeText={(text) => {
-                              const close = parseFloat(text) || 0;
-                              const totalHours = close - (rowValues.openHours || 0);
-                              setEditedValues({ ...rowValues, closeHours: close, totalHours });
-                            }}
-                            keyboardType="numeric"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Text style={[styles.tableCell, styles.timeCol]}>{entry.openHours}</Text>
-                          <Text style={[styles.tableCell, styles.timeCol]}>{entry.closeHours}</Text>
-                        </>
-                      )}
+                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.openHours}</Text>
+                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.closeHours}</Text>
 
                       <Text style={[styles.tableCell, styles.hoursCol, styles.hoursBold]}>
-                        {isEditing ? rowValues.totalHours?.toFixed(1) : entry.totalHours?.toFixed(1)}
+                        {entry.totalHours?.toFixed(1)}
                       </Text>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        {isEditing ? (
-                          <Switch
-                            value={rowValues.hasAttachment}
-                            onValueChange={(val) => setEditedValues({ ...rowValues, hasAttachment: val })}
-                            trackColor={{ false: '#e2e8f0', true: '#3b82f6' }}
-                            thumbColor="#fff"
-                          />
-                        ) : (
-                          <View style={[styles.checkbox, entry.hasAttachment && styles.checkboxChecked]} />
-                        )}
+                        <View style={[styles.checkbox, entry.hasAttachment && styles.checkboxChecked]} />
                       </View>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        {isEditing ? (
-                          <Switch
-                            value={rowValues.isBreakdown}
-                            onValueChange={(val) => setEditedValues({ ...rowValues, isBreakdown: val })}
-                            trackColor={{ false: '#e2e8f0', true: '#3b82f6' }}
-                            thumbColor="#fff"
-                          />
-                        ) : (
-                          <View style={[styles.checkbox, entry.isBreakdown && styles.checkboxChecked]} />
-                        )}
+                        <View style={[styles.checkbox, entry.isBreakdown && styles.checkboxChecked]} />
                       </View>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
-                        {isEditing ? (
-                          <Switch
-                            value={rowValues.inclementWeather}
-                            onValueChange={(val) => setEditedValues({ ...rowValues, inclementWeather: val })}
-                            trackColor={{ false: '#e2e8f0', true: '#3b82f6' }}
-                            thumbColor="#fff"
-                          />
-                        ) : (
-                          <View style={[styles.checkbox, entry.inclementWeather && styles.checkboxChecked]} />
-                        )}
+                        <View style={[styles.checkbox, entry.inclementWeather && styles.checkboxChecked]} />
                       </View>
 
                       <View style={[styles.tableCell, styles.actionsCol]}>
-                        {isEditing ? (
-                          <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                              style={styles.saveButton}
-                              onPress={() => saveEdit(entry.id, entry.plantAssetDocId)}
-                            >
-                              <Check size={16} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.cancelButton}
-                              onPress={cancelEditing}
-                            >
-                              <X size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                              style={styles.editButton}
-                              onPress={() => startEditing(entry.id, entry)}
-                            >
-                              <Text style={styles.editButtonText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.verifyButton}
-                              onPress={() => verifyTimesheet(entry.id, entry.plantAssetDocId, group.asset)}
-                            >
-                              <CheckCircle2 size={16} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId, true)}
-                            >
-                              <Trash2 size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        )}
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => deleteTimesheet(entry.id, entry.plantAssetDocId, true)}
+                          >
+                            <Trash2 size={16} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   );
@@ -890,6 +723,7 @@ export default function PlantManagerTimesheetsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={true}>
               <View style={styles.spreadsheetTable}>
                 <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderCell, styles.selectCol]}>Select</Text>
                   <Text style={[styles.tableHeaderCell, styles.dateCol]}>Date</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Start</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Stop</Text>
@@ -899,13 +733,18 @@ export default function PlantManagerTimesheetsScreen() {
                   <Text style={[styles.tableHeaderCell, styles.actionsCol]}>Actions</Text>
                 </View>
 
-                {group.timesheets.map((entry) => {
-                  const isEditing = editingEntry === entry.id;
-                  const rowValues = isEditing ? editedValues : entry;
+                {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
+                  const uniqueKey = `${group.operatorId}-${entry.id}-${idx}`;
 
                   return (
-                    <View key={entry.id} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                    <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
+                      <TouchableOpacity
+                        style={[styles.tableCell, styles.selectCol]}
+                        onPress={() => toggleEntrySelection(entry.id)}
+                      >
+                        <View style={[styles.checkbox, selectedEntries.has(entry.id) && styles.checkboxChecked]} />
+                      </TouchableOpacity>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -915,25 +754,8 @@ export default function PlantManagerTimesheetsScreen() {
                         )}
                       </View>
                       
-                      {isEditing ? (
-                        <>
-                          <TextInput
-                            style={[styles.tableCell, styles.timeCol, styles.editableCell]}
-                            value={rowValues.startTime || ''}
-                            onChangeText={(text) => setEditedValues({ ...rowValues, startTime: text })}
-                          />
-                          <TextInput
-                            style={[styles.tableCell, styles.timeCol, styles.editableCell]}
-                            value={rowValues.stopTime || ''}
-                            onChangeText={(text) => setEditedValues({ ...rowValues, stopTime: text })}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Text style={[styles.tableCell, styles.timeCol]}>{entry.startTime}</Text>
-                          <Text style={[styles.tableCell, styles.timeCol]}>{entry.stopTime}</Text>
-                        </>
-                      )}
+                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.startTime}</Text>
+                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.stopTime}</Text>
 
                       <Text style={[styles.tableCell, styles.hoursCol, styles.hoursBold]}>
                         {entry.totalManHours?.toFixed(1)}h
@@ -946,43 +768,14 @@ export default function PlantManagerTimesheetsScreen() {
                       </Text>
 
                       <View style={[styles.tableCell, styles.actionsCol]}>
-                        {isEditing ? (
-                          <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                              style={styles.saveButton}
-                              onPress={() => saveEdit(entry.id)}
-                            >
-                              <Check size={16} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.cancelButton}
-                              onPress={cancelEditing}
-                            >
-                              <X size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <View style={styles.actionButtons}>
-                            <TouchableOpacity
-                              style={styles.editButton}
-                              onPress={() => startEditing(entry.id, entry)}
-                            >
-                              <Text style={styles.editButtonText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.verifyButton}
-                              onPress={() => verifyTimesheet(entry.id)}
-                            >
-                              <CheckCircle2 size={16} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => deleteTimesheet(entry.id, undefined, false)}
-                            >
-                              <Trash2 size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        )}
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => deleteTimesheet(entry.id, undefined, false)}
+                          >
+                            <Trash2 size={16} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   );
@@ -1146,6 +939,15 @@ export default function PlantManagerTimesheetsScreen() {
           </>
         )}
       </View>
+
+      {selectedEntries.size > 0 && (
+        <View style={styles.verifyButtonContainer}>
+          <TouchableOpacity style={styles.verifyAllButton} onPress={verifyAllSelected}>
+            <CheckCircle2 size={20} color="#fff" />
+            <Text style={styles.verifyAllButtonText}>Verify {selectedEntries.size} Selected</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -1488,6 +1290,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: '#dc2626',
+  },
+  selectCol: {
+    width: 60,
+    alignItems: 'center',
+  },
+  verifyButtonContainer: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  verifyAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    gap: 8,
+  },
+  verifyAllButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 
 });

@@ -172,17 +172,32 @@ export default function PlantManagerTimesheetsScreen() {
         );
 
         const timesheetsSnapshot = await getDocs(timesheetsQuery);
-        const timesheets = timesheetsSnapshot.docs
+        const allTimesheets = timesheetsSnapshot.docs
           .map(doc => ({ id: doc.id, plantAssetDocId: asset.id, ...doc.data() } as TimesheetEntry))
-          .filter(t => !t.verified && !t.isAdjustment);
+          .filter(t => !t.verified);
 
-        if (timesheets.length > 0) {
-          const weekStart = timesheets[0].date;
-          const weekEnd = timesheets[timesheets.length - 1].date;
+        const originalTimesheets = allTimesheets.filter(t => !t.isAdjustment);
+
+        if (originalTimesheets.length > 0) {
+          const timesheetsWithAdjustments: TimesheetEntry[] = [];
+          
+          for (const original of originalTimesheets) {
+            timesheetsWithAdjustments.push(original);
+            
+            if (original.hasAdjustment && original.adjustmentId) {
+              const adjustment = allTimesheets.find(t => t.id === original.adjustmentId);
+              if (adjustment) {
+                timesheetsWithAdjustments.push(adjustment);
+              }
+            }
+          }
+
+          const weekStart = originalTimesheets[0].date;
+          const weekEnd = originalTimesheets[originalTimesheets.length - 1].date;
 
           groups.push({
             asset,
-            timesheets,
+            timesheets: timesheetsWithAdjustments,
             weekStart,
             weekEnd,
           });
@@ -210,11 +225,13 @@ export default function PlantManagerTimesheetsScreen() {
       );
 
       const snapshot = await getDocs(timesheetsQuery);
-      const timesheets = snapshot.docs
+      const allTimesheets = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ManHoursEntry))
-        .filter(t => !t.verified && !t.isAdjustment);
+        .filter(t => !t.verified);
 
-      const groupedByOperator = timesheets.reduce((acc, timesheet) => {
+      const originalTimesheets = allTimesheets.filter(t => !t.isAdjustment);
+
+      const groupedByOperator = originalTimesheets.reduce((acc, timesheet) => {
         const key = timesheet.operatorId || timesheet.operatorName;
         if (!acc[key]) {
           acc[key] = [];
@@ -224,13 +241,26 @@ export default function PlantManagerTimesheetsScreen() {
       }, {} as Record<string, ManHoursEntry[]>);
 
       const groups: ManHoursGroup[] = Object.entries(groupedByOperator).map(([key, timesheets]) => {
+        const timesheetsWithAdjustments: ManHoursEntry[] = [];
+        
+        for (const original of timesheets) {
+          timesheetsWithAdjustments.push(original);
+          
+          if (original.hasAdjustment && original.adjustmentId) {
+            const adjustment = allTimesheets.find(t => t.id === original.adjustmentId);
+            if (adjustment) {
+              timesheetsWithAdjustments.push(adjustment);
+            }
+          }
+        }
+
         const weekStart = timesheets[0].date;
         const weekEnd = timesheets[timesheets.length - 1].date;
 
         return {
           operatorId: timesheets[0].operatorId || key,
           operatorName: timesheets[0].operatorName,
-          timesheets,
+          timesheets: timesheetsWithAdjustments,
           weekStart,
           weekEnd,
         };
@@ -269,78 +299,108 @@ export default function PlantManagerTimesheetsScreen() {
   const saveEdit = async (entryId: string, plantAssetDocId?: string) => {
     try {
       if (activeTab === 'plant' && plantAssetDocId) {
-        const originalTimesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
-        
         const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
-        const originalEntry = group?.timesheets.find(t => t.id === entryId);
-        const existingAdjustmentId = originalEntry?.adjustmentId;
-
-        const adjustmentEntry = {
-          ...editedValues,
-          isAdjustment: true,
-          originalEntryId: entryId,
-          adjustedBy: user?.name || user?.userId,
-          adjustedAt: new Date().toISOString(),
-          updatedAt: new Date(),
-        };
-
-        if (existingAdjustmentId) {
-          // Update existing adjustment
+        const currentEntry = group?.timesheets.find(t => t.id === entryId);
+        
+        if (currentEntry?.isAdjustment) {
+          // Editing an existing adjustment - just update it
           await updateDoc(
-            doc(db, 'plantAssets', plantAssetDocId, 'timesheets', existingAdjustmentId),
-            adjustmentEntry
+            doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId),
+            {
+              ...editedValues,
+              adjustedBy: user?.name || user?.userId,
+              adjustedAt: new Date().toISOString(),
+              updatedAt: new Date(),
+            }
           );
-          console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
+          console.log('[PlantManager] Updated adjustment directly:', entryId);
         } else {
-          // Create new adjustment
-          adjustmentEntry.createdAt = new Date();
-          const adjustmentRef = await addDoc(
-            collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
-            adjustmentEntry
-          );
+          // Editing original entry - check if adjustment exists
+          const originalTimesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
+          const existingAdjustmentId = currentEntry?.adjustmentId;
 
-          await updateDoc(originalTimesheetRef, {
-            hasAdjustment: true,
-            adjustmentId: adjustmentRef.id,
-          });
-          console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
+          const adjustmentEntry = {
+            ...editedValues,
+            isAdjustment: true,
+            originalEntryId: entryId,
+            adjustedBy: user?.name || user?.userId,
+            adjustedAt: new Date().toISOString(),
+            updatedAt: new Date(),
+          };
+
+          if (existingAdjustmentId) {
+            // Update existing adjustment
+            await updateDoc(
+              doc(db, 'plantAssets', plantAssetDocId, 'timesheets', existingAdjustmentId),
+              adjustmentEntry
+            );
+            console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
+          } else {
+            // Create new adjustment
+            adjustmentEntry.createdAt = new Date();
+            const adjustmentRef = await addDoc(
+              collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
+              adjustmentEntry
+            );
+
+            await updateDoc(originalTimesheetRef, {
+              hasAdjustment: true,
+              adjustmentId: adjustmentRef.id,
+            });
+            console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
+          }
         }
       } else if (activeTab === 'man') {
-        const originalTimesheetRef = doc(db, 'operatorTimesheets', entryId);
-
         const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
-        const originalEntry = group?.timesheets.find(t => t.id === entryId);
-        const existingAdjustmentId = originalEntry?.adjustmentId;
-
-        const adjustmentEntry = {
-          ...editedValues,
-          isAdjustment: true,
-          originalEntryId: entryId,
-          adjustedBy: user?.name || user?.userId,
-          adjustedAt: new Date().toISOString(),
-          updatedAt: new Date(),
-        };
-
-        if (existingAdjustmentId) {
-          // Update existing adjustment
+        const currentEntry = group?.timesheets.find(t => t.id === entryId);
+        
+        if (currentEntry?.isAdjustment) {
+          // Editing an existing adjustment - just update it
           await updateDoc(
-            doc(db, 'operatorTimesheets', existingAdjustmentId),
-            adjustmentEntry
+            doc(db, 'operatorTimesheets', entryId),
+            {
+              ...editedValues,
+              adjustedBy: user?.name || user?.userId,
+              adjustedAt: new Date().toISOString(),
+              updatedAt: new Date(),
+            }
           );
-          console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
+          console.log('[PlantManager] Updated adjustment directly:', entryId);
         } else {
-          // Create new adjustment
-          adjustmentEntry.createdAt = new Date();
-          const adjustmentRef = await addDoc(
-            collection(db, 'operatorTimesheets'),
-            adjustmentEntry
-          );
+          // Editing original entry - check if adjustment exists
+          const originalTimesheetRef = doc(db, 'operatorTimesheets', entryId);
+          const existingAdjustmentId = currentEntry?.adjustmentId;
 
-          await updateDoc(originalTimesheetRef, {
-            hasAdjustment: true,
-            adjustmentId: adjustmentRef.id,
-          });
-          console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
+          const adjustmentEntry = {
+            ...editedValues,
+            isAdjustment: true,
+            originalEntryId: entryId,
+            adjustedBy: user?.name || user?.userId,
+            adjustedAt: new Date().toISOString(),
+            updatedAt: new Date(),
+          };
+
+          if (existingAdjustmentId) {
+            // Update existing adjustment
+            await updateDoc(
+              doc(db, 'operatorTimesheets', existingAdjustmentId),
+              adjustmentEntry
+            );
+            console.log('[PlantManager] Updated existing adjustment:', existingAdjustmentId);
+          } else {
+            // Create new adjustment
+            adjustmentEntry.createdAt = new Date();
+            const adjustmentRef = await addDoc(
+              collection(db, 'operatorTimesheets'),
+              adjustmentEntry
+            );
+
+            await updateDoc(originalTimesheetRef, {
+              hasAdjustment: true,
+              adjustmentId: adjustmentRef.id,
+            });
+            console.log('[PlantManager] Created new adjustment:', adjustmentRef.id);
+          }
         }
       }
 
@@ -648,16 +708,16 @@ export default function PlantManagerTimesheetsScreen() {
                 {group.timesheets.map((entry) => {
                   const isEditing = editingEntry === entry.id;
                   const rowValues = isEditing ? editedValues : entry;
-                  const hasAdjustmentIndicator = entry.hasAdjustment && !entry.isAdjustment;
+                  const isAdjustmentRow = entry.isAdjustment;
 
                   return (
-                    <View key={`${entry.id}-${entry.isAdjustment ? 'adj' : 'orig'}`} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
+                    <View key={entry.id} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                         </Text>
-                        {hasAdjustmentIndicator && (
-                          <Text style={styles.adjustmentBadge}>ADJ</Text>
+                        {isAdjustmentRow && (
+                          <Text style={styles.adjustmentBadge}>PM EDIT</Text>
                         )}
                       </View>
                       
@@ -822,16 +882,16 @@ export default function PlantManagerTimesheetsScreen() {
                 {group.timesheets.map((entry) => {
                   const isEditing = editingEntry === entry.id;
                   const rowValues = isEditing ? editedValues : entry;
-                  const hasAdjustmentIndicator = entry.hasAdjustment && !entry.isAdjustment;
+                  const isAdjustmentRow = entry.isAdjustment;
 
                   return (
-                    <View key={`${entry.id}-${entry.isAdjustment ? 'adj' : 'orig'}`} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
+                    <View key={entry.id} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                         </Text>
-                        {hasAdjustmentIndicator && (
-                          <Text style={styles.adjustmentBadge}>ADJ</Text>
+                        {isAdjustmentRow && (
+                          <Text style={styles.adjustmentBadge}>PM EDIT</Text>
                         )}
                       </View>
                       
@@ -1304,6 +1364,9 @@ const styles = StyleSheet.create({
   tableRowWithAdjustment: {
     backgroundColor: '#fef3c7',
   },
+  tableRowAdjustment: {
+    backgroundColor: '#dbeafe',
+  },
   tableCell: {
     fontSize: 13,
     color: '#475569',
@@ -1316,8 +1379,8 @@ const styles = StyleSheet.create({
   adjustmentBadge: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#f59e0b',
-    backgroundColor: '#fef3c7',
+    color: '#1d4ed8',
+    backgroundColor: '#dbeafe',
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,

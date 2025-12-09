@@ -2,11 +2,23 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlertTriangle, X, Save, Truck } from 'lucide-react-native';
+import { AlertTriangle, X, Save, Truck, Trash2 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, getDocs, doc, addDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { PlantAsset } from '@/types';
+import { normalizeRole } from '@/utils/roles';
+
+type TimesheetEntry = {
+  id: string;
+  date: string;
+  isBreakdown: boolean;
+  breakdownNotes?: string;
+  breakdownLoggedBy?: string;
+  breakdownLoggedByUserId?: string;
+  breakdownLoggedAt?: any;
+  operatorId?: string;
+};
 
 export default function LogBreakdownScreen() {
   const { plantAssetId } = useLocalSearchParams<{ plantAssetId: string }>();
@@ -15,6 +27,8 @@ export default function LogBreakdownScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [breakdownNotes, setBreakdownNotes] = useState('');
+  const [existingBreakdown, setExistingBreakdown] = useState<TimesheetEntry | null>(null);
+  const [canRemoveBreakdown, setCanRemoveBreakdown] = useState(false);
   const selectedDate = new Date().toISOString().split('T')[0];
 
   const loadPlantAsset = useCallback(async () => {
@@ -53,6 +67,34 @@ export default function LogBreakdownScreen() {
         const plantData = { id: plantDoc.id, ...plantDoc.data() } as PlantAsset;
         console.log('[LogBreakdown] Found plant asset:', plantData.assetId);
         setPlantAsset(plantData);
+        
+        // Check for existing breakdown entry
+        const timesheetsCollectionPath = `plantAssets/${plantDoc.id}/timesheets`;
+        const timesheetsRef = collection(db, timesheetsCollectionPath);
+        const existingQuery = query(
+          timesheetsRef,
+          where('date', '==', selectedDate),
+          where('isBreakdown', '==', true)
+        );
+        const existingSnapshot = await getDocs(existingQuery);
+        
+        if (!existingSnapshot.empty) {
+          const existingDoc = existingSnapshot.docs[0];
+          const breakdownData = { ...existingDoc.data(), id: existingDoc.id } as TimesheetEntry;
+          setExistingBreakdown(breakdownData);
+          setBreakdownNotes(breakdownData.breakdownNotes || '');
+          
+          // Determine if user can remove this breakdown
+          const userRole = normalizeRole(user?.role);
+          const isPlantManager = userRole === 'plant manager';
+          const isBreakdownOwner = breakdownData.breakdownLoggedByUserId === user?.id;
+          
+          setCanRemoveBreakdown(isPlantManager || isBreakdownOwner);
+          console.log('[LogBreakdown] Existing breakdown found:', {
+            loggedBy: breakdownData.breakdownLoggedBy,
+            canRemove: isPlantManager || isBreakdownOwner
+          });
+        }
       } else {
         console.error('[LogBreakdown] No plant asset found with ID:', trimmedPlantAssetId);
         Alert.alert(
@@ -71,11 +113,60 @@ export default function LogBreakdownScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [plantAssetId, user?.masterAccountId]);
+  }, [plantAssetId, user?.masterAccountId, user?.id, user?.role, selectedDate]);
 
   useEffect(() => {
     loadPlantAsset();
   }, [loadPlantAsset]);
+
+  const handleRemoveBreakdown = async () => {
+    if (!plantAsset || !existingBreakdown) {
+      Alert.alert('Error', 'No breakdown to remove');
+      return;
+    }
+
+    Alert.alert(
+      'Remove Breakdown',
+      'Are you sure you want to remove this breakdown entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsSaving(true);
+              console.log('[LogBreakdown] Removing breakdown...');
+              
+              const plantAssetDocId = plantAsset.id;
+              const timesheetsCollectionPath = `plantAssets/${plantAssetDocId}/timesheets`;
+              const timesheetDocRef = doc(db, timesheetsCollectionPath, existingBreakdown.id);
+              
+              await updateDoc(timesheetDocRef, {
+                isBreakdown: false,
+                breakdownNotes: '',
+                breakdownRemovedBy: user?.name || 'Unknown',
+                breakdownRemovedByUserId: user?.id,
+                breakdownRemovedAt: Timestamp.now(),
+              });
+              
+              console.log('[LogBreakdown] ✅ Breakdown removed successfully');
+              Alert.alert(
+                'Success',
+                'Breakdown removed successfully',
+                [{ text: 'OK', onPress: () => router.back() }]
+              );
+            } catch (error: any) {
+              console.error('[LogBreakdown] Error removing breakdown:', error);
+              Alert.alert('Error', `Failed to remove breakdown: ${error?.message || 'Unknown error'}`);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleSaveBreakdown = async () => {
     if (!plantAsset) {
@@ -276,7 +367,19 @@ export default function LogBreakdownScreen() {
             <Text style={styles.dateHint}>Today</Text>
           </View>
           
-          <Text style={[styles.formLabel, { marginTop: 24 }]}>Breakdown Notes (Optional)</Text>
+          {existingBreakdown && (
+            <View style={styles.existingBreakdownBanner}>
+              <AlertTriangle size={20} color="#f59e0b" strokeWidth={2.5} />
+              <View style={styles.existingBreakdownText}>
+                <Text style={styles.existingBreakdownTitle}>Breakdown Already Logged</Text>
+                <Text style={styles.existingBreakdownSubtitle}>
+                  Logged by: {existingBreakdown.breakdownLoggedBy || 'Unknown'}
+                </Text>
+              </View>
+            </View>
+          )}
+          
+          <Text style={[styles.formLabel, { marginTop: 24 }]}>Breakdown Notes {existingBreakdown ? '(Update)' : '(Optional)'}</Text>
           <TextInput
             style={styles.notesInput}
             placeholder="Describe the breakdown, issues, or required repairs..."
@@ -291,27 +394,62 @@ export default function LogBreakdownScreen() {
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               • A timesheet entry will be created for this date{'\n'}
-              • Operator cannot undo this breakdown flag{'\n'}
+              • You can only undo your own breakdown{'\n'}
               • Plant manager can undo any breakdown{'\n'}
               • Entry will save automatically at 23:55 if no hours logged
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-          onPress={handleSaveBreakdown}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Save size={20} color="#fff" strokeWidth={2.5} />
-              <Text style={styles.saveButtonText}>Log Breakdown</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {existingBreakdown && canRemoveBreakdown ? (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={[styles.removeButton, isSaving && styles.saveButtonDisabled]}
+              onPress={handleRemoveBreakdown}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Trash2 size={20} color="#fff" strokeWidth={2.5} />
+                  <Text style={styles.saveButtonText}>Remove Breakdown</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.updateButton, isSaving && styles.saveButtonDisabled]}
+              onPress={handleSaveBreakdown}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Save size={20} color="#fff" strokeWidth={2.5} />
+                  <Text style={styles.saveButtonText}>Update Notes</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+            onPress={handleSaveBreakdown}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Save size={20} color="#fff" strokeWidth={2.5} />
+                <Text style={styles.saveButtonText}>
+                  {existingBreakdown ? 'Update Notes' : 'Log Breakdown'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -541,5 +679,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#fff',
+  },
+  existingBreakdownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fef3c7',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+  },
+  existingBreakdownText: {
+    flex: 1,
+  },
+  existingBreakdownTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#92400e',
+    marginBottom: 4,
+  },
+  existingBreakdownSubtitle: {
+    fontSize: 12,
+    color: '#92400e',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  removeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  updateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

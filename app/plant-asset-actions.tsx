@@ -79,7 +79,8 @@ export default function PlantAssetActionsScreen() {
       'planner',
       'master',
       'safety officer',
-      'diesel clerk'
+      'diesel clerk',
+      'plant manager'
     ].includes(userRole);
 
     if (canLogBreakdownsAndRefuel) {

@@ -398,8 +398,19 @@ export default function PlantManagerTimesheetsScreen() {
           const entry = group?.timesheets.find(t => t.id === entryId);
           
           if (entry && entry.isAdjustment && entry.plantAssetDocId) {
+            console.log('[handleSave] Updating adjustment entry:', entryId, 'with changes:', changes);
+            
+            if (changes.openHours !== undefined || changes.closeHours !== undefined) {
+              const openHours = changes.openHours ?? entry.openHours;
+              const closeHours = changes.closeHours ?? entry.closeHours;
+              const totalHours = closeHours - openHours;
+              changes.totalHours = totalHours;
+              console.log('[handleSave] Recalculated totalHours:', totalHours);
+            }
+            
             const timesheetRef = doc(db, 'plantAssets', entry.plantAssetDocId, 'timesheets', entryId);
             await updateDoc(timesheetRef, changes);
+            console.log('[handleSave] ✅ Updated adjustment entry successfully');
           }
         }
       } else {
@@ -408,8 +419,10 @@ export default function PlantManagerTimesheetsScreen() {
           const entry = group?.timesheets.find(t => t.id === entryId);
           
           if (entry && entry.isAdjustment) {
+            console.log('[handleSave] Updating adjustment entry:', entryId, 'with changes:', changes);
             const timesheetRef = doc(db, 'operatorTimesheets', entryId);
             await updateDoc(timesheetRef, changes);
+            console.log('[handleSave] ✅ Updated adjustment entry successfully');
           }
         }
       }
@@ -425,7 +438,7 @@ export default function PlantManagerTimesheetsScreen() {
         loadManHoursTimesheets();
       }
     } catch (error) {
-      console.error('Error saving changes:', error);
+      console.error('[handleSave] ❌ Error saving changes:', error);
       Alert.alert('Error', 'Failed to save changes');
     }
   };

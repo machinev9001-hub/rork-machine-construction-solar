@@ -65,7 +65,10 @@ export default function PlantAssetActionsScreen() {
         color: '#f59e0b',
         backgroundColor: '#fef3c7',
         onPress: () => {
-          Alert.alert('Coming Soon', 'Breakdown logging will be available soon');
+          router.push({
+            pathname: '/log-breakdown',
+            params: { plantAssetId: asset.assetId }
+          });
         }
       });
     }
@@ -87,7 +90,10 @@ export default function PlantAssetActionsScreen() {
         color: '#f59e0b',
         backgroundColor: '#fef3c7',
         onPress: () => {
-          Alert.alert('Coming Soon', 'Breakdown logging will be available soon');
+          router.push({
+            pathname: '/log-breakdown',
+            params: { plantAssetId: asset.assetId }
+          });
         }
       });
 

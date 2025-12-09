@@ -362,6 +362,8 @@ export default function PlantManagerTimesheetsScreen() {
 
 
   const deleteTimesheet = async (entryId: string, plantAssetDocId?: string, isPlantTab: boolean = true) => {
+    console.log('[Delete] Attempting to delete:', { entryId, plantAssetDocId, isPlantTab });
+    
     Alert.alert(
       'Delete Timesheet',
       'Are you sure you want to permanently delete this timesheet?',
@@ -372,40 +374,57 @@ export default function PlantManagerTimesheetsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('[Delete] User confirmed deletion');
+              
               if (isPlantTab && plantAssetDocId) {
+                console.log('[Delete] Deleting plant timesheet');
                 const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
                 const entry = group?.timesheets.find(t => t.id === entryId);
                 
+                console.log('[Delete] Found entry:', entry);
+                
                 if (entry?.hasAdjustment && entry.adjustmentId) {
+                  console.log('[Delete] Deleting adjustment first:', entry.adjustmentId);
                   const adjustmentRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entry.adjustmentId);
                   await deleteDoc(adjustmentRef);
-                  console.log('[PlantManager] Deleted adjustment:', entry.adjustmentId);
+                  console.log('[Delete] ✅ Adjustment deleted successfully');
                 }
                 
+                console.log('[Delete] Deleting main timesheet:', entryId);
                 const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
                 await deleteDoc(timesheetRef);
-                console.log('[PlantManager] Deleted plant timesheet:', entryId);
-                Alert.alert('Success', 'Plant timesheet deleted');
+                console.log('[Delete] ✅ Plant timesheet deleted successfully');
+                
+                Alert.alert('Success', 'Plant timesheet deleted successfully');
                 await loadPlantTimesheets();
               } else {
+                console.log('[Delete] Deleting man hours timesheet');
                 const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
                 const entry = group?.timesheets.find(t => t.id === entryId);
                 
+                console.log('[Delete] Found entry:', entry);
+                
                 if (entry?.hasAdjustment && entry.adjustmentId) {
+                  console.log('[Delete] Deleting adjustment first:', entry.adjustmentId);
                   const adjustmentRef = doc(db, 'operatorTimesheets', entry.adjustmentId);
                   await deleteDoc(adjustmentRef);
-                  console.log('[PlantManager] Deleted adjustment:', entry.adjustmentId);
+                  console.log('[Delete] ✅ Adjustment deleted successfully');
                 }
                 
+                console.log('[Delete] Deleting main timesheet:', entryId);
                 const timesheetRef = doc(db, 'operatorTimesheets', entryId);
                 await deleteDoc(timesheetRef);
-                console.log('[PlantManager] Deleted man hours timesheet:', entryId);
-                Alert.alert('Success', 'Man hours timesheet deleted');
+                console.log('[Delete] ✅ Man hours timesheet deleted successfully');
+                
+                Alert.alert('Success', 'Man hours timesheet deleted successfully');
                 await loadManHoursTimesheets();
               }
-            } catch (error) {
-              console.error('[PlantManager] Error deleting timesheet:', error);
-              Alert.alert('Error', `Failed to delete timesheet: ${error}`);
+            } catch (error: any) {
+              console.error('[Delete] ❌ ERROR deleting timesheet:', error);
+              console.error('[Delete] Error code:', error.code);
+              console.error('[Delete] Error message:', error.message);
+              console.error('[Delete] Full error:', JSON.stringify(error, null, 2));
+              Alert.alert('Error', `Failed to delete: ${error.message || error}`);
             }
           },
         },

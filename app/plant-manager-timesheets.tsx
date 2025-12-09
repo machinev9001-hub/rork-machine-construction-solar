@@ -174,7 +174,7 @@ export default function PlantManagerTimesheetsScreen() {
         const timesheetsSnapshot = await getDocs(timesheetsQuery);
         const timesheets = timesheetsSnapshot.docs
           .map(doc => ({ id: doc.id, plantAssetDocId: asset.id, ...doc.data() } as TimesheetEntry))
-          .filter(t => !t.verified);
+          .filter(t => !t.verified && !t.isAdjustment);
 
         if (timesheets.length > 0) {
           const weekStart = timesheets[0].date;
@@ -212,7 +212,7 @@ export default function PlantManagerTimesheetsScreen() {
       const snapshot = await getDocs(timesheetsQuery);
       const timesheets = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ManHoursEntry))
-        .filter(t => !t.verified);
+        .filter(t => !t.verified && !t.isAdjustment);
 
       const groupedByOperator = timesheets.reduce((acc, timesheet) => {
         const key = timesheet.operatorId || timesheet.operatorName;
@@ -651,7 +651,7 @@ export default function PlantManagerTimesheetsScreen() {
                   const hasAdjustmentIndicator = entry.hasAdjustment && !entry.isAdjustment;
 
                   return (
-                    <View key={entry.id} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
+                    <View key={`${entry.id}-${entry.isAdjustment ? 'adj' : 'orig'}`} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -825,7 +825,7 @@ export default function PlantManagerTimesheetsScreen() {
                   const hasAdjustmentIndicator = entry.hasAdjustment && !entry.isAdjustment;
 
                   return (
-                    <View key={entry.id} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
+                    <View key={`${entry.id}-${entry.isAdjustment ? 'adj' : 'orig'}`} style={[styles.tableRow, hasAdjustmentIndicator && styles.tableRowWithAdjustment]}>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}

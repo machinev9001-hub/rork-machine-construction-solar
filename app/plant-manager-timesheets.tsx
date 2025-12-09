@@ -93,7 +93,9 @@ export default function PlantManagerTimesheetsScreen() {
   const [plantTimesheetGroups, setPlantTimesheetGroups] = useState<PlantTimesheetGroup[]>([]);
   const [manHoursGroups, setManHoursGroups] = useState<ManHoursGroup[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedPlantEntries, setEditedPlantEntries] = useState<Map<string, Partial<TimesheetEntry>>>(new Map());
+  const [editedManEntries, setEditedManEntries] = useState<Map<string, Partial<ManHoursEntry>>>(new Map());
 
   useEffect(() => {
     loadSubcontractors();
@@ -283,15 +285,61 @@ export default function PlantManagerTimesheetsScreen() {
     });
   };
 
-  const verifyAllSelected = async () => {
-    if (selectedEntries.size === 0) {
-      Alert.alert('No Selection', 'Please select at least one timesheet to verify.');
+  const handleSave = async () => {
+    const hasEdits = activeTab === 'plant' 
+      ? editedPlantEntries.size > 0 
+      : editedManEntries.size > 0;
+
+    if (!hasEdits) {
+      setIsEditMode(false);
       return;
     }
 
+    try {
+      if (activeTab === 'plant') {
+        for (const [entryId, changes] of editedPlantEntries.entries()) {
+          const group = plantTimesheetGroups.find(g => 
+            g.timesheets.some(t => t.id === entryId)
+          );
+          const entry = group?.timesheets.find(t => t.id === entryId);
+          
+          if (entry && entry.isAdjustment && entry.plantAssetDocId) {
+            const timesheetRef = doc(db, 'plantAssets', entry.plantAssetDocId, 'timesheets', entryId);
+            await updateDoc(timesheetRef, changes);
+          }
+        }
+      } else {
+        for (const [entryId, changes] of editedManEntries.entries()) {
+          const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
+          const entry = group?.timesheets.find(t => t.id === entryId);
+          
+          if (entry && entry.isAdjustment) {
+            const timesheetRef = doc(db, 'operatorTimesheets', entryId);
+            await updateDoc(timesheetRef, changes);
+          }
+        }
+      }
+
+      setEditedPlantEntries(new Map());
+      setEditedManEntries(new Map());
+      setIsEditMode(false);
+      Alert.alert('Success', 'Changes saved successfully');
+      
+      if (activeTab === 'plant') {
+        loadPlantTimesheets();
+      } else {
+        loadManHoursTimesheets();
+      }
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      Alert.alert('Error', 'Failed to save changes');
+    }
+  };
+
+  const handleVerifyAll = async () => {
     Alert.alert(
-      'Verify Timesheets',
-      `Are you sure you want to verify ${selectedEntries.size} timesheet(s)?`,
+      'Verify All Timesheets',
+      'This will verify all displayed timesheets and submit them to billing. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -299,24 +347,21 @@ export default function PlantManagerTimesheetsScreen() {
           style: 'default',
           onPress: async () => {
             try {
-              const entriesToVerify = Array.from(selectedEntries);
-              
-              for (const entryId of entriesToVerify) {
-                if (activeTab === 'plant') {
-                  const group = plantTimesheetGroups.find(g => 
-                    g.timesheets.some(t => t.id === entryId)
-                  );
-                  const entry = group?.timesheets.find(t => t.id === entryId);
-                  if (entry && group) {
-                    await verifyTimesheet(entryId, entry.plantAssetDocId, group.asset);
+              if (activeTab === 'plant') {
+                for (const group of plantTimesheetGroups) {
+                  for (const entry of group.timesheets) {
+                    await verifyTimesheet(entry.id, entry.plantAssetDocId, group.asset);
                   }
-                } else {
-                  await verifyTimesheet(entryId);
+                }
+              } else {
+                for (const group of manHoursGroups) {
+                  for (const entry of group.timesheets) {
+                    await verifyTimesheet(entry.id);
+                  }
                 }
               }
               
-              setSelectedEntries(new Set());
-              Alert.alert('Success', `${entriesToVerify.length} timesheet(s) verified successfully`);
+              Alert.alert('Success', 'All timesheets verified successfully');
               
               if (activeTab === 'plant') {
                 loadPlantTimesheets();
@@ -333,15 +378,21 @@ export default function PlantManagerTimesheetsScreen() {
     );
   };
 
-  const toggleEntrySelection = (entryId: string) => {
-    setSelectedEntries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(entryId)) {
-        newSet.delete(entryId);
-      } else {
-        newSet.add(entryId);
-      }
-      return newSet;
+  const updatePlantEditedEntry = (entryId: string, field: keyof TimesheetEntry, value: any) => {
+    setEditedPlantEntries(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(entryId) || {};
+      newMap.set(entryId, { ...existing, [field]: value });
+      return newMap;
+    });
+  };
+
+  const updateManEditedEntry = (entryId: string, field: keyof ManHoursEntry, value: any) => {
+    setEditedManEntries(prev => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(entryId) || {};
+      newMap.set(entryId, { ...existing, [field]: value });
+      return newMap;
     });
   };
 
@@ -615,7 +666,6 @@ export default function PlantManagerTimesheetsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={true}>
               <View style={styles.spreadsheetTable}>
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderCell, styles.selectCol]}>Select</Text>
                   <Text style={[styles.tableHeaderCell, styles.dateCol]}>Date</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Open</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Close</Text>
@@ -635,15 +685,14 @@ export default function PlantManagerTimesheetsScreen() {
                 {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
                   const uniqueKey = `${entry.plantAssetDocId}-${entry.id}-${idx}`;
+                  const canEdit = isEditMode && isAdjustmentRow;
+                  const editedData = editedPlantEntries.get(entry.id) || {};
+                  const displayOpenHours = editedData.openHours ?? entry.openHours;
+                  const displayCloseHours = editedData.closeHours ?? entry.closeHours;
+                  const displayTotalHours = editedData.totalHours ?? entry.totalHours;
 
                   return (
                     <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
-                      <TouchableOpacity
-                        style={[styles.tableCell, styles.selectCol]}
-                        onPress={() => toggleEntrySelection(entry.id)}
-                      >
-                        <View style={[styles.checkbox, selectedEntries.has(entry.id) && styles.checkboxChecked]} />
-                      </TouchableOpacity>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -653,11 +702,50 @@ export default function PlantManagerTimesheetsScreen() {
                         )}
                       </View>
                       
-                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.openHours}</Text>
-                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.closeHours}</Text>
+                      {canEdit ? (
+                        <>
+                          <input
+                            type="number"
+                            value={displayOpenHours}
+                            onChange={(e: any) => updatePlantEditedEntry(entry.id, 'openHours', parseFloat(e.target.value))}
+                            style={{
+                              width: 70,
+                              height: 30,
+                              borderWidth: 1,
+                              borderColor: '#3b82f6',
+                              borderRadius: 4,
+                              paddingLeft: 8,
+                              paddingRight: 8,
+                              fontSize: 13,
+                              backgroundColor: '#eff6ff',
+                            }}
+                          />
+                          <input
+                            type="number"
+                            value={displayCloseHours}
+                            onChange={(e: any) => updatePlantEditedEntry(entry.id, 'closeHours', parseFloat(e.target.value))}
+                            style={{
+                              width: 70,
+                              height: 30,
+                              borderWidth: 1,
+                              borderColor: '#3b82f6',
+                              borderRadius: 4,
+                              paddingLeft: 8,
+                              paddingRight: 8,
+                              fontSize: 13,
+                              backgroundColor: '#eff6ff',
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.tableCell, styles.timeCol]}>{displayOpenHours}</Text>
+                          <Text style={[styles.tableCell, styles.timeCol]}>{displayCloseHours}</Text>
+                        </>
+                      )}
 
                       <Text style={[styles.tableCell, styles.hoursCol, styles.hoursBold]}>
-                        {entry.totalHours?.toFixed(1)}
+                        {displayTotalHours?.toFixed(1)}
                       </Text>
 
                       <View style={[styles.tableCell, styles.checkCol]}>
@@ -723,7 +811,6 @@ export default function PlantManagerTimesheetsScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={true}>
               <View style={styles.spreadsheetTable}>
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderCell, styles.selectCol]}>Select</Text>
                   <Text style={[styles.tableHeaderCell, styles.dateCol]}>Date</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Start</Text>
                   <Text style={[styles.tableHeaderCell, styles.timeCol]}>Stop</Text>
@@ -736,15 +823,16 @@ export default function PlantManagerTimesheetsScreen() {
                 {group.timesheets.map((entry, idx) => {
                   const isAdjustmentRow = entry.isAdjustment;
                   const uniqueKey = `${group.operatorId}-${entry.id}-${idx}`;
+                  const canEdit = isEditMode && isAdjustmentRow;
+                  const editedData = editedManEntries.get(entry.id) || {};
+                  const displayStartTime = editedData.startTime ?? entry.startTime;
+                  const displayStopTime = editedData.stopTime ?? entry.stopTime;
+                  const displayTotalManHours = editedData.totalManHours ?? entry.totalManHours;
+                  const displayNormalHours = editedData.normalHours ?? entry.normalHours;
+                  const displayOvertimeHours = editedData.overtimeHours ?? entry.overtimeHours;
 
                   return (
                     <View key={uniqueKey} style={[styles.tableRow, isAdjustmentRow && styles.tableRowAdjustment]}>
-                      <TouchableOpacity
-                        style={[styles.tableCell, styles.selectCol]}
-                        onPress={() => toggleEntrySelection(entry.id)}
-                      >
-                        <View style={[styles.checkbox, selectedEntries.has(entry.id) && styles.checkboxChecked]} />
-                      </TouchableOpacity>
                       <View style={[styles.tableCell, styles.dateCol]}>
                         <Text style={styles.dateCellText}>
                           {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
@@ -754,17 +842,56 @@ export default function PlantManagerTimesheetsScreen() {
                         )}
                       </View>
                       
-                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.startTime}</Text>
-                      <Text style={[styles.tableCell, styles.timeCol]}>{entry.stopTime}</Text>
+                      {canEdit ? (
+                        <>
+                          <input
+                            type="time"
+                            value={displayStartTime}
+                            onChange={(e: any) => updateManEditedEntry(entry.id, 'startTime', e.target.value)}
+                            style={{
+                              width: 70,
+                              height: 30,
+                              borderWidth: 1,
+                              borderColor: '#3b82f6',
+                              borderRadius: 4,
+                              paddingLeft: 8,
+                              paddingRight: 8,
+                              fontSize: 13,
+                              backgroundColor: '#eff6ff',
+                            }}
+                          />
+                          <input
+                            type="time"
+                            value={displayStopTime}
+                            onChange={(e: any) => updateManEditedEntry(entry.id, 'stopTime', e.target.value)}
+                            style={{
+                              width: 70,
+                              height: 30,
+                              borderWidth: 1,
+                              borderColor: '#3b82f6',
+                              borderRadius: 4,
+                              paddingLeft: 8,
+                              paddingRight: 8,
+                              fontSize: 13,
+                              backgroundColor: '#eff6ff',
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.tableCell, styles.timeCol]}>{displayStartTime}</Text>
+                          <Text style={[styles.tableCell, styles.timeCol]}>{displayStopTime}</Text>
+                        </>
+                      )}
 
                       <Text style={[styles.tableCell, styles.hoursCol, styles.hoursBold]}>
-                        {entry.totalManHours?.toFixed(1)}h
+                        {displayTotalManHours?.toFixed(1)}h
                       </Text>
                       <Text style={[styles.tableCell, styles.hoursCol]}>
-                        {entry.normalHours?.toFixed(1)}h
+                        {displayNormalHours?.toFixed(1)}h
                       </Text>
                       <Text style={[styles.tableCell, styles.hoursCol]}>
-                        {entry.overtimeHours?.toFixed(1)}h
+                        {displayOvertimeHours?.toFixed(1)}h
                       </Text>
 
                       <View style={[styles.tableCell, styles.actionsCol]}>
@@ -940,14 +1067,41 @@ export default function PlantManagerTimesheetsScreen() {
         )}
       </View>
 
-      {selectedEntries.size > 0 && (
-        <View style={styles.verifyButtonContainer}>
-          <TouchableOpacity style={styles.verifyAllButton} onPress={verifyAllSelected}>
-            <CheckCircle2 size={20} color="#fff" />
-            <Text style={styles.verifyAllButtonText}>Verify {selectedEntries.size} Selected</Text>
+      <View style={styles.staticButtonsContainer}>
+        <TouchableOpacity 
+          style={[styles.staticButton, styles.editButton]}
+          onPress={() => {
+            if (isEditMode) {
+              setIsEditMode(false);
+              setEditedPlantEntries(new Map());
+              setEditedManEntries(new Map());
+            } else {
+              setIsEditMode(true);
+            }
+          }}
+        >
+          <Text style={styles.staticButtonText}>
+            {isEditMode ? 'Cancel Edit' : 'Edit'}
+          </Text>
+        </TouchableOpacity>
+        
+        {isEditMode && (
+          <TouchableOpacity 
+            style={[styles.staticButton, styles.saveButton]}
+            onPress={handleSave}
+          >
+            <Text style={styles.staticButtonText}>Save</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+        
+        <TouchableOpacity 
+          style={[styles.staticButton, styles.verifyButton]}
+          onPress={handleVerifyAll}
+        >
+          <CheckCircle2 size={20} color="#fff" />
+          <Text style={styles.staticButtonText}>Verify All</Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -1257,33 +1411,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
     backgroundColor: '#3b82f6',
   },
-  editButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
   verifyButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
     backgroundColor: '#10b981',
   },
   saveButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#10b981',
-  },
-  cancelButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#ef4444',
+    backgroundColor: '#059669',
   },
   deleteButton: {
     paddingHorizontal: 10,
@@ -1295,23 +1429,25 @@ const styles = StyleSheet.create({
     width: 60,
     alignItems: 'center',
   },
-  verifyButtonContainer: {
+  staticButtonsContainer: {
+    flexDirection: 'row',
     backgroundColor: '#ffffff',
     padding: 16,
+    gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  verifyAllButton: {
+  staticButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10b981',
     paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     borderRadius: 8,
     gap: 8,
   },
-  verifyAllButtonText: {
+  staticButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',

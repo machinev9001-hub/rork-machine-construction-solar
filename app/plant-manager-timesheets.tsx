@@ -808,26 +808,22 @@ export default function PlantManagerTimesheetsScreen() {
                       
                       {canEdit ? (
                         <>
-                          <TextInput
-                            keyboardType="numeric"
-                            value={String(displayOpenHours)}
-                            onChangeText={(text) => updatePlantEditedEntry(entry.id, 'openHours', parseFloat(text) || 0)}
-                            style={[
-                              styles.tableCell,
-                              styles.timeCol,
-                              styles.editableCell,
-                            ]}
-                          />
-                          <TextInput
-                            keyboardType="numeric"
-                            value={String(displayCloseHours)}
-                            onChangeText={(text) => updatePlantEditedEntry(entry.id, 'closeHours', parseFloat(text) || 0)}
-                            style={[
-                              styles.tableCell,
-                              styles.timeCol,
-                              styles.editableCell,
-                            ]}
-                          />
+                          <View style={[styles.tableCell, styles.timeCol]}>
+                            <TextInput
+                              keyboardType="numeric"
+                              value={String(displayOpenHours)}
+                              onChangeText={(text) => updatePlantEditedEntry(entry.id, 'openHours', parseFloat(text) || 0)}
+                              style={styles.editableCell}
+                            />
+                          </View>
+                          <View style={[styles.tableCell, styles.timeCol]}>
+                            <TextInput
+                              keyboardType="numeric"
+                              value={String(displayCloseHours)}
+                              onChangeText={(text) => updatePlantEditedEntry(entry.id, 'closeHours', parseFloat(text) || 0)}
+                              style={styles.editableCell}
+                            />
+                          </View>
                         </>
                       ) : (
                         <>
@@ -971,26 +967,22 @@ export default function PlantManagerTimesheetsScreen() {
                       
                       {canEdit ? (
                         <>
-                          <TextInput
-                            value={displayStartTime}
-                            onChangeText={(text) => updateManEditedEntry(entry.id, 'startTime', text)}
-                            placeholder="HH:MM"
-                            style={[
-                              styles.tableCell,
-                              styles.timeCol,
-                              styles.editableCell,
-                            ]}
-                          />
-                          <TextInput
-                            value={displayStopTime}
-                            onChangeText={(text) => updateManEditedEntry(entry.id, 'stopTime', text)}
-                            placeholder="HH:MM"
-                            style={[
-                              styles.tableCell,
-                              styles.timeCol,
-                              styles.editableCell,
-                            ]}
-                          />
+                          <View style={[styles.tableCell, styles.timeCol]}>
+                            <TextInput
+                              value={displayStartTime}
+                              onChangeText={(text) => updateManEditedEntry(entry.id, 'startTime', text)}
+                              placeholder="HH:MM"
+                              style={styles.editableCell}
+                            />
+                          </View>
+                          <View style={[styles.tableCell, styles.timeCol]}>
+                            <TextInput
+                              value={displayStopTime}
+                              onChangeText={(text) => updateManEditedEntry(entry.id, 'stopTime', text)}
+                              placeholder="HH:MM"
+                              style={styles.editableCell}
+                            />
+                          </View>
                         </>
                       ) : (
                         <>
@@ -1491,6 +1483,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     backgroundColor: '#eff6ff',
+    fontSize: 13,
+    color: '#475569',
+    width: '100%',
   },
   dateCol: {
     width: 80,

@@ -26,6 +26,7 @@ type Props = {
   onFiltersChange: (filters: FilterValues) => void;
   companies?: { id: string; name: string }[];
   sites?: { id: string; name: string }[];
+  subcontractors?: { id: string; name: string }[];
   showAssetFilters?: boolean;
   showProgressFilters?: boolean;
 };
@@ -35,6 +36,7 @@ export default function FiltersBar({
   onFiltersChange,
   companies = [],
   sites = [],
+  subcontractors = [],
   showAssetFilters = false,
   showProgressFilters = false,
 }: Props) {
@@ -127,12 +129,16 @@ export default function FiltersBar({
               </Text>
             </View>
 
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Subcontractor</Text>
-              <Text style={styles.filterValue}>
-                {filters.subcontractorId ? 'Selected' : 'All'}
-              </Text>
-            </View>
+            {subcontractors.length > 0 && (
+              <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Subcontractor</Text>
+                <Text style={styles.filterValue}>
+                  {filters.subcontractorId 
+                    ? subcontractors.find(s => s.id === filters.subcontractorId)?.name || 'Selected'
+                    : 'All'}
+                </Text>
+              </View>
+            )}
           </>
         )}
 

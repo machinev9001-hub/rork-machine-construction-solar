@@ -89,6 +89,12 @@ export default function PlantAssetsTimesheetsTab({
   const [groups, setGroups] = useState<TimesheetGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [subcontractors, setSubcontractors] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    loadSubcontractors();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.siteId, user?.masterAccountId]);
 
   useEffect(() => {
     loadVerifiedTimesheets();
@@ -99,6 +105,29 @@ export default function PlantAssetsTimesheetsTab({
     groupTimesheets();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timesheets]);
+
+  const loadSubcontractors = async () => {
+    if (!user?.siteId || !user?.masterAccountId) return;
+
+    try {
+      const subcontractorsRef = collection(db, 'subcontractors');
+      const q = query(
+        subcontractorsRef,
+        where('masterAccountId', '==', user.masterAccountId),
+        where('siteId', '==', user.siteId),
+        where('status', '==', 'Active')
+      );
+      const snapshot = await getDocs(q);
+      const subs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || 'Unknown',
+      }));
+      console.log('[PlantAssetsTimesheetsTab] Loaded subcontractors:', subs.length);
+      setSubcontractors(subs);
+    } catch (error) {
+      console.error('[PlantAssetsTimesheetsTab] Error loading subcontractors:', error);
+    }
+  };
 
   const loadVerifiedTimesheets = async () => {
     if (!user?.siteId || !user?.masterAccountId) {
@@ -336,6 +365,7 @@ export default function PlantAssetsTimesheetsTab({
       <FiltersBar
         filters={filters}
         onFiltersChange={onFiltersChange}
+        subcontractors={subcontractors}
         showAssetFilters
       />
 

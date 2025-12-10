@@ -125,8 +125,12 @@ const sanitizeNotes = (value?: string | null): string | undefined => {
   if (!trimmed) {
     return undefined;
   }
-  const normalized = trimmed.replace(/\s+/g, '').toLowerCase();
-  if (/^\d+(\.\d+)?h$/.test(normalized)) {
+  const normalized = trimmed
+    .replace(/,/g, '.')
+    .replace(/:/g, '.')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+  if (/^(\d+(\.\d+)?)(h|hr|hrs|hour|hours)?$/.test(normalized)) {
     return undefined;
   }
   return trimmed;
@@ -233,8 +237,17 @@ const getEntryTimestamp = (entry: TimesheetEntry): number => {
 
 const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[] => {
   const entryMap = new Map<string, TimesheetEntry>();
+  const replacedOriginalIds = new Set<string>();
+  const originalsWithSnapshots = new Set<string>();
 
   entries.forEach((entry) => {
+    if (entry.originalEntryId) {
+      replacedOriginalIds.add(entry.originalEntryId);
+      if (entry.originalEntryData) {
+        originalsWithSnapshots.add(entry.originalEntryId);
+      }
+    }
+
     const mapKey = entry.originalEntryId ?? entry.id ?? `${entry.date}-${entry.operatorName}`;
     const existing = entryMap.get(mapKey);
 
@@ -258,7 +271,17 @@ const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[
     }
   });
 
-  return Array.from(entryMap.values());
+  return Array.from(entryMap.values()).filter((entry) => {
+    if (entry.originalEntryId) {
+      return true;
+    }
+
+    if (replacedOriginalIds.has(entry.id) && originalsWithSnapshots.has(entry.id)) {
+      return false;
+    }
+
+    return true;
+  });
 };
 
 export default function BillingConfigScreen() {

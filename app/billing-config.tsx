@@ -1047,6 +1047,8 @@ export default function BillingConfigScreen() {
                     const groupDate = new Date(group.date);
                     const groupHours = visibleRows.reduce((sum, row) => sum + row.totalHours, 0);
                     const backgroundColor = groupIndex % 2 === 0 ? '#f8fafc' : '#ffffff';
+                    const adjustmentCount = group.rows.filter(row => !row.isOriginal).length;
+                    const operatorCount = new Set(group.rows.map(row => row.operatorName)).size;
 
                     return (
                       <View
@@ -1061,6 +1063,9 @@ export default function BillingConfigScreen() {
                             </Text>
                             <Text style={styles.groupHeaderTextSecondary}>
                               {groupDate.toLocaleDateString('en-GB', { weekday: 'long' })}
+                            </Text>
+                            <Text style={styles.groupHeaderInsight}>
+                              {`${operatorCount} operator${operatorCount === 1 ? '' : 's'} · ${adjustmentCount} plant manager entr${adjustmentCount === 1 ? 'y' : 'ies'}`}
                             </Text>
                           </View>
                           <View style={styles.groupMeta}>
@@ -2095,6 +2100,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#475569',
     marginTop: 2,
+  },
+  groupHeaderInsight: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
   groupMeta: {
     flexDirection: 'row',

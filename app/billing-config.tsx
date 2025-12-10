@@ -261,21 +261,42 @@ export default function BillingConfigScreen() {
   }, [timesheetGroups]);
 
   const loadSubcontractors = useCallback(async () => {
+    if (!user?.masterAccountId || !user?.siteId) {
+      console.log('[Timesheets] Skipping subcontractor load: missing user context');
+      setSubcontractors([]);
+      return;
+    }
+
     try {
       const q = query(
         collection(db, 'subcontractors'),
-        where('masterAccountId', '==', user?.masterAccountId),
-        where('siteId', '==', user?.siteId),
+        where('masterAccountId', '==', user.masterAccountId),
+        where('siteId', '==', user.siteId),
         where('status', '==', 'Active'),
         orderBy('name')
       );
       const snapshot = await getDocs(q);
       const subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Subcontractor));
       setSubcontractors(subs);
+      console.log('[Timesheets] Loaded subcontractors:', subs.length);
     } catch (error) {
       console.error('Error loading subcontractors:', error);
     }
   }, [user?.masterAccountId, user?.siteId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[Timesheets] Screen focused - refreshing subcontractor list');
+      loadSubcontractors();
+    }, [loadSubcontractors])
+  );
+
+  useEffect(() => {
+    if (activeTab === 'timesheets') {
+      console.log('[Timesheets] Timesheets tab active - ensuring subcontractors loaded');
+      loadSubcontractors();
+    }
+  }, [activeTab, loadSubcontractors]);
 
   const loadPlantAssets = async (subcontractorId: string) => {
     setLoading(true);

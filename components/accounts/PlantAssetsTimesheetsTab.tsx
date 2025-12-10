@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import FiltersBar, { FilterValues } from './FiltersBar';
@@ -110,21 +111,15 @@ export default function PlantAssetsTimesheetsTab({
   });
   const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
 
-  useEffect(() => {
-    console.log('[PlantAssetsTimesheetsTab] Component mounted, loading subcontractors');
-    if (user?.siteId && user?.masterAccountId) {
-      loadSubcontractors();
-    }
-  }, [user?.siteId, user?.masterAccountId]);
-
-  useEffect(() => {
-    console.log('[PlantAssetsTimesheetsTab] showSelector changed to:', showSelector);
-    if (showSelector && subcontractors.length === 0) {
-      console.log('[PlantAssetsTimesheetsTab] Reloading subcontractors as list is empty');
-      loadSubcontractors();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showSelector]);
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[PlantAssetsTimesheetsTab] Tab focused, loading subcontractors');
+      if (user?.siteId && user?.masterAccountId) {
+        loadSubcontractors();
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.siteId, user?.masterAccountId])
+  );
 
   useEffect(() => {
     if (tempSubcontractor) {
@@ -143,7 +138,7 @@ export default function PlantAssetsTimesheetsTab({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timesheets]);
 
-  const loadSubcontractors = async () => {
+  const loadSubcontractors = useCallback(async () => {
     if (!user?.siteId || !user?.masterAccountId) return;
 
     try {
@@ -164,7 +159,7 @@ export default function PlantAssetsTimesheetsTab({
     } catch (error) {
       console.error('[PlantAssetsTimesheetsTab] Error loading subcontractors:', error);
     }
-  };
+  }, [user?.siteId, user?.masterAccountId]);
 
   const loadPlantAssets = async (subcontractorId: string) => {
     if (!user?.siteId || !user?.masterAccountId) return;
@@ -948,7 +943,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   headerCell: {
-    width: 100,
+    width: 120,
     fontSize: 11,
     fontWeight: '700' as const,
     color: '#475569',
@@ -978,7 +973,7 @@ const styles = StyleSheet.create({
     color: '#3b82f6',
   },
   rowCell: {
-    width: 100,
+    width: 120,
     justifyContent: 'center',
   },
   cellText: {

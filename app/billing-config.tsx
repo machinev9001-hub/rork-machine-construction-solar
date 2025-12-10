@@ -959,7 +959,7 @@ export default function BillingConfigScreen() {
                     </Text>
                     <Text style={[styles.tableCell, styles.dayColumn]}>{entry.dayOfWeek.substring(0, 3)}</Text>
                     <Text style={[styles.tableCell, styles.timeColumn]}>{entry.openHours}</Text>
-                    <Text style={[styles.tableCell, styles.timeColumn]}>{entry.closingHours}</Text>
+                    <Text style={[styles.tableCell, styles.timeColumn]}>{entry.closeHours ?? (entry as { closingHours?: string }).closingHours ?? ''}</Text>
                     <Text style={[styles.tableCell, styles.hoursColumn, styles.hoursBold]}>{entry.totalHours}h</Text>
                     <Text style={[styles.tableCell, styles.operatorColumn]} numberOfLines={1}>{entry.operatorName}</Text>
                     <View style={[styles.tableCell, styles.toggleColumn, styles.toggleCellCenter]}>

@@ -633,7 +633,7 @@ export default function PlantManagerTimesheetsScreen() {
                 }
 
                 if (assetData) {
-                  await addDoc(collection(db, 'verifiedTimesheets'), {
+                  const verifiedTimesheetData = {
                     ...dataToFile,
                     verified: true,
                     verifiedAt: new Date().toISOString(),
@@ -648,7 +648,10 @@ export default function PlantManagerTimesheetsScreen() {
                     masterAccountId: user?.masterAccountId,
                     siteId: user?.siteId,
                     type: 'plant_hours',
-                  });
+                  };
+                  console.log('[verifyTimesheet] 📋 Writing to verifiedTimesheets:', JSON.stringify(verifiedTimesheetData, null, 2));
+                  await addDoc(collection(db, 'verifiedTimesheets'), verifiedTimesheetData);
+                  console.log('[verifyTimesheet] ✅ Successfully written to verifiedTimesheets');
                 }
 
                 Alert.alert('Success', 'Plant timesheet verified and filed to billing');

@@ -241,7 +241,15 @@ export default function PlantAssetsTimesheetsTab({
 
       console.log('[PlantAssetsTimesheetsTab] Final filtered count:', loadedTimesheets.length, 'timesheets');
       if (loadedTimesheets.length > 0) {
-        console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', loadedTimesheets[0]);
+        console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', JSON.stringify(loadedTimesheets[0], null, 2));
+      }
+      if (loadedTimesheets.length === 0 && filters.assetId) {
+        console.log('[PlantAssetsTimesheetsTab] ⚠️ No timesheets found after filtering');
+        console.log('[PlantAssetsTimesheetsTab] Applied filters:', JSON.stringify(filters, null, 2));
+        console.log('[PlantAssetsTimesheetsTab] Try checking:');
+        console.log('[PlantAssetsTimesheetsTab] 1. assetId filter value:', filters.assetId);
+        console.log('[PlantAssetsTimesheetsTab] 2. Available assetIds in all timesheets:', 
+          snapshot.docs.map(d => d.data().assetId).filter((v, i, arr) => arr.indexOf(v) === i));
       }
       setTimesheets(loadedTimesheets);
     } catch (error) {

@@ -62,11 +62,18 @@ type VerifiedTimesheet = {
   adjustedAt?: string;
 };
 
+type DateGroup = {
+  date: string;
+  originalEntry?: VerifiedTimesheet;
+  adjustmentEntry?: VerifiedTimesheet;
+};
+
 type TimesheetGroup = {
   key: string;
   title: string;
   subtitle: string;
   entries: VerifiedTimesheet[];
+  dateGroups: DateGroup[];
   originalEntry?: VerifiedTimesheet;
   adjustmentEntry?: VerifiedTimesheet;
 };
@@ -90,6 +97,7 @@ export default function PlantAssetsTimesheetsTab({
   const [groups, setGroups] = useState<TimesheetGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [showOriginalTimesheets, setShowOriginalTimesheets] = useState<Set<string>>(new Set());
   const [subcontractors, setSubcontractors] = useState<{ id: string; name: string }[]>([]);
   const [plantAssets, setPlantAssets] = useState<{ id: string; type: string; plantNumber?: string; registrationNumber?: string; assetId: string }[]>([]);
   const [showSelector, setShowSelector] = useState(true);
@@ -104,8 +112,9 @@ export default function PlantAssetsTimesheetsTab({
 
   useEffect(() => {
     console.log('[PlantAssetsTimesheetsTab] Component mounted, loading subcontractors');
-    loadSubcontractors();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (user?.siteId && user?.masterAccountId) {
+      loadSubcontractors();
+    }
   }, [user?.siteId, user?.masterAccountId]);
 
   useEffect(() => {
@@ -307,16 +316,37 @@ export default function PlantAssetsTimesheetsTab({
           title,
           subtitle,
           entries: [],
+          dateGroups: [],
         });
       }
 
       const group = groupMap.get(key)!;
       group.entries.push(timesheet);
+    });
 
-      if (timesheet.hasOriginalEntry && timesheet.originalEntryData) {
-        group.originalEntry = timesheet.originalEntryData;
-        group.adjustmentEntry = timesheet;
-      }
+    groupMap.forEach(group => {
+      const dateMap = new Map<string, DateGroup>();
+      
+      group.entries.forEach(entry => {
+        if (!dateMap.has(entry.date)) {
+          dateMap.set(entry.date, {
+            date: entry.date,
+          });
+        }
+        
+        const dateGroup = dateMap.get(entry.date)!;
+        
+        if (entry.hasOriginalEntry && entry.originalEntryData) {
+          dateGroup.originalEntry = entry.originalEntryData as VerifiedTimesheet;
+          dateGroup.adjustmentEntry = entry;
+        } else if (!dateGroup.adjustmentEntry) {
+          dateGroup.adjustmentEntry = entry;
+        }
+      });
+      
+      group.dateGroups = Array.from(dateMap.values()).sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
     });
 
     setGroups(Array.from(groupMap.values()));
@@ -334,18 +364,35 @@ export default function PlantAssetsTimesheetsTab({
     });
   };
 
+  const toggleShowOriginals = (key: string) => {
+    setShowOriginalTimesheets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   const handleExport = () => {
     setExportType(viewMode === 'plant' ? 'plantHours' : 'workerTimesheets');
     setExportModalVisible(true);
   };
 
-  const renderTimesheetRow = (timesheet: VerifiedTimesheet, isAdjustment: boolean = false) => {
+  const renderTimesheetRow = (timesheet: VerifiedTimesheet, isOriginal: boolean = false, rowBg: string) => {
+    const rowLabel = isOriginal ? 'ORIG' : 'PM';
+    const rowLabelColor = isOriginal ? '#64748b' : '#3b82f6';
+    
     if (viewMode === 'plant') {
       return (
-        <View style={[styles.timesheetRow, isAdjustment && styles.adjustmentRow]}>
+        <View style={[styles.timesheetRow, { backgroundColor: rowBg }]}>
           <View style={styles.rowCell}>
-            <Text style={styles.cellText}>{timesheet.date}</Text>
-            {isAdjustment && <Text style={styles.adjBadge}>ADJ</Text>}
+            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</Text>
+            <View style={[styles.rowBadge, { backgroundColor: rowLabelColor }]}>
+              <Text style={styles.rowBadgeText}>{rowLabel}</Text>
+            </View>
           </View>
           <Text style={[styles.rowCell, styles.cellText]}>{timesheet.operatorName}</Text>
           <Text style={[styles.rowCell, styles.cellText]}>{timesheet.openHours}</Text>
@@ -354,16 +401,18 @@ export default function PlantAssetsTimesheetsTab({
             {timesheet.totalHours?.toFixed(1)}h
           </Text>
           <Text style={[styles.rowCell, styles.cellText, styles.smallText]}>
-            {new Date(timesheet.verifiedAt).toLocaleDateString()}
+            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
       );
     } else {
       return (
-        <View style={[styles.timesheetRow, isAdjustment && styles.adjustmentRow]}>
+        <View style={[styles.timesheetRow, { backgroundColor: rowBg }]}>
           <View style={styles.rowCell}>
-            <Text style={styles.cellText}>{timesheet.date}</Text>
-            {isAdjustment && <Text style={styles.adjBadge}>ADJ</Text>}
+            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</Text>
+            <View style={[styles.rowBadge, { backgroundColor: rowLabelColor }]}>
+              <Text style={styles.rowBadgeText}>{rowLabel}</Text>
+            </View>
           </View>
           <Text style={[styles.rowCell, styles.cellText]}>{timesheet.startTime}</Text>
           <Text style={[styles.rowCell, styles.cellText]}>{timesheet.stopTime}</Text>
@@ -377,7 +426,7 @@ export default function PlantAssetsTimesheetsTab({
             {timesheet.overtimeHours?.toFixed(1)}h
           </Text>
           <Text style={[styles.rowCell, styles.cellText, styles.smallText]}>
-            {new Date(timesheet.verifiedAt).toLocaleDateString()}
+            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
       );
@@ -386,7 +435,8 @@ export default function PlantAssetsTimesheetsTab({
 
   const renderGroup = ({ item }: { item: TimesheetGroup }) => {
     const isExpanded = expandedGroups.has(item.key);
-    const hasAdjustments = item.entries.some(e => e.hasOriginalEntry);
+    const showOriginals = showOriginalTimesheets.has(item.key);
+    const hasAdjustments = item.dateGroups.some(dg => dg.originalEntry);
 
     return (
       <View style={styles.groupCard}>
@@ -400,7 +450,7 @@ export default function PlantAssetsTimesheetsTab({
             <Text style={styles.groupSubtitle}>{item.subtitle}</Text>
             <View style={styles.groupMeta}>
               <Text style={styles.groupMetaText}>
-                {item.entries.length} entries
+                {item.dateGroups.length} days
               </Text>
               {hasAdjustments && (
                 <View style={styles.adjustmentIndicator}>
@@ -419,7 +469,23 @@ export default function PlantAssetsTimesheetsTab({
 
         {isExpanded && (
           <View style={styles.groupContent}>
-            <ScrollView horizontal showsHorizontalScrollIndicator>
+            {hasAdjustments && (
+              <TouchableOpacity
+                style={styles.showOriginalsButton}
+                onPress={() => toggleShowOriginals(item.key)}
+              >
+                {showOriginals ? (
+                  <ChevronUp size={18} color="#3b82f6" />
+                ) : (
+                  <ChevronDown size={18} color="#3b82f6" />
+                )}
+                <Text style={styles.showOriginalsText}>
+                  {showOriginals ? 'Hide' : 'Show'} Original Operator Entries
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} persistentScrollbar={true}>
               <View>
                 <View style={styles.tableHeader}>
                   <Text style={styles.headerCell}>Date</Text>
@@ -442,18 +508,18 @@ export default function PlantAssetsTimesheetsTab({
                   <Text style={styles.headerCell}>Verified</Text>
                 </View>
 
-                {item.entries.map((entry) => {
-                  if (entry.hasOriginalEntry && entry.originalEntryData) {
-                    return (
-                      <View key={entry.id}>
-                        {renderTimesheetRow(entry.originalEntryData as VerifiedTimesheet, false)}
-                        {renderTimesheetRow(entry, true)}
-                      </View>
-                    );
-                  }
+                {item.dateGroups.map((dateGroup, index) => {
+                  const rowBg = index % 2 === 0 ? '#f8fafc' : '#ffffff';
+                  const hasOriginal = !!dateGroup.originalEntry;
+                  
                   return (
-                    <View key={entry.id}>
-                      {renderTimesheetRow(entry, false)}
+                    <View key={dateGroup.date}>
+                      {showOriginals && hasOriginal && dateGroup.originalEntry && (
+                        renderTimesheetRow(dateGroup.originalEntry, true, rowBg)
+                      )}
+                      {dateGroup.adjustmentEntry && (
+                        renderTimesheetRow(dateGroup.adjustmentEntry, false, rowBg)
+                      )}
                     </View>
                   );
                 })}
@@ -895,8 +961,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  adjustmentRow: {
-    backgroundColor: '#fef3c7',
+  showOriginalsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 6,
+  },
+  showOriginalsText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#3b82f6',
   },
   rowCell: {
     width: 100,
@@ -913,15 +992,17 @@ const styles = StyleSheet.create({
   smallText: {
     fontSize: 11,
   },
-  adjBadge: {
-    fontSize: 9,
-    fontWeight: '700' as const,
-    color: '#f59e0b',
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 4,
+  rowBadge: {
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginTop: 2,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  rowBadgeText: {
+    fontSize: 9,
+    fontWeight: '700' as const,
+    color: '#ffffff',
   },
   emptyState: {
     flex: 1,

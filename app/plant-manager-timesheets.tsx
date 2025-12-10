@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
+  TextInput,
 } from 'react-native';
 import { FileSpreadsheet, ChevronDown, ChevronUp, Calendar, CheckCircle2, Wrench, AlertTriangle, CloudRain, Trash2, Home, Settings, QrCode } from 'lucide-react-native';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
@@ -726,14 +726,6 @@ export default function PlantManagerTimesheetsScreen() {
     });
   };
 
-  const handleDateChange = (type: 'start' | 'end', date: Date) => {
-    if (type === 'start') {
-      setStartDate(date);
-    } else {
-      setEndDate(date);
-    }
-  };
-
   const renderPlantTimesheetGroup = (group: PlantTimesheetGroup, index: number) => {
     const groupKey = `plant-${group.asset.id}-${index}`;
     const isExpanded = expandedGroups.has(groupKey);
@@ -816,37 +808,25 @@ export default function PlantManagerTimesheetsScreen() {
                       
                       {canEdit ? (
                         <>
-                          <input
-                            type="number"
-                            value={displayOpenHours}
-                            onChange={(e: any) => updatePlantEditedEntry(entry.id, 'openHours', parseFloat(e.target.value))}
-                            style={{
-                              width: 70,
-                              height: 30,
-                              borderWidth: 1,
-                              borderColor: '#3b82f6',
-                              borderRadius: 4,
-                              paddingLeft: 8,
-                              paddingRight: 8,
-                              fontSize: 13,
-                              backgroundColor: '#eff6ff',
-                            }}
+                          <TextInput
+                            keyboardType="numeric"
+                            value={String(displayOpenHours)}
+                            onChangeText={(text) => updatePlantEditedEntry(entry.id, 'openHours', parseFloat(text) || 0)}
+                            style={[
+                              styles.tableCell,
+                              styles.timeCol,
+                              styles.editableCell,
+                            ]}
                           />
-                          <input
-                            type="number"
-                            value={displayCloseHours}
-                            onChange={(e: any) => updatePlantEditedEntry(entry.id, 'closeHours', parseFloat(e.target.value))}
-                            style={{
-                              width: 70,
-                              height: 30,
-                              borderWidth: 1,
-                              borderColor: '#3b82f6',
-                              borderRadius: 4,
-                              paddingLeft: 8,
-                              paddingRight: 8,
-                              fontSize: 13,
-                              backgroundColor: '#eff6ff',
-                            }}
+                          <TextInput
+                            keyboardType="numeric"
+                            value={String(displayCloseHours)}
+                            onChangeText={(text) => updatePlantEditedEntry(entry.id, 'closeHours', parseFloat(text) || 0)}
+                            style={[
+                              styles.tableCell,
+                              styles.timeCol,
+                              styles.editableCell,
+                            ]}
                           />
                         </>
                       ) : (
@@ -991,37 +971,25 @@ export default function PlantManagerTimesheetsScreen() {
                       
                       {canEdit ? (
                         <>
-                          <input
-                            type="time"
+                          <TextInput
                             value={displayStartTime}
-                            onChange={(e: any) => updateManEditedEntry(entry.id, 'startTime', e.target.value)}
-                            style={{
-                              width: 70,
-                              height: 30,
-                              borderWidth: 1,
-                              borderColor: '#3b82f6',
-                              borderRadius: 4,
-                              paddingLeft: 8,
-                              paddingRight: 8,
-                              fontSize: 13,
-                              backgroundColor: '#eff6ff',
-                            }}
+                            onChangeText={(text) => updateManEditedEntry(entry.id, 'startTime', text)}
+                            placeholder="HH:MM"
+                            style={[
+                              styles.tableCell,
+                              styles.timeCol,
+                              styles.editableCell,
+                            ]}
                           />
-                          <input
-                            type="time"
+                          <TextInput
                             value={displayStopTime}
-                            onChange={(e: any) => updateManEditedEntry(entry.id, 'stopTime', e.target.value)}
-                            style={{
-                              width: 70,
-                              height: 30,
-                              borderWidth: 1,
-                              borderColor: '#3b82f6',
-                              borderRadius: 4,
-                              paddingLeft: 8,
-                              paddingRight: 8,
-                              fontSize: 13,
-                              backgroundColor: '#eff6ff',
-                            }}
+                            onChangeText={(text) => updateManEditedEntry(entry.id, 'stopTime', text)}
+                            placeholder="HH:MM"
+                            style={[
+                              styles.tableCell,
+                              styles.timeCol,
+                              styles.editableCell,
+                            ]}
                           />
                         </>
                       ) : (
@@ -1106,58 +1074,18 @@ export default function PlantManagerTimesheetsScreen() {
         <View style={styles.dateRangeRow}>
           <View style={styles.datePickerBlock}>
             <Text style={styles.dateLabel}>From</Text>
-            {Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={startDate.toISOString().split('T')[0]}
-                onChange={(e: any) => handleDateChange('start', new Date(e.target.value))}
-                style={{
-                  height: 40,
-                  borderWidth: 1,
-                  borderColor: '#e2e8f0',
-                  borderRadius: 8,
-                  paddingLeft: 12,
-                  paddingRight: 12,
-                  fontSize: 14,
-                  color: '#1e293b',
-                  backgroundColor: '#ffffff',
-                  fontFamily: 'system-ui',
-                }}
-              />
-            ) : (
-              <View style={styles.dateDisplay}>
-                <Calendar size={16} color="#64748b" />
-                <Text style={styles.dateText}>{formatDate(startDate)}</Text>
-              </View>
-            )}
+            <View style={styles.dateDisplay}>
+              <Calendar size={16} color="#64748b" />
+              <Text style={styles.dateText}>{formatDate(startDate)}</Text>
+            </View>
           </View>
 
           <View style={styles.datePickerBlock}>
             <Text style={styles.dateLabel}>To</Text>
-            {Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={endDate.toISOString().split('T')[0]}
-                onChange={(e: any) => handleDateChange('end', new Date(e.target.value))}
-                style={{
-                  height: 40,
-                  borderWidth: 1,
-                  borderColor: '#e2e8f0',
-                  borderRadius: 8,
-                  paddingLeft: 12,
-                  paddingRight: 12,
-                  fontSize: 14,
-                  color: '#1e293b',
-                  backgroundColor: '#ffffff',
-                  fontFamily: 'system-ui',
-                }}
-              />
-            ) : (
-              <View style={styles.dateDisplay}>
-                <Calendar size={16} color="#64748b" />
-                <Text style={styles.dateText}>{formatDate(endDate)}</Text>
-              </View>
-            )}
+            <View style={styles.dateDisplay}>
+              <Calendar size={16} color="#64748b" />
+              <Text style={styles.dateText}>{formatDate(endDate)}</Text>
+            </View>
           </View>
         </View>
 

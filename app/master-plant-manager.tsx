@@ -1,6 +1,6 @@
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Package, Clock, MapPin, BookOpen, MessageCircle, FileSpreadsheet } from 'lucide-react-native';
+import { Package, Clock, MapPin, BookOpen, MessageCircle, FileSpreadsheet, Home, Settings, QrCode } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/utils/hooks/useTheme';
 import { HeaderTitleWithSync, StandardHeaderRight, StandardSiteIndicator } from '@/components/HeaderSyncStatus';
@@ -154,6 +154,37 @@ export default function MasterPlantManagerScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => router.push('/')}
+          activeOpacity={0.7}
+        >
+          <Home size={24} color="#f59e0b" />
+          <Text style={styles.footerButtonText}>Home</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => router.push('/qr-scanner')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.scanQRButton}>
+            <QrCode size={28} color="#fff" />
+          </View>
+          <Text style={styles.footerButtonText}>Scan QR</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => router.push('/company-settings')}
+          activeOpacity={0.7}
+        >
+          <Settings size={24} color="#f59e0b" />
+          <Text style={styles.footerButtonText}>Settings</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -258,5 +289,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
     letterSpacing: 0.2,
+  },
+  footer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  footerButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  footerButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 4,
+  },
+  scanQRButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -20,
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

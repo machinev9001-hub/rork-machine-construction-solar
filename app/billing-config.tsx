@@ -180,19 +180,24 @@ export default function BillingConfigScreen() {
 
   const generateEPHReport = async (assets: PlantAsset[], subcontractorId: string) => {
     console.log('Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
+    console.log('Assets to process:', assets.length);
 
     try {
       const ephRecords: EPHRecord[] = await Promise.all(
         assets.map(async (asset) => {
+          console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
+          
           const timesheetQuery = query(
-            collection(db, 'plantAssetTimesheets'),
+            collection(db, 'verifiedTimesheets'),
             where('masterAccountId', '==', user?.masterAccountId),
-            where('assetId', '==', asset.id),
+            where('assetId', '==', asset.assetId),
+            where('type', '==', 'plant_hours'),
             where('date', '>=', startDate.toISOString().split('T')[0]),
             where('date', '<=', endDate.toISOString().split('T')[0])
           );
 
           const timesheetSnapshot = await getDocs(timesheetQuery);
+          console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
           
           let normalHours = 0;
           let saturdayHours = 0;
@@ -574,17 +579,21 @@ export default function BillingConfigScreen() {
 
   const loadTimesheetsForAsset = async (asset: PlantAsset) => {
     setLoading(true);
-    console.log('Loading timesheets for asset:', asset.id, 'from', startDate.toISOString(), 'to', endDate.toISOString());
+    console.log('Loading timesheets for asset:', asset.assetId, 'from', startDate.toISOString(), 'to', endDate.toISOString());
     try {
       const timesheetQuery = query(
-        collection(db, 'operatorAssetHours'),
+        collection(db, 'verifiedTimesheets'),
         where('masterAccountId', '==', user?.masterAccountId),
         where('assetId', '==', asset.assetId),
+        where('type', '==', 'plant_hours'),
         where('date', '>=', startDate.toISOString().split('T')[0]),
         where('date', '<=', endDate.toISOString().split('T')[0])
       );
 
+      console.log('[Timesheets] Executing query for asset:', asset.assetId);
       const snapshot = await getDocs(timesheetQuery);
+      console.log('[Timesheets] Found', snapshot.docs.length, 'verified timesheets');
+      
       const entries: TimesheetEntry[] = snapshot.docs.map(doc => {
         const data = doc.data();
         const date = new Date(data.date);
@@ -594,11 +603,11 @@ export default function BillingConfigScreen() {
           id: doc.id,
           date: data.date,
           dayOfWeek,
-          openHours: data.openHours || '00:00',
-          closingHours: data.closingHours || '00:00',
+          openHours: String(data.openHours || '00:00'),
+          closingHours: String(data.closeHours || '00:00'),
           totalHours: data.totalHours || 0,
           operatorName: data.operatorName || 'Unknown',
-          isRainDay: data.isRainDay || false,
+          isRainDay: data.isRainDay || data.inclementWeather || false,
           isStrikeDay: data.isStrikeDay || false,
           isBreakdown: data.isBreakdown || false,
           isPublicHoliday: data.isPublicHoliday || false,

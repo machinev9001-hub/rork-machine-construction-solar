@@ -75,6 +75,14 @@ type TimesheetEntry = {
   isBreakdown: boolean;
   isPublicHoliday: boolean;
   notes?: string;
+  operatorNotes?: string;
+  additionalNotes?: string;
+  adminNotes?: string;
+  billingNotes?: string;
+  comment?: string;
+  comments?: string;
+  extraNotes?: string;
+  rawNotes?: string;
   verifiedAt?: string;
   hasOriginalEntry?: boolean;
   originalEntryData?: Partial<TimesheetEntry>;
@@ -138,6 +146,40 @@ const sanitizeNotes = (value?: string | null): string | undefined => {
   return trimmed;
 };
 
+const noteFieldCandidates: (keyof TimesheetEntry)[] = [
+  'notes',
+  'operatorNotes',
+  'additionalNotes',
+  'adminNotes',
+  'billingNotes',
+  'comment',
+  'comments',
+  'extraNotes',
+  'rawNotes',
+];
+
+const resolveDisplayNotes = (entry?: Partial<TimesheetEntry>): string | undefined => {
+  if (!entry) {
+    return undefined;
+  }
+
+  for (const field of noteFieldCandidates) {
+    const value = entry[field];
+    if (typeof value === 'string') {
+      const sanitized = sanitizeNotes(value);
+      if (sanitized) {
+        return sanitized;
+      }
+    }
+  }
+
+  if (entry.originalEntryData) {
+    return resolveDisplayNotes(entry.originalEntryData);
+  }
+
+  return undefined;
+};
+
 const buildDisplayRow = (
   entry: Partial<TimesheetEntry> & { id?: string },
   type: 'original' | 'adjusted',
@@ -160,7 +202,7 @@ const buildDisplayRow = (
     badgeLabel: type === 'original' ? 'ORIG' : 'PM',
     adjustedBy: entry.adjustedBy,
     adjustedAt: entry.adjustedAt,
-    notes: sanitizeNotes(entry.notes),
+    notes: resolveDisplayNotes(entry),
     isRainDay: Boolean(entry.isRainDay),
     isStrikeDay: Boolean(entry.isStrikeDay),
     isBreakdown: Boolean(entry.isBreakdown),
@@ -883,6 +925,26 @@ export default function BillingConfigScreen() {
         const data = doc.data();
         const date = new Date(data.date);
         const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
+        const rawNotes = typeof data.notes === 'string' ? data.notes : undefined;
+        const operatorNotes = typeof data.operatorNotes === 'string' ? data.operatorNotes : undefined;
+        const additionalNotes = typeof data.additionalNotes === 'string' ? data.additionalNotes : undefined;
+        const adminNotes = typeof data.adminNotes === 'string' ? data.adminNotes : undefined;
+        const billingNotes = typeof data.billingNotes === 'string' ? data.billingNotes : undefined;
+        const comment = typeof data.comment === 'string' ? data.comment : undefined;
+        const comments = typeof data.comments === 'string' ? data.comments : undefined;
+        const extraNotes = typeof data.extraNotes === 'string' ? data.extraNotes : undefined;
+        const noteSource: Partial<TimesheetEntry> = {
+          notes: rawNotes,
+          operatorNotes,
+          additionalNotes,
+          adminNotes,
+          billingNotes,
+          comment,
+          comments,
+          extraNotes,
+          rawNotes,
+        };
+        const resolvedNotes = resolveDisplayNotes(noteSource);
         
         return {
           id: doc.id,
@@ -897,7 +959,15 @@ export default function BillingConfigScreen() {
           isStrikeDay: Boolean(data.isStrikeDay),
           isBreakdown: Boolean(data.isBreakdown),
           isPublicHoliday: Boolean(data.isPublicHoliday),
-          notes: sanitizeNotes(data.notes),
+          notes: resolvedNotes,
+          operatorNotes,
+          additionalNotes,
+          adminNotes,
+          billingNotes,
+          comment,
+          comments,
+          extraNotes,
+          rawNotes,
           verifiedAt: data.verifiedAt,
           hasOriginalEntry: data.hasOriginalEntry,
           originalEntryData: data.originalEntryData,

@@ -197,6 +197,55 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
   return groups;
 };
 
+const getEntryPriority = (entry: TimesheetEntry): number => {
+  if (entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy)) {
+    return 2;
+  }
+  return 1;
+};
+
+const getEntryTimestamp = (entry: TimesheetEntry): number => {
+  const timestamps = [entry.adjustedAt, entry.verifiedAt, entry.date];
+  for (const value of timestamps) {
+    if (!value) continue;
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
+const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[] => {
+  const entryMap = new Map<string, TimesheetEntry>();
+
+  entries.forEach((entry) => {
+    const mapKey = entry.originalEntryId ?? entry.id ?? `${entry.date}-${entry.operatorName}`;
+    const existing = entryMap.get(mapKey);
+
+    if (!existing) {
+      entryMap.set(mapKey, entry);
+      return;
+    }
+
+    const incomingPriority = getEntryPriority(entry);
+    const existingPriority = getEntryPriority(existing);
+
+    if (incomingPriority > existingPriority) {
+      entryMap.set(mapKey, entry);
+      return;
+    }
+
+    if (incomingPriority === existingPriority) {
+      if (getEntryTimestamp(entry) >= getEntryTimestamp(existing)) {
+        entryMap.set(mapKey, entry);
+      }
+    }
+  });
+
+  return Array.from(entryMap.values());
+};
+
 export default function BillingConfigScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -772,11 +821,13 @@ export default function BillingConfigScreen() {
       });
 
       entries.sort((a, b) => a.date.localeCompare(b.date));
-      const grouped = buildTimesheetGroups(entries);
-      setTimesheets(entries);
+      const normalizedEntries = deduplicateTimesheetEntries(entries);
+      normalizedEntries.sort((a, b) => a.date.localeCompare(b.date));
+      const grouped = buildTimesheetGroups(normalizedEntries);
+      setTimesheets(normalizedEntries);
       setTimesheetGroups(grouped);
       setShowOriginalRows(false);
-      console.log('[Timesheets] Built display groups:', grouped.length);
+      console.log('[Timesheets] Built display groups:', grouped.length, 'after deduping', entries.length - normalizedEntries.length, 'duplicate entries');
     } catch (error) {
       console.error('Error loading timesheets:', error);
     } finally {

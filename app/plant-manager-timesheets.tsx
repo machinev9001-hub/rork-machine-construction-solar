@@ -596,15 +596,17 @@ export default function PlantManagerTimesheetsScreen() {
   const verifyTimesheetSilently = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
     try {
       if (activeTab === 'plant' && plantAssetDocId) {
-                const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
+                const group = plantTimesheetGroups.find(g => g.asset.id === plantAssetDocId);
+                const entry = group?.timesheets.find(t => t.id === entryId);
                 
-                const timesheetSnapshot = await getDocs(
-                  query(
-                    collection(db, 'plantAssets', plantAssetDocId, 'timesheets'), 
-                    where('__name__', '==', entryId)
-                  )
-                );
-                const timesheetData = timesheetSnapshot.docs[0]?.data();
+                if (!entry) {
+                  console.error('[verifyTimesheet] ❌ Entry not found in plantTimesheetGroups');
+                  throw new Error('Entry not found');
+                }
+
+                console.log('[verifyTimesheet] Found entry:', JSON.stringify(entry, null, 2));
+
+                const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
 
                 await updateDoc(timesheetRef, {
                   verified: true,
@@ -612,24 +614,23 @@ export default function PlantManagerTimesheetsScreen() {
                   verifiedBy: user?.name || user?.userId,
                 });
 
-                const dataToFile = { ...timesheetData };
+                let dataToFile: any = { ...entry };
+                delete dataToFile.id;
+                delete dataToFile.plantAssetDocId;
 
-                if (timesheetData?.hasAdjustment && timesheetData?.adjustmentId) {
-                  const adjustmentSnapshot = await getDocs(
-                    query(
-                      collection(db, 'plantAssets', plantAssetDocId, 'timesheets'),
-                      where('__name__', '==', timesheetData.adjustmentId)
-                    )
-                  );
-                  const adjustmentData = adjustmentSnapshot.docs[0]?.data();
+                if (entry.hasAdjustment && entry.adjustmentId) {
+                  const adjustmentEntry = group?.timesheets.find(t => t.id === entry.adjustmentId);
                   
-                  if (adjustmentData) {
-                    Object.assign(dataToFile, adjustmentData);
+                  if (adjustmentEntry) {
+                    const originalData = { ...entry };
+                    dataToFile = { ...adjustmentEntry };
+                    delete dataToFile.id;
+                    delete dataToFile.plantAssetDocId;
                     dataToFile.hasOriginalEntry = true;
-                    dataToFile.originalEntryData = timesheetData;
+                    dataToFile.originalEntryData = originalData;
 
                     await updateDoc(
-                      doc(db, 'plantAssets', plantAssetDocId, 'timesheets', timesheetData.adjustmentId),
+                      doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entry.adjustmentId),
                       {
                         verified: true,
                         verifiedAt: new Date().toISOString(),
@@ -662,13 +663,15 @@ export default function PlantManagerTimesheetsScreen() {
                 }
 
               } else if (activeTab === 'man') {
-                const timesheetSnapshot = await getDocs(
-                  query(
-                    collection(db, 'operatorTimesheets'),
-                    where('__name__', '==', entryId)
-                  )
-                );
-                const timesheetData = timesheetSnapshot.docs[0]?.data();
+                const group = manHoursGroups.find(g => g.timesheets.some(t => t.id === entryId));
+                const entry = group?.timesheets.find(t => t.id === entryId);
+                
+                if (!entry) {
+                  console.error('[verifyTimesheet] ❌ Entry not found in manHoursGroups');
+                  throw new Error('Entry not found');
+                }
+
+                console.log('[verifyTimesheet] Found entry:', JSON.stringify(entry, null, 2));
 
                 await updateDoc(doc(db, 'operatorTimesheets', entryId), {
                   verified: true,
@@ -676,24 +679,21 @@ export default function PlantManagerTimesheetsScreen() {
                   verifiedBy: user?.name || user?.userId,
                 });
 
-                const dataToFile = { ...timesheetData };
+                let dataToFile: any = { ...entry };
+                delete dataToFile.id;
 
-                if (timesheetData?.hasAdjustment && timesheetData?.adjustmentId) {
-                  const adjustmentSnapshot = await getDocs(
-                    query(
-                      collection(db, 'operatorTimesheets'),
-                      where('__name__', '==', timesheetData.adjustmentId)
-                    )
-                  );
-                  const adjustmentData = adjustmentSnapshot.docs[0]?.data();
+                if (entry.hasAdjustment && entry.adjustmentId) {
+                  const adjustmentEntry = group?.timesheets.find(t => t.id === entry.adjustmentId);
 
-                  if (adjustmentData) {
-                    Object.assign(dataToFile, adjustmentData);
+                  if (adjustmentEntry) {
+                    const originalData = { ...entry };
+                    dataToFile = { ...adjustmentEntry };
+                    delete dataToFile.id;
                     dataToFile.hasOriginalEntry = true;
-                    dataToFile.originalEntryData = timesheetData;
+                    dataToFile.originalEntryData = originalData;
 
                     await updateDoc(
-                      doc(db, 'operatorTimesheets', timesheetData.adjustmentId),
+                      doc(db, 'operatorTimesheets', entry.adjustmentId),
                       {
                         verified: true,
                         verifiedAt: new Date().toISOString(),

@@ -67,7 +67,6 @@ type TimesheetEntry = {
   dayOfWeek: string;
   openHours: string;
   closeHours: string;
-  closingHours?: string;
   totalHours: number;
   operatorName: string;
   isRainDay: boolean;
@@ -840,7 +839,7 @@ export default function BillingConfigScreen() {
           date: data.date,
           dayOfWeek,
           openHours: toTimeString(data.openHours),
-          closeHours: toTimeString(data.closeHours ?? data.closingHours),
+          closeHours: toTimeString(data.closeHours ?? data.closeHour ?? data.close_time ?? data.close ?? data.openHours),
           totalHours: Number(data.totalHours || 0),
           operatorName: data.operatorName || 'Unknown',
           isRainDay: Boolean(data.isRainDay || data.inclementWeather),

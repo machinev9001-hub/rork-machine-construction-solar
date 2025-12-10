@@ -47,8 +47,7 @@ export default function PlantAssetHoursTimesheet({
   const [openHours, setOpenHours] = useState('');
   const [closeHours, setCloseHours] = useState('');
   const [notes, setNotes] = useState('');
-  const [pvArea, setPvArea] = useState('');
-  const [blockNumber, setBlockNumber] = useState('');
+  const [openHoursCommitted, setOpenHoursCommitted] = useState(false);
   
   // Status toggles
   const [logBreakdown, setLogBreakdown] = useState(false);
@@ -87,9 +86,8 @@ export default function PlantAssetHoursTimesheet({
         setOpenHours(timesheet.openHours.toString());
         setCloseHours(timesheet.closeHours.toString());
         setNotes(timesheet.notes || '');
-        setPvArea(timesheet.pvArea || '');
-        setBlockNumber(timesheet.blockNumber || '');
         setLogBreakdown(timesheet.logBreakdown || false);
+        setOpenHoursCommitted(true);
         setScheduledMaintenance(timesheet.scheduledMaintenance || false);
         setRainDay(timesheet.rainDay || false);
         setStrikeDay(timesheet.strikeDay || false);
@@ -140,9 +138,8 @@ export default function PlantAssetHoursTimesheet({
     setCloseHours('');
     setNotes('');
     setWeatherNotes('');
-    setPvArea('');
-    setBlockNumber('');
     setLogBreakdown(false);
+    setOpenHoursCommitted(false);
     setScheduledMaintenance(false);
     setRainDay(false);
     setStrikeDay(false);
@@ -163,6 +160,11 @@ export default function PlantAssetHoursTimesheet({
   };
 
   const validateTimesheet = (): boolean => {
+    if (!openHoursCommitted) {
+      Alert.alert('Error', 'Please commit the opening reading first');
+      return false;
+    }
+    
     const meterLabel = meterType === 'HOUR_METER' ? 'hour' : 'odometer';
 
     if (!openHours || !closeHours) {
@@ -229,6 +231,7 @@ export default function PlantAssetHoursTimesheet({
                 clearForm();
                 setHasSubmittedToday(false);
                 setIsLocked(false);
+                setOpenHoursCommitted(false);
               } else {
                 Alert.alert('Error', 'No timesheet found to delete');
               }
@@ -275,8 +278,6 @@ export default function PlantAssetHoursTimesheet({
         weatherNotes: inclementWeather ? weatherNotes.trim() : undefined,
         siteId,
         siteName,
-        pvArea: pvArea.trim() || undefined,
-        blockNumber: blockNumber.trim() || undefined,
         notes: notes.trim() || undefined,
         masterAccountId,
         companyId
@@ -453,14 +454,38 @@ export default function PlantAssetHoursTimesheet({
               </Text>
             </View>
             <TextInput
-              style={[styles.input, (hasSubmittedToday && !isLocked) && styles.inputEditable, isLocked && styles.inputLocked]}
+              style={[
+                styles.input,
+                openHoursCommitted && styles.inputCommitted,
+                (hasSubmittedToday && !isLocked) && styles.inputEditable,
+                isLocked && styles.inputLocked
+              ]}
               placeholder={meterType === 'HOUR_METER' ? 'Enter opening hour meter reading' : 'Enter opening odometer reading (km)'}
               placeholderTextColor="#94a3b8"
               value={openHours}
               onChangeText={setOpenHours}
               keyboardType="decimal-pad"
-              editable={!isSubmitting && !isLocked}
+              editable={!isSubmitting && !isLocked && !openHoursCommitted}
             />
+            {openHoursCommitted && !hasSubmittedToday ? (
+              <Text style={styles.committedText}>✓ Opening reading committed</Text>
+            ) : null}
+            {!openHoursCommitted && openHours.trim().length > 0 && !hasSubmittedToday && (
+              <TouchableOpacity
+                style={styles.commitButton}
+                onPress={() => {
+                  const openNum = parseFloat(openHours);
+                  if (isNaN(openNum) || openNum < 0) {
+                    Alert.alert('Invalid Reading', 'Please enter a valid numeric value');
+                  } else {
+                    setOpenHoursCommitted(true);
+                    Alert.alert('Opening Reading Committed', 'You can now enter the closing reading');
+                  }
+                }}
+              >
+                <Text style={styles.commitButtonText}>Commit Opening Reading</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -471,14 +496,22 @@ export default function PlantAssetHoursTimesheet({
               </Text>
             </View>
             <TextInput
-              style={[styles.input, (hasSubmittedToday && !isLocked) && styles.inputEditable, isLocked && styles.inputLocked]}
-              placeholder={meterType === 'HOUR_METER' ? 'Enter closing hour meter reading' : 'Enter closing odometer reading (km)'}
+              style={[
+                styles.input,
+                !openHoursCommitted && styles.inputDisabledPlant,
+                (hasSubmittedToday && !isLocked) && styles.inputEditable,
+                isLocked && styles.inputLocked
+              ]}
+              placeholder={openHoursCommitted ? (meterType === 'HOUR_METER' ? 'Enter closing hour meter reading' : 'Enter closing odometer reading (km)') : 'Commit opening reading first'}
               placeholderTextColor="#94a3b8"
               value={closeHours}
               onChangeText={setCloseHours}
               keyboardType="decimal-pad"
-              editable={!isSubmitting && !isLocked}
+              editable={!isSubmitting && !isLocked && openHoursCommitted}
             />
+            {!openHoursCommitted && !hasSubmittedToday ? (
+              <Text style={styles.warningText}>⚠️ Please commit opening reading first</Text>
+            ) : null}
           </View>
 
           {openHours && closeHours && (
@@ -578,37 +611,6 @@ export default function PlantAssetHoursTimesheet({
               editable={!isSubmitting}
             />
           )}
-        </View>
-
-        {/* Location Info */}
-        <View style={styles.locationSection}>
-          <Text style={styles.subsectionTitle}>Work Location</Text>
-          
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.flex1]}>
-              <Text style={styles.inputLabel}>PV Area</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Area A"
-                placeholderTextColor="#94a3b8"
-                value={pvArea}
-                onChangeText={setPvArea}
-                editable={!isSubmitting}
-              />
-            </View>
-
-            <View style={[styles.inputGroup, styles.flex1, styles.ml8]}>
-              <Text style={styles.inputLabel}>Block #</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., B12"
-                placeholderTextColor="#94a3b8"
-                value={blockNumber}
-                onChangeText={setBlockNumber}
-                editable={!isSubmitting}
-              />
-            </View>
-          </View>
         </View>
 
         {/* Notes */}
@@ -1057,5 +1059,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  commitButton: {
+    backgroundColor: '#10b981',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  commitButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  committedText: {
+    fontSize: 12,
+    color: '#10b981',
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '600' as const,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#f59e0b',
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '600' as const,
+  },
+  inputDisabledPlant: {
+    backgroundColor: '#f1f5f9',
+    opacity: 0.6,
+  },
+  inputCommitted: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
   },
 });

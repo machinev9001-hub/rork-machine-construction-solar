@@ -41,6 +41,7 @@ export default function OperatorManHoursTimesheet({
   const [isPubHol, setIsPubHol] = useState(false);
   const [publicHolidayName, setPublicHolidayName] = useState('');
   const [notes, setNotes] = useState('');
+  const [startTimeCommitted, setStartTimeCommitted] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -197,6 +198,11 @@ export default function OperatorManHoursTimesheet({
   };
 
   const handleSubmitTimesheet = async () => {
+    if (!startTimeCommitted) {
+      Alert.alert('Error', 'Please commit the start time first');
+      return;
+    }
+    
     if (!validateTimesheet()) return;
 
     try {
@@ -306,6 +312,7 @@ export default function OperatorManHoursTimesheet({
               setStopTime('');
               setNoLunchBreak(false);
               setNotes('');
+              setStartTimeCommitted(false);
               
               const tomorrow = new Date();
               tomorrow.setDate(tomorrow.getDate() + 1);
@@ -386,16 +393,36 @@ export default function OperatorManHoursTimesheet({
               <Text style={styles.inputLabel}>Start Time *</Text>
             </View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, startTimeCommitted && styles.inputCommitted]}
               placeholder="HH:MM (24-hour format)"
               placeholderTextColor="#94a3b8"
               value={startTime}
               onChangeText={(value) => handleTimeChange(value, setStartTime)}
               keyboardType="numeric"
               maxLength={5}
-              editable={!isSubmitting}
+              editable={!isSubmitting && !startTimeCommitted}
             />
-            <Text style={styles.helperText}>e.g., 08:00 for 8:00 AM</Text>
+            {startTimeCommitted ? (
+              <Text style={styles.committedText}>✓ Start time committed</Text>
+            ) : (
+              <Text style={styles.helperText}>e.g., 08:00 for 8:00 AM</Text>
+            )}
+            {!startTimeCommitted && startTime.length === 5 && (
+              <TouchableOpacity
+                style={styles.commitButton}
+                onPress={() => {
+                  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                  if (timeRegex.test(startTime)) {
+                    setStartTimeCommitted(true);
+                    Alert.alert('Start Time Committed', 'You can now enter the stop time');
+                  } else {
+                    Alert.alert('Invalid Time', 'Please enter a valid time in HH:MM format');
+                  }
+                }}
+              >
+                <Text style={styles.commitButtonText}>Commit Start Time</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -404,16 +431,20 @@ export default function OperatorManHoursTimesheet({
               <Text style={styles.inputLabel}>Stop Time *</Text>
             </View>
             <TextInput
-              style={styles.input}
-              placeholder="HH:MM (24-hour format)"
+              style={[styles.input, !startTimeCommitted && styles.inputDisabled]}
+              placeholder={startTimeCommitted ? "HH:MM (24-hour format)" : "Commit start time first"}
               placeholderTextColor="#94a3b8"
               value={stopTime}
               onChangeText={(value) => handleTimeChange(value, setStopTime)}
               keyboardType="numeric"
               maxLength={5}
-              editable={!isSubmitting}
+              editable={!isSubmitting && startTimeCommitted}
             />
-            <Text style={styles.helperText}>e.g., 17:30 for 5:30 PM</Text>
+            {startTimeCommitted ? (
+              <Text style={styles.helperText}>e.g., 17:30 for 5:30 PM</Text>
+            ) : (
+              <Text style={styles.warningText}>⚠️ Please commit start time first</Text>
+            )}
           </View>
 
           {/* Lunch Break Toggle */}
@@ -796,5 +827,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#0369a1',
     fontStyle: 'italic',
+  },
+  commitButton: {
+    backgroundColor: '#10b981',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  commitButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  committedText: {
+    fontSize: 12,
+    color: '#10b981',
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '600' as const,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#f59e0b',
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '600' as const,
+  },
+  inputDisabled: {
+    backgroundColor: '#f1f5f9',
+    opacity: 0.6,
+  },
+  inputCommitted: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
   },
 });

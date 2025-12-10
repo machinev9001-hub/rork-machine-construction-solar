@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, User } from 'lucide-react-native';
+import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList } from 'lucide-react-native';
 import { collection, getDocs, query, where, orderBy, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { PlantAsset, Subcontractor } from '@/types';
@@ -460,6 +460,10 @@ export default function BillingConfigScreen() {
       console.error('Error loading billing config:', error);
     }
   }, [user?.masterAccountId]);
+
+  useEffect(() => {
+    loadBillingConfig();
+  }, [loadBillingConfig]);
 
   const handleSave = async () => {
     console.log('[BILLING] Save button pressed');
@@ -962,61 +966,184 @@ export default function BillingConfigScreen() {
               <Text style={styles.emptyText}>No timesheets found for this asset in the selected date range</Text>
             </View>
           ) : (
-            <ScrollView style={styles.spreadsheetContainer}>
-              <View style={styles.spreadsheetTable}>
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderCell, styles.dateColumn]}>Date</Text>
-                  <Text style={[styles.tableHeaderCell, styles.dayColumn]}>Day</Text>
-                  <Text style={[styles.tableHeaderCell, styles.timeColumn]}>Open</Text>
-                  <Text style={[styles.tableHeaderCell, styles.timeColumn]}>Close</Text>
-                  <Text style={[styles.tableHeaderCell, styles.hoursColumn]}>Hours</Text>
-                  <Text style={[styles.tableHeaderCell, styles.operatorColumn]}>Operator</Text>
-                  <Text style={[styles.tableHeaderCell, styles.toggleColumn]}>Rain</Text>
-                  <Text style={[styles.tableHeaderCell, styles.toggleColumn]}>Strike</Text>
-                  <Text style={[styles.tableHeaderCell, styles.toggleColumn]}>Break</Text>
-                  <Text style={[styles.tableHeaderCell, styles.toggleColumn]}>Holiday</Text>
+            <ScrollView
+              style={styles.timesheetContent}
+              contentContainerStyle={styles.timesheetContentContainer}
+              testID="timesheet-detail-scroll"
+            >
+              <View style={styles.metricsRow}>
+                <View style={styles.metricCard} testID="timesheet-metric-entries">
+                  <Text style={styles.metricLabel}>Entries</Text>
+                  <Text style={styles.metricValue}>{timesheets.length}</Text>
                 </View>
-
-                {timesheets.map((entry) => (
-                  <View key={entry.id} style={styles.tableRow}>
-                    <Text style={[styles.tableCell, styles.dateColumn]}>
-                      {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </Text>
-                    <Text style={[styles.tableCell, styles.dayColumn]}>{entry.dayOfWeek.substring(0, 3)}</Text>
-                    <Text style={[styles.tableCell, styles.timeColumn]}>{entry.openHours}</Text>
-                    <Text style={[styles.tableCell, styles.timeColumn]}>{entry.closeHours ?? (entry as { closingHours?: string }).closingHours ?? ''}</Text>
-                    <Text style={[styles.tableCell, styles.hoursColumn, styles.hoursBold]}>{entry.totalHours}h</Text>
-                    <Text style={[styles.tableCell, styles.operatorColumn]} numberOfLines={1}>{entry.operatorName}</Text>
-                    <View style={[styles.tableCell, styles.toggleColumn, styles.toggleCellCenter]}>
-                      {entry.isRainDay && <CloudRain size={16} color="#3b82f6" />}
-                    </View>
-                    <View style={[styles.tableCell, styles.toggleColumn, styles.toggleCellCenter]}>
-                      {entry.isStrikeDay && <AlertTriangle size={16} color="#ef4444" />}
-                    </View>
-                    <View style={[styles.tableCell, styles.toggleColumn, styles.toggleCellCenter]}>
-                      {entry.isBreakdown && <Wrench size={16} color="#f59e0b" />}
-                    </View>
-                    <View style={[styles.tableCell, styles.toggleColumn, styles.toggleCellCenter]}>
-                      {entry.isPublicHoliday && <Text style={styles.holidayIcon}>🎉</Text>}
-                    </View>
-                  </View>
-                ))}
-
-                <View style={styles.tableSummary}>
-                  <Text style={styles.summaryLabel}>Total Hours:</Text>
-                  <Text style={styles.summaryValue}>
-                    {timesheets.reduce((sum, t) => sum + t.totalHours, 0).toFixed(2)}h
+                <View style={styles.metricCard} testID="timesheet-metric-range">
+                  <Text style={styles.metricLabel}>Visible Range</Text>
+                  <Text style={styles.metricValue}>
+                    {timesheetGroups.length > 0
+                      ? `${new Date(timesheetGroups[timesheetGroups.length - 1].date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} - ${new Date(timesheetGroups[0].date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                      : '—'}
                   </Text>
                 </View>
-
-                {selectedEphAssetForTimesheets && (
-                  <View style={styles.timesheetAttachmentInfo}>
-                    <Text style={styles.attachmentInfoText}>
-                      ✅ These timesheets are included in the EPH report for this asset
-                    </Text>
-                  </View>
-                )}
+                <TouchableOpacity
+                  testID="timesheet-toggle-original-rows"
+                  onPress={() => setShowOriginalRows(prev => !prev)}
+                  disabled={!hasAnyAdjustments}
+                  style={[
+                    styles.toggleOriginalButton,
+                    showOriginalRows && styles.toggleOriginalButtonActive,
+                    !hasAnyAdjustments && styles.toggleOriginalButtonDisabled,
+                  ]}
+                >
+                  <ChevronDown
+                    size={18}
+                    color={showOriginalRows ? '#1e3a8a' : '#0f172a'}
+                    style={{ transform: [{ rotate: showOriginalRows ? '180deg' : '0deg' }] }}
+                  />
+                  <Text
+                    style={[
+                      styles.toggleOriginalButtonText,
+                      showOriginalRows && styles.toggleOriginalButtonTextActive,
+                      !hasAnyAdjustments && styles.toggleOriginalButtonTextDisabled,
+                    ]}
+                  >
+                    {showOriginalRows ? 'Hide Operator Lines' : 'Show Operator Lines'}
+                  </Text>
+                </TouchableOpacity>
               </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator
+                style={styles.horizontalScroller}
+                contentContainerStyle={styles.horizontalScrollerContent}
+                testID="timesheet-horizontal-scroll"
+              >
+                <View style={styles.dataTable}>
+                  <View style={styles.dataHeaderRow}>
+                    <Text style={[styles.dataHeaderCell, styles.dateCell]}>Date</Text>
+                    <Text style={[styles.dataHeaderCell, styles.dayCell]}>Day</Text>
+                    <Text style={[styles.dataHeaderCell, styles.badgeCell]}>Entry</Text>
+                    <Text style={[styles.dataHeaderCell, styles.operatorCell]}>Operator</Text>
+                    <Text style={[styles.dataHeaderCell, styles.timeCell]}>Open</Text>
+                    <Text style={[styles.dataHeaderCell, styles.timeCell]}>Close</Text>
+                    <Text style={[styles.dataHeaderCell, styles.hoursCell]}>Hours</Text>
+                    <Text style={[styles.dataHeaderCell, styles.statusCell]}>Rain</Text>
+                    <Text style={[styles.dataHeaderCell, styles.statusCell]}>Strike</Text>
+                    <Text style={[styles.dataHeaderCell, styles.statusCell]}>Break</Text>
+                    <Text style={[styles.dataHeaderCell, styles.statusCell]}>Holiday</Text>
+                    <Text style={[styles.dataHeaderCell, styles.notesCell]}>Notes</Text>
+                  </View>
+
+                  {timesheetGroups.map((group, groupIndex) => {
+                    const visibleRows =
+                      !group.hasAdjustments || showOriginalRows
+                        ? group.rows
+                        : group.rows.filter(row => !row.isOriginal);
+
+                    if (visibleRows.length === 0) {
+                      return null;
+                    }
+
+                    const groupDate = new Date(group.date);
+                    const groupHours = visibleRows.reduce((sum, row) => sum + row.totalHours, 0);
+                    const backgroundColor = groupIndex % 2 === 0 ? '#f8fafc' : '#ffffff';
+
+                    return (
+                      <View
+                        key={group.date}
+                        style={[styles.groupWrapper, { backgroundColor }]}
+                        testID={`timesheet-group-${group.date}`}
+                      >
+                        <View style={styles.groupHeaderRow}>
+                          <View style={styles.groupHeaderLeft}>
+                            <Text style={styles.groupHeaderTextPrimary}>
+                              {groupDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            </Text>
+                            <Text style={styles.groupHeaderTextSecondary}>
+                              {groupDate.toLocaleDateString('en-GB', { weekday: 'long' })}
+                            </Text>
+                          </View>
+                          <View style={styles.groupMeta}>
+                            <Text style={styles.groupHours}>{groupHours.toFixed(2)}h</Text>
+                            {group.hasAdjustments && (
+                              <View style={styles.adjustmentPill}>
+                                <Text style={styles.adjustmentPillText}>Has Adjustments</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        {visibleRows.map((row) => (
+                          <View key={row.id} style={styles.dataRow} testID={`timesheet-row-${row.id}`}>
+                            <Text style={[styles.cell, styles.dateCell]}>{row.dateLabel}</Text>
+                            <Text style={[styles.cell, styles.dayCell]}>{row.weekdayLabel}</Text>
+                            <View style={[styles.cell, styles.badgeCell]}>
+                              <View
+                                style={[
+                                  styles.entryBadge,
+                                  row.isOriginal ? styles.entryBadgeOriginal : styles.entryBadgeAdjusted,
+                                ]}
+                              >
+                                <Text style={styles.entryBadgeText}>{row.badgeLabel}</Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.cell, styles.operatorCell]} numberOfLines={1}>
+                              {row.operatorName}
+                            </Text>
+                            <Text style={[styles.cell, styles.timeCell]}>{row.openHours}</Text>
+                            <Text style={[styles.cell, styles.timeCell]}>{row.closeHours}</Text>
+                            <Text style={[styles.cell, styles.hoursCell]}>{row.totalHours.toFixed(2)}h</Text>
+                            <View style={[styles.cell, styles.statusCell]}>
+                              {row.isRainDay ? (
+                                <CloudRain size={16} color="#2563eb" />
+                              ) : (
+                                <Text style={styles.statusPlaceholder}>—</Text>
+                              )}
+                            </View>
+                            <View style={[styles.cell, styles.statusCell]}>
+                              {row.isStrikeDay ? (
+                                <AlertTriangle size={16} color="#ef4444" />
+                              ) : (
+                                <Text style={styles.statusPlaceholder}>—</Text>
+                              )}
+                            </View>
+                            <View style={[styles.cell, styles.statusCell]}>
+                              {row.isBreakdown ? (
+                                <Wrench size={16} color="#f59e0b" />
+                              ) : (
+                                <Text style={styles.statusPlaceholder}>—</Text>
+                              )}
+                            </View>
+                            <View style={[styles.cell, styles.statusCell]}>
+                              {row.isPublicHoliday ? (
+                                <Text style={styles.statusHoliday}>🎉</Text>
+                              ) : (
+                                <Text style={styles.statusPlaceholder}>—</Text>
+                              )}
+                            </View>
+                            <Text style={[styles.cell, styles.notesCell]} numberOfLines={1}>
+                              {row.notes ?? '—'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              <View style={styles.summaryBar}>
+                <Text style={styles.summaryLabel}>Total Hours</Text>
+                <Text style={styles.summaryValue}>{totalTimesheetHours.toFixed(2)}h</Text>
+              </View>
+
+              {selectedEphAssetForTimesheets && (
+                <View style={styles.timesheetAttachmentInfo}>
+                  <Text style={styles.attachmentInfoText}>
+                    ✅ These timesheets are included in the EPH report for this asset
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           )}
         </View>
@@ -1850,87 +1977,229 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginTop: 4,
   },
-  spreadsheetContainer: {
+  timesheetContent: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
   },
-  spreadsheetTable: {
+  timesheetContentContainer: {
+    paddingBottom: 32,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  metricCard: {
+    flex: 1,
+    minWidth: 150,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#1e3a8a',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  tableHeaderCell: {
-    fontSize: 11,
+  metricLabel: {
+    fontSize: 12,
     fontWeight: '700' as const,
-    color: '#ffffff',
+    color: '#94a3b8',
     textTransform: 'uppercase' as const,
+    letterSpacing: 0.6,
   },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  tableCell: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  dateColumn: {
-    width: 70,
-  },
-  dayColumn: {
-    width: 50,
-  },
-  timeColumn: {
-    width: 60,
-  },
-  hoursColumn: {
-    width: 60,
-  },
-  hoursBold: {
+  metricValue: {
+    fontSize: 22,
     fontWeight: '700' as const,
-    color: '#1e3a8a',
+    color: '#0f172a',
+    marginTop: 6,
   },
-  operatorColumn: {
-    flex: 1,
-    minWidth: 100,
-  },
-  toggleColumn: {
-    width: 50,
-  },
-  toggleCellCenter: {
+  toggleOriginalButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexGrow: 1,
+    width: '100%',
+    minHeight: 56,
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    backgroundColor: '#ffffff',
   },
-  holidayIcon: {
-    fontSize: 16,
+  toggleOriginalButtonActive: {
+    borderColor: '#1e3a8a',
+    backgroundColor: '#e0e7ff',
   },
-  tableSummary: {
+  toggleOriginalButtonDisabled: {
+    opacity: 0.4,
+  },
+  toggleOriginalButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#0f172a',
+  },
+  toggleOriginalButtonTextActive: {
+    color: '#1e3a8a',
+  },
+  toggleOriginalButtonTextDisabled: {
+    color: '#94a3b8',
+  },
+  horizontalScroller: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    marginBottom: 16,
+  },
+  horizontalScrollerContent: {
+    flexGrow: 1,
+  },
+  dataTable: {
+    minWidth: 1160,
+  },
+  dataHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0f172a',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  dataHeaderCell: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#e2e8f0',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  groupWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  groupHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  summaryLabel: {
-    fontSize: 15,
+  groupHeaderLeft: {
+    flexShrink: 1,
+  },
+  groupHeaderTextPrimary: {
+    fontSize: 16,
     fontWeight: '700' as const,
-    color: '#1e293b',
+    color: '#0f172a',
   },
-  summaryValue: {
-    fontSize: 18,
+  groupHeaderTextSecondary: {
+    fontSize: 13,
+    color: '#475569',
+    marginTop: 2,
+  },
+  groupMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  groupHours: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1e3a8a',
+  },
+  adjustmentPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#fef3c7',
+  },
+  adjustmentPillText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#92400e',
+    textTransform: 'uppercase' as const,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  cell: {
+    fontSize: 13,
+    color: '#0f172a',
+  },
+  dateCell: {
+    width: 120,
+    fontWeight: '600' as const,
+  },
+  dayCell: {
+    width: 120,
+    color: '#475569',
+  },
+  badgeCell: {
+    width: 100,
+  },
+  entryBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
+  entryBadgeOriginal: {
+    backgroundColor: '#e2e8f0',
+  },
+  entryBadgeAdjusted: {
+    backgroundColor: '#dbeafe',
+  },
+  entryBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#0f172a',
+  },
+  operatorCell: {
+    width: 200,
+  },
+  timeCell: {
+    width: 120,
+  },
+  hoursCell: {
+    width: 120,
     fontWeight: '700' as const,
     color: '#16a34a',
+  },
+  statusCell: {
+    width: 100,
+    alignItems: 'center',
+  },
+  statusPlaceholder: {
+    fontSize: 16,
+    color: '#cbd5f5',
+  },
+  statusHoliday: {
+    fontSize: 18,
+  },
+  notesCell: {
+    width: 200,
+    color: '#475569',
+  },
+  summaryBar: {
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#e2e8f0',
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#facc15',
   },
   viewTimesheetsButton: {
     flexDirection: 'row',

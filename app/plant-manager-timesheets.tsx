@@ -445,9 +445,18 @@ export default function PlantManagerTimesheetsScreen() {
   };
 
   const handleVerifyAll = async () => {
+    const unverifiedCount = activeTab === 'plant'
+      ? plantTimesheetGroups.reduce((count, group) => count + group.timesheets.filter(t => !t.verified).length, 0)
+      : manHoursGroups.reduce((count, group) => count + group.timesheets.filter(t => !t.verified).length, 0);
+
+    if (unverifiedCount === 0) {
+      Alert.alert('Already Verified', 'All timesheets in this batch are already verified and submitted to billing.');
+      return;
+    }
+
     Alert.alert(
       'Verify All Timesheets',
-      'This will verify all displayed timesheets and submit them to billing. Continue?',
+      `This will verify ${unverifiedCount} unverified timesheet(s) and submit them to billing. Continue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -455,21 +464,28 @@ export default function PlantManagerTimesheetsScreen() {
           style: 'default',
           onPress: async () => {
             try {
+              let verifiedCount = 0;
               if (activeTab === 'plant') {
                 for (const group of plantTimesheetGroups) {
                   for (const entry of group.timesheets) {
-                    await verifyTimesheet(entry.id, entry.plantAssetDocId, group.asset);
+                    if (!entry.verified) {
+                      await verifyTimesheetSilently(entry.id, entry.plantAssetDocId, group.asset);
+                      verifiedCount++;
+                    }
                   }
                 }
               } else {
                 for (const group of manHoursGroups) {
                   for (const entry of group.timesheets) {
-                    await verifyTimesheet(entry.id);
+                    if (!entry.verified) {
+                      await verifyTimesheetSilently(entry.id);
+                      verifiedCount++;
+                    }
                   }
                 }
               }
               
-              Alert.alert('Success', 'All timesheets verified successfully');
+              Alert.alert('Success', `${verifiedCount} timesheet(s) verified and filed to billing`);
               
               if (activeTab === 'plant') {
                 loadPlantTimesheets();
@@ -577,18 +593,9 @@ export default function PlantManagerTimesheetsScreen() {
     );
   };
 
-  const verifyTimesheet = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
-    Alert.alert(
-      'Verify Timesheet',
-      'Are you sure you want to verify this timesheet? It will be filed to billing management.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Verify',
-          style: 'default',
-          onPress: async () => {
-            try {
-              if (activeTab === 'plant' && plantAssetDocId) {
+  const verifyTimesheetSilently = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
+    try {
+      if (activeTab === 'plant' && plantAssetDocId) {
                 const timesheetRef = doc(db, 'plantAssets', plantAssetDocId, 'timesheets', entryId);
                 
                 const timesheetSnapshot = await getDocs(
@@ -654,8 +661,6 @@ export default function PlantManagerTimesheetsScreen() {
                   console.log('[verifyTimesheet] ✅ Successfully written to verifiedTimesheets');
                 }
 
-                Alert.alert('Success', 'Plant timesheet verified and filed to billing');
-                loadPlantTimesheets();
               } else if (activeTab === 'man') {
                 const timesheetSnapshot = await getDocs(
                   query(
@@ -710,7 +715,39 @@ export default function PlantManagerTimesheetsScreen() {
                   });
                 }
 
-                Alert.alert('Success', 'Man hours timesheet verified and filed to billing');
+              }
+    } catch (error) {
+      console.error('Error verifying timesheet:', error);
+      throw error;
+    }
+  };
+
+  const verifyTimesheet = async (entryId: string, plantAssetDocId?: string, assetData?: PlantAsset) => {
+    const isAlreadyVerified = activeTab === 'plant'
+      ? plantTimesheetGroups.some(g => g.timesheets.some(t => t.id === entryId && t.verified))
+      : manHoursGroups.some(g => g.timesheets.some(t => t.id === entryId && t.verified));
+
+    if (isAlreadyVerified) {
+      Alert.alert('Already Verified', 'This timesheet has already been verified and submitted to billing.');
+      return;
+    }
+
+    Alert.alert(
+      'Verify Timesheet',
+      'Are you sure you want to verify this timesheet? It will be filed to billing management.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Verify',
+          style: 'default',
+          onPress: async () => {
+            try {
+              await verifyTimesheetSilently(entryId, plantAssetDocId, assetData);
+              Alert.alert('Success', 'Timesheet verified and filed to billing');
+              
+              if (activeTab === 'plant') {
+                loadPlantTimesheets();
+              } else {
                 loadManHoursTimesheets();
               }
             } catch (error) {

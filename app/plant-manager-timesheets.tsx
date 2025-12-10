@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { FileSpreadsheet, ChevronDown, ChevronUp, Calendar, CheckCircle2, Wrench, AlertTriangle, CloudRain, Trash2, Home, Settings, QrCode } from 'lucide-react-native';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
@@ -1172,32 +1174,38 @@ export default function PlantManagerTimesheetsScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#f59e0b" />
-          <Text style={styles.loadingText}>Loading timesheets...</Text>
-        </View>
-      ) : (
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {activeTab === 'plant' ? (
-            plantTimesheetGroups.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No unverified plant timesheets found</Text>
-              </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex1}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#f59e0b" />
+            <Text style={styles.loadingText}>Loading timesheets...</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {activeTab === 'plant' ? (
+              plantTimesheetGroups.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No unverified plant timesheets found</Text>
+                </View>
+              ) : (
+                plantTimesheetGroups.map((group, index) => renderPlantTimesheetGroup(group, index))
+              )
             ) : (
-              plantTimesheetGroups.map((group, index) => renderPlantTimesheetGroup(group, index))
-            )
-          ) : (
-            manHoursGroups.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No unverified man hours timesheets found</Text>
-              </View>
-            ) : (
-              manHoursGroups.map((group, index) => renderManHoursGroup(group, index))
-            )
-          )}
-        </ScrollView>
-      )}
+              manHoursGroups.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No unverified man hours timesheets found</Text>
+                </View>
+              ) : (
+                manHoursGroups.map((group, index) => renderManHoursGroup(group, index))
+              )
+            )}
+          </ScrollView>
+        )}
+      </KeyboardAvoidingView>
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -1234,6 +1242,9 @@ export default function PlantManagerTimesheetsScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',

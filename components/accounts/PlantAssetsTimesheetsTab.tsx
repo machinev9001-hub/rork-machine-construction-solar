@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import FiltersBar, { FilterValues } from './FiltersBar';
@@ -208,8 +208,7 @@ export default function PlantAssetsTimesheetsTab({
         timesheetsRef,
         where('masterAccountId', '==', user.masterAccountId),
         where('siteId', '==', user.siteId),
-        where('type', '==', viewMode === 'plant' ? 'plant_hours' : 'man_hours'),
-        orderBy('verifiedAt', 'desc')
+        where('type', '==', viewMode === 'plant' ? 'plant_hours' : 'man_hours')
       );
 
       console.log('[PlantAssetsTimesheetsTab] Executing query...');
@@ -222,6 +221,12 @@ export default function PlantAssetsTimesheetsTab({
           id: doc.id,
           ...data,
         } as VerifiedTimesheet;
+      });
+
+      loadedTimesheets.sort((a, b) => {
+        const timeA = new Date(a.verifiedAt).getTime();
+        const timeB = new Date(b.verifiedAt).getTime();
+        return timeB - timeA;
       });
 
       console.log('[PlantAssetsTimesheetsTab] Before filtering:', loadedTimesheets.length, 'timesheets');

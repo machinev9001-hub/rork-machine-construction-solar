@@ -67,6 +67,7 @@ type TimesheetEntry = {
   dayOfWeek: string;
   openHours: string;
   closeHours: string;
+  closingHours?: string;
   totalHours: number;
   operatorName: string;
   isRainDay: boolean;
@@ -149,7 +150,7 @@ const buildDisplayRow = (
     weekdayLabel: dateObj.toLocaleDateString('en-GB', { weekday: 'short' }),
     operatorName: entry.operatorName ?? 'Unknown',
     openHours: toTimeString(entry.openHours),
-    closeHours: toTimeString(entry.closeHours),
+    closeHours: toTimeString(entry.closeHours ?? entry.closingHours),
     totalHours: Number(entry.totalHours ?? 0),
     isOriginal: type === 'original',
     badgeLabel: type === 'original' ? 'ORIG' : 'PM',
@@ -840,6 +841,7 @@ export default function BillingConfigScreen() {
           dayOfWeek,
           openHours: toTimeString(data.openHours),
           closeHours: toTimeString(data.closeHours ?? data.closeHour ?? data.close_time ?? data.close ?? data.openHours),
+          closingHours: toTimeString(data.closingHours ?? data.closeHours ?? data.closeHour ?? data.close_time ?? data.close ?? data.openHours),
           totalHours: Number(data.totalHours || 0),
           operatorName: data.operatorName || 'Unknown',
           isRainDay: Boolean(data.isRainDay || data.inclementWeather),

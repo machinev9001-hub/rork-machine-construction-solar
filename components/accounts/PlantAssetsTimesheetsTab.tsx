@@ -107,7 +107,11 @@ export default function PlantAssetsTimesheetsTab({
       return;
     }
 
-    console.log('[PlantAssetsTimesheetsTab] Loading verified timesheets...');
+    console.log('[PlantAssetsTimesheetsTab] ===== LOADING VERIFIED TIMESHEETS =====');
+    console.log('[PlantAssetsTimesheetsTab] masterAccountId:', user.masterAccountId);
+    console.log('[PlantAssetsTimesheetsTab] siteId:', user.siteId);
+    console.log('[PlantAssetsTimesheetsTab] viewMode:', viewMode);
+    console.log('[PlantAssetsTimesheetsTab] type filter:', viewMode === 'plant' ? 'plant_hours' : 'man_hours');
     setLoading(true);
 
     try {
@@ -120,16 +124,25 @@ export default function PlantAssetsTimesheetsTab({
         orderBy('verifiedAt', 'desc')
       );
 
+      console.log('[PlantAssetsTimesheetsTab] Executing query...');
       const snapshot = await getDocs(q);
-      const loadedTimesheets = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as VerifiedTimesheet));
+      console.log('[PlantAssetsTimesheetsTab] Query returned', snapshot.docs.length, 'documents');
+      
+      const loadedTimesheets = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('[PlantAssetsTimesheetsTab] Document:', doc.id, data);
+        return {
+          id: doc.id,
+          ...data,
+        } as VerifiedTimesheet;
+      });
 
       console.log('[PlantAssetsTimesheetsTab] Loaded', loadedTimesheets.length, 'timesheets');
+      console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', loadedTimesheets[0]);
       setTimesheets(loadedTimesheets);
     } catch (error) {
-      console.error('[PlantAssetsTimesheetsTab] Error loading timesheets:', error);
+      console.error('[PlantAssetsTimesheetsTab] ❌ Error loading timesheets:', error);
+      console.error('[PlantAssetsTimesheetsTab] Error details:', JSON.stringify(error, null, 2));
       setTimesheets([]);
     } finally {
       setLoading(false);

@@ -1282,7 +1282,7 @@ export default function PlantManagerTimesheetsScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.footerButton}
-          onPress={() => router.push('/master-plant-manager')}
+          onPress={() => router.push('/(tabs)')}
           activeOpacity={0.7}
         >
           <Home size={24} color="#f59e0b" />

@@ -158,7 +158,7 @@ export default function MasterPlantManagerScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.footerButton}
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/(tabs)')}
           activeOpacity={0.7}
         >
           <Home size={24} color="#f59e0b" />

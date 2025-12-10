@@ -103,9 +103,19 @@ export default function PlantAssetsTimesheetsTab({
   const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
 
   useEffect(() => {
+    console.log('[PlantAssetsTimesheetsTab] Component mounted, loading subcontractors');
     loadSubcontractors();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.siteId, user?.masterAccountId]);
+
+  useEffect(() => {
+    console.log('[PlantAssetsTimesheetsTab] showSelector changed to:', showSelector);
+    if (showSelector && subcontractors.length === 0) {
+      console.log('[PlantAssetsTimesheetsTab] Reloading subcontractors as list is empty');
+      loadSubcontractors();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSelector]);
 
   useEffect(() => {
     if (tempSubcontractor) {
@@ -168,6 +178,9 @@ export default function PlantAssetsTimesheetsTab({
         assetId: doc.data().assetId || doc.id,
       }));
       console.log('[PlantAssetsTimesheetsTab] Loaded plant assets:', assets.length);
+      if (assets.length > 0) {
+        console.log('[PlantAssetsTimesheetsTab] Sample asset:', JSON.stringify(assets[0], null, 2));
+      }
       setPlantAssets(assets);
     } catch (error) {
       console.error('[PlantAssetsTimesheetsTab] Error loading plant assets:', error);
@@ -250,6 +263,10 @@ export default function PlantAssetsTimesheetsTab({
         console.log('[PlantAssetsTimesheetsTab] 1. assetId filter value:', filters.assetId);
         console.log('[PlantAssetsTimesheetsTab] 2. Available assetIds in all timesheets:', 
           snapshot.docs.map(d => d.data().assetId).filter((v, i, arr) => arr.indexOf(v) === i));
+        console.log('[PlantAssetsTimesheetsTab] 3. All unique assetIds from raw data:');
+        snapshot.docs.forEach(d => {
+          console.log('[PlantAssetsTimesheetsTab]    - assetId:', d.data().assetId, '| plantNumber:', d.data().plantNumber);
+        });
       }
       setTimesheets(loadedTimesheets);
     } catch (error) {

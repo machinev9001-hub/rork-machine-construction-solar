@@ -102,6 +102,8 @@ type TimesheetDisplayRow = {
   isStrikeDay: boolean;
   isBreakdown: boolean;
   isPublicHoliday: boolean;
+  sourceEntryId: string;
+  timestamp: number;
 };
 
 type TimesheetDisplayGroup = {
@@ -138,7 +140,9 @@ const sanitizeNotes = (value?: string | null): string | undefined => {
 
 const buildDisplayRow = (
   entry: Partial<TimesheetEntry> & { id?: string },
-  type: 'original' | 'adjusted'
+  type: 'original' | 'adjusted',
+  sourceEntryId: string,
+  timestamp: number,
 ): TimesheetDisplayRow => {
   const isoDate = entry.date ?? new Date().toISOString();
   const dateObj = new Date(isoDate);
@@ -161,6 +165,8 @@ const buildDisplayRow = (
     isStrikeDay: Boolean(entry.isStrikeDay),
     isBreakdown: Boolean(entry.isBreakdown),
     isPublicHoliday: Boolean(entry.isPublicHoliday),
+    sourceEntryId,
+    timestamp,
   };
 };
 
@@ -178,6 +184,8 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
     }
 
     const group = groupMap.get(key)!;
+    const sourceEntryId = getSourceEntryId(entry);
+    const entryTimestamp = getEntryTimestamp(entry);
 
     if (entry.hasOriginalEntry && entry.originalEntryData) {
       const originalRow = buildDisplayRow(
@@ -186,18 +194,16 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
           id: entry.originalEntryId ?? `${entry.id}-orig`,
           date: entry.date,
         },
-        'original'
+        'original',
+        sourceEntryId,
+        entryTimestamp,
       );
       group.rows.push(originalRow);
-      group.hasAdjustments = true;
     }
 
     const isAdjustment = Boolean(entry.hasOriginalEntry || entry.isAdjustment || entry.adjustedBy);
     const rowType: 'original' | 'adjusted' = isAdjustment ? 'adjusted' : 'original';
-    group.rows.push(buildDisplayRow(entry, rowType));
-    if (isAdjustment) {
-      group.hasAdjustments = true;
-    }
+    group.rows.push(buildDisplayRow(entry, rowType, sourceEntryId, entryTimestamp));
   });
 
   const groups = Array.from(groupMap.values()).sort(
@@ -205,12 +211,14 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
   );
 
   groups.forEach((group) => {
+    group.rows = dedupeDisplayRows(group.rows);
     group.rows.sort((a, b) => {
       if (a.isOriginal === b.isOriginal) {
-        return 0;
+        return b.timestamp - a.timestamp;
       }
       return a.isOriginal ? -1 : 1;
     });
+    group.hasAdjustments = group.rows.some(row => !row.isOriginal);
   });
 
   return groups;
@@ -233,6 +241,47 @@ const getEntryTimestamp = (entry: TimesheetEntry): number => {
     }
   }
   return 0;
+};
+
+const getSourceEntryId = (entry: Partial<TimesheetEntry>): string => {
+  if (entry.originalEntryId) {
+    return entry.originalEntryId;
+  }
+  if (entry.id) {
+    return entry.id;
+  }
+  const dateKey = entry.date ?? new Date().toISOString();
+  const operator = entry.operatorName ?? 'unknown';
+  const open = toTimeString(entry.openHours);
+  const close = toTimeString(entry.closeHours ?? entry.closingHours);
+  return `${dateKey}-${operator}-${open}-${close}`;
+};
+
+const dedupeDisplayRows = (rows: TimesheetDisplayRow[]): TimesheetDisplayRow[] => {
+  const pairMap = new Map<string, { original?: TimesheetDisplayRow; adjusted?: TimesheetDisplayRow }>();
+
+  rows.forEach((row) => {
+    const pair = pairMap.get(row.sourceEntryId) ?? {};
+    if (row.isOriginal) {
+      if (!pair.original || row.timestamp >= pair.original.timestamp) {
+        pair.original = row;
+      }
+    } else if (!pair.adjusted || row.timestamp >= pair.adjusted.timestamp) {
+      pair.adjusted = row;
+    }
+    pairMap.set(row.sourceEntryId, pair);
+  });
+
+  const flattened: TimesheetDisplayRow[] = [];
+  pairMap.forEach((pair) => {
+    if (pair.original) {
+      flattened.push(pair.original);
+    }
+    if (pair.adjusted) {
+      flattened.push(pair.adjusted);
+    }
+  });
+  return flattened;
 };
 
 const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[] => {

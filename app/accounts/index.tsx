@@ -7,10 +7,13 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
+  ScrollView,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FileText, BarChart3, List } from 'lucide-react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { FileText, BarChart3, List, Calendar, X } from 'lucide-react-native';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/config/firebase';

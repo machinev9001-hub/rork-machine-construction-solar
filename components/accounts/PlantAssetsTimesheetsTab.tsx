@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
-import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react-native';
+import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,11 +91,28 @@ export default function PlantAssetsTimesheetsTab({
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [subcontractors, setSubcontractors] = useState<{ id: string; name: string }[]>([]);
+  const [plantAssets, setPlantAssets] = useState<{ id: string; type: string; plantNumber?: string; registrationNumber?: string; assetId: string }[]>([]);
+  const [showSelector, setShowSelector] = useState(true);
+  const [tempSubcontractor, setTempSubcontractor] = useState<string | null>(null);
+  const [tempAsset, setTempAsset] = useState<string | null>(null);
+  const [tempStartDate, setTempStartDate] = useState<Date>(() => {
+    const date = new Date();
+    date.setDate(1);
+    return date;
+  });
+  const [tempEndDate, setTempEndDate] = useState<Date>(new Date());
 
   useEffect(() => {
     loadSubcontractors();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.siteId, user?.masterAccountId]);
+
+  useEffect(() => {
+    if (tempSubcontractor) {
+      loadPlantAssets(tempSubcontractor);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tempSubcontractor]);
 
   useEffect(() => {
     loadVerifiedTimesheets();
@@ -129,6 +147,33 @@ export default function PlantAssetsTimesheetsTab({
     }
   };
 
+  const loadPlantAssets = async (subcontractorId: string) => {
+    if (!user?.siteId || !user?.masterAccountId) return;
+
+    try {
+      const assetsRef = collection(db, 'plantAssets');
+      const q = query(
+        assetsRef,
+        where('masterAccountId', '==', user.masterAccountId),
+        where('siteId', '==', user.siteId),
+        where('ownerId', '==', subcontractorId),
+        where('ownerType', '==', 'subcontractor')
+      );
+      const snapshot = await getDocs(q);
+      const assets = snapshot.docs.map(doc => ({
+        id: doc.id,
+        type: doc.data().type || 'Unknown',
+        plantNumber: doc.data().plantNumber,
+        registrationNumber: doc.data().registrationNumber,
+        assetId: doc.data().assetId || doc.id,
+      }));
+      console.log('[PlantAssetsTimesheetsTab] Loaded plant assets:', assets.length);
+      setPlantAssets(assets);
+    } catch (error) {
+      console.error('[PlantAssetsTimesheetsTab] Error loading plant assets:', error);
+    }
+  };
+
   const loadVerifiedTimesheets = async () => {
     if (!user?.siteId || !user?.masterAccountId) {
       console.log('[PlantAssetsTimesheetsTab] No siteId or masterAccountId');
@@ -140,6 +185,7 @@ export default function PlantAssetsTimesheetsTab({
     console.log('[PlantAssetsTimesheetsTab] masterAccountId:', user.masterAccountId);
     console.log('[PlantAssetsTimesheetsTab] siteId:', user.siteId);
     console.log('[PlantAssetsTimesheetsTab] viewMode:', viewMode);
+    console.log('[PlantAssetsTimesheetsTab] filters:', filters);
     console.log('[PlantAssetsTimesheetsTab] type filter:', viewMode === 'plant' ? 'plant_hours' : 'man_hours');
     setLoading(true);
 
@@ -157,17 +203,46 @@ export default function PlantAssetsTimesheetsTab({
       const snapshot = await getDocs(q);
       console.log('[PlantAssetsTimesheetsTab] Query returned', snapshot.docs.length, 'documents');
       
-      const loadedTimesheets = snapshot.docs.map(doc => {
+      let loadedTimesheets = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('[PlantAssetsTimesheetsTab] Document:', doc.id, data);
         return {
           id: doc.id,
           ...data,
         } as VerifiedTimesheet;
       });
 
-      console.log('[PlantAssetsTimesheetsTab] Loaded', loadedTimesheets.length, 'timesheets');
-      console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', loadedTimesheets[0]);
+      console.log('[PlantAssetsTimesheetsTab] Before filtering:', loadedTimesheets.length, 'timesheets');
+
+      if (filters.assetId) {
+        console.log('[PlantAssetsTimesheetsTab] Filtering by assetId:', filters.assetId);
+        loadedTimesheets = loadedTimesheets.filter(t => t.assetId === filters.assetId);
+        console.log('[PlantAssetsTimesheetsTab] After asset filter:', loadedTimesheets.length, 'timesheets');
+      }
+
+      if (filters.subcontractorId) {
+        console.log('[PlantAssetsTimesheetsTab] Filtering by subcontractorId:', filters.subcontractorId);
+        loadedTimesheets = loadedTimesheets.filter(t => t.ownerId === filters.subcontractorId);
+        console.log('[PlantAssetsTimesheetsTab] After subcontractor filter:', loadedTimesheets.length, 'timesheets');
+      }
+
+      if (filters.fromDate) {
+        const fromDateStr = filters.fromDate.toISOString().split('T')[0];
+        console.log('[PlantAssetsTimesheetsTab] Filtering from date:', fromDateStr);
+        loadedTimesheets = loadedTimesheets.filter(t => t.date >= fromDateStr);
+        console.log('[PlantAssetsTimesheetsTab] After fromDate filter:', loadedTimesheets.length, 'timesheets');
+      }
+
+      if (filters.toDate) {
+        const toDateStr = filters.toDate.toISOString().split('T')[0];
+        console.log('[PlantAssetsTimesheetsTab] Filtering to date:', toDateStr);
+        loadedTimesheets = loadedTimesheets.filter(t => t.date <= toDateStr);
+        console.log('[PlantAssetsTimesheetsTab] After toDate filter:', loadedTimesheets.length, 'timesheets');
+      }
+
+      console.log('[PlantAssetsTimesheetsTab] Final filtered count:', loadedTimesheets.length, 'timesheets');
+      if (loadedTimesheets.length > 0) {
+        console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', loadedTimesheets[0]);
+      }
       setTimesheets(loadedTimesheets);
     } catch (error) {
       console.error('[PlantAssetsTimesheetsTab] ❌ Error loading timesheets:', error);
@@ -360,8 +435,196 @@ export default function PlantAssetsTimesheetsTab({
     );
   };
 
+  const handleApplyFilters = () => {
+    onFiltersChange({
+      ...filters,
+      subcontractorId: tempSubcontractor || undefined,
+      assetId: tempAsset || undefined,
+      fromDate: tempStartDate,
+      toDate: tempEndDate,
+    });
+    setShowSelector(false);
+  };
+
+  const handleClearSelection = () => {
+    setTempSubcontractor(null);
+    setTempAsset(null);
+    setPlantAssets([]);
+    onFiltersChange({});
+    setShowSelector(true);
+  };
+
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const handleDateChange = (type: 'start' | 'end', dateString: string) => {
+    const date = new Date(dateString);
+    if (type === 'start') {
+      setTempStartDate(date);
+    } else {
+      setTempEndDate(date);
+    }
+  };
+
+  if (showSelector) {
+    return (
+      <View style={styles.container}>
+        <ScrollView style={styles.selectorContainer}>
+          <View style={styles.selectorSection}>
+            <Text style={styles.selectorLabel}>Select Subcontractor:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subList}>
+              {subcontractors.map(sub => (
+                <TouchableOpacity
+                  key={sub.id}
+                  style={[
+                    styles.subButton,
+                    tempSubcontractor === sub.id && styles.subButtonActive,
+                  ]}
+                  onPress={() => setTempSubcontractor(sub.id)}
+                >
+                  <Text
+                    style={[
+                      styles.subButtonText,
+                      tempSubcontractor === sub.id && styles.subButtonTextActive,
+                    ]}
+                  >
+                    {sub.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {tempSubcontractor && (
+            <View style={styles.selectorSection}>
+              <View style={styles.dateRangeContainer}>
+                <View style={styles.dateRangeHeader}>
+                  <Calendar size={20} color="#1e3a8a" />
+                  <Text style={styles.dateRangeTitle}>Date Range</Text>
+                </View>
+                
+                <View style={styles.datePickersRow}>
+                  <View style={styles.datePickerBlock}>
+                    <Text style={styles.datePickerLabel}>Start Date</Text>
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        value={tempStartDate.toISOString().split('T')[0]}
+                        onChange={(e: any) => handleDateChange('start', e.target.value)}
+                        style={{
+                          height: 48,
+                          borderWidth: 1,
+                          borderColor: '#e2e8f0',
+                          borderRadius: 8,
+                          paddingLeft: 12,
+                          paddingRight: 12,
+                          fontSize: 15,
+                          color: '#1e293b',
+                          backgroundColor: '#ffffff',
+                          fontFamily: 'system-ui',
+                        }}
+                      />
+                    ) : (
+                      <TouchableOpacity style={styles.dateButton}>
+                        <Calendar size={18} color="#64748b" />
+                        <Text style={styles.dateButtonText}>{formatDate(tempStartDate)}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <View style={styles.datePickerBlock}>
+                    <Text style={styles.datePickerLabel}>End Date</Text>
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        value={tempEndDate.toISOString().split('T')[0]}
+                        onChange={(e: any) => handleDateChange('end', e.target.value)}
+                        style={{
+                          height: 48,
+                          borderWidth: 1,
+                          borderColor: '#e2e8f0',
+                          borderRadius: 8,
+                          paddingLeft: 12,
+                          paddingRight: 12,
+                          fontSize: 15,
+                          color: '#1e293b',
+                          backgroundColor: '#ffffff',
+                          fontFamily: 'system-ui',
+                        }}
+                      />
+                    ) : (
+                      <TouchableOpacity style={styles.dateButton}>
+                        <Calendar size={18} color="#64748b" />
+                        <Text style={styles.dateButtonText}>{formatDate(tempEndDate)}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+
+              <Text style={styles.selectorLabel}>Select Plant Asset:</Text>
+              {plantAssets.length > 0 ? (
+                <FlatList
+                  data={plantAssets}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.assetCard,
+                        tempAsset === item.assetId && styles.assetCardActive,
+                      ]}
+                      onPress={() => setTempAsset(item.assetId)}
+                    >
+                      <View style={styles.assetCardContent}>
+                        <Text style={styles.assetType}>{item.type}</Text>
+                        <Text style={styles.assetNumber}>
+                          {item.plantNumber || item.registrationNumber || item.assetId}
+                        </Text>
+                      </View>
+                      {tempAsset === item.assetId && (
+                        <View style={styles.selectedBadge}>
+                          <Text style={styles.selectedBadgeText}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyAssets}>
+                  <Text style={styles.emptyText}>No plant assets found for this subcontractor</Text>
+                </View>
+              )}
+
+              {tempAsset && (
+                <TouchableOpacity
+                  style={styles.applyButton}
+                  onPress={handleApplyFilters}
+                >
+                  <Text style={styles.applyButtonText}>View Timesheets</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.backToSelectorButton}
+        onPress={handleClearSelection}
+      >
+        <ChevronDown size={24} color="#1e3a8a" style={{ transform: [{ rotate: '90deg' }] }} />
+        <Text style={styles.backToSelectorText}>Back to Assets</Text>
+      </TouchableOpacity>
       <FiltersBar
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -647,5 +910,158 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
+  },
+  selectorContainer: {
+    flex: 1,
+  },
+  selectorSection: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+  },
+  selectorLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#475569',
+    marginBottom: 12,
+  },
+  subList: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  subButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    marginRight: 8,
+  },
+  subButtonActive: {
+    backgroundColor: '#1e3a8a',
+    borderColor: '#1e3a8a',
+  },
+  subButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#475569',
+  },
+  subButtonTextActive: {
+    color: '#ffffff',
+  },
+  dateRangeContainer: {
+    marginBottom: 16,
+  },
+  dateRangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  dateRangeTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1e293b',
+  },
+  datePickersRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  datePickerBlock: {
+    flex: 1,
+  },
+  datePickerLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff',
+  },
+  dateButtonText: {
+    fontSize: 15,
+    color: '#1e293b',
+    fontWeight: '500' as const,
+  },
+  assetCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  assetCardActive: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#eff6ff',
+  },
+  assetCardContent: {
+    flex: 1,
+  },
+  assetType: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#1e293b',
+  },
+  assetNumber: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  selectedBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedBadgeText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+  },
+  emptyAssets: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  applyButton: {
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
+  backToSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  backToSelectorText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#1e3a8a',
+    marginLeft: 4,
   },
 });

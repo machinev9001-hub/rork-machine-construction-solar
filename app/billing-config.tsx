@@ -67,6 +67,7 @@ type TimesheetEntry = {
   dayOfWeek: string;
   openHours: string;
   closeHours: string;
+  closingHours?: string;
   totalHours: number;
   operatorName: string;
   isRainDay: boolean;
@@ -130,7 +131,7 @@ const buildDisplayRow = (
     weekdayLabel: dateObj.toLocaleDateString('en-GB', { weekday: 'short' }),
     operatorName: entry.operatorName ?? 'Unknown',
     openHours: toTimeString(entry.openHours),
-    closeHours: toTimeString(entry.closeHours ?? (entry as { closingHours?: string }).closingHours),
+    closeHours: toTimeString(entry.closeHours ?? entry.closingHours),
     totalHours: Number(entry.totalHours ?? 0),
     isOriginal: type === 'original',
     badgeLabel: type === 'original' ? 'ORIG' : 'PM',
@@ -298,120 +299,123 @@ export default function BillingConfigScreen() {
     }
   }, [activeTab, loadSubcontractors]);
 
-  const loadPlantAssets = async (subcontractorId: string) => {
-    setLoading(true);
-    try {
-      const q = query(
-        collection(db, 'plantAssets'),
-        where('masterAccountId', '==', user?.masterAccountId),
-        where('siteId', '==', user?.siteId),
-        where('ownerId', '==', subcontractorId),
-        where('ownerType', '==', 'subcontractor')
-      );
-      const snapshot = await getDocs(q);
-      const assets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PlantAsset));
-      setPlantAssets(assets);
-      await generateEPHReport(assets, subcontractorId);
-    } catch (error) {
-      console.error('Error loading plant assets:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const generateEPHReport = useCallback(
+    async (assets: PlantAsset[], subcontractorId: string) => {
+      console.log('Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
+      console.log('Assets to process:', assets.length);
 
-  const generateEPHReport = async (assets: PlantAsset[], subcontractorId: string) => {
-    console.log('Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
-    console.log('Assets to process:', assets.length);
+      try {
+        const ephRecords: EPHRecord[] = await Promise.all(
+          assets.map(async (asset) => {
+            console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
+            const timesheetQuery = query(
+              collection(db, 'verifiedTimesheets'),
+              where('masterAccountId', '==', user?.masterAccountId),
+              where('assetId', '==', asset.assetId),
+              where('type', '==', 'plant_hours'),
+              where('date', '>=', startDate.toISOString().split('T')[0]),
+              where('date', '<=', endDate.toISOString().split('T')[0])
+            );
 
-    try {
-      const ephRecords: EPHRecord[] = await Promise.all(
-        assets.map(async (asset) => {
-          console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
-          
-          const timesheetQuery = query(
-            collection(db, 'verifiedTimesheets'),
-            where('masterAccountId', '==', user?.masterAccountId),
-            where('assetId', '==', asset.assetId),
-            where('type', '==', 'plant_hours'),
-            where('date', '>=', startDate.toISOString().split('T')[0]),
-            where('date', '<=', endDate.toISOString().split('T')[0])
-          );
+            const timesheetSnapshot = await getDocs(timesheetQuery);
+            console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
+            let normalHours = 0;
+            let saturdayHours = 0;
+            let sundayHours = 0;
+            let publicHolidayHours = 0;
+            let breakdownHours = 0;
+            let rainDayHours = 0;
+            let strikeDayHours = 0;
 
-          const timesheetSnapshot = await getDocs(timesheetQuery);
-          console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
-          
-          let normalHours = 0;
-          let saturdayHours = 0;
-          let sundayHours = 0;
-          let publicHolidayHours = 0;
-          let breakdownHours = 0;
-          let rainDayHours = 0;
-          let strikeDayHours = 0;
+            timesheetSnapshot.forEach((doc) => {
+              const data = doc.data();
+              const hours = data.totalHours || 0;
+              const date = new Date(data.date);
+              const dayOfWeek = date.getDay();
+              const isBreakdown = data.isBreakdown || false;
+              const isRainDay = data.isRainDay || false;
+              const isStrikeDay = data.isStrikeDay || false;
+              const isPublicHoliday = data.isPublicHoliday || false;
 
-          timesheetSnapshot.forEach((doc) => {
-            const data = doc.data();
-            const hours = data.totalHours || 0;
-            const date = new Date(data.date);
-            const dayOfWeek = date.getDay();
-            
-            const isBreakdown = data.isBreakdown || false;
-            const isRainDay = data.isRainDay || false;
-            const isStrikeDay = data.isStrikeDay || false;
-            const isPublicHoliday = data.isPublicHoliday || false;
+              if (isBreakdown) {
+                breakdownHours += hours;
+              } else if (isRainDay) {
+                rainDayHours += hours;
+              } else if (isStrikeDay) {
+                strikeDayHours += hours;
+              } else if (isPublicHoliday) {
+                publicHolidayHours += hours;
+              } else if (dayOfWeek === 6) {
+                saturdayHours += hours;
+              } else if (dayOfWeek === 0) {
+                sundayHours += hours;
+              } else {
+                normalHours += hours;
+              }
+            });
 
-            if (isBreakdown) {
-              breakdownHours += hours;
-            } else if (isRainDay) {
-              rainDayHours += hours;
-            } else if (isStrikeDay) {
-              strikeDayHours += hours;
-            } else if (isPublicHoliday) {
-              publicHolidayHours += hours;
-            } else if (dayOfWeek === 6) {
-              saturdayHours += hours;
-            } else if (dayOfWeek === 0) {
-              sundayHours += hours;
-            } else {
-              normalHours += hours;
-            }
-          });
+            const rate = asset.dryRate || asset.wetRate || 0;
+            const rateType = asset.dryRate ? 'dry' : 'wet';
+            const totalBillableHours =
+              normalHours +
+              saturdayHours +
+              sundayHours +
+              publicHolidayHours +
+              breakdownHours +
+              rainDayHours +
+              strikeDayHours;
 
-          const rate = asset.dryRate || asset.wetRate || 0;
-          const rateType = asset.dryRate ? 'dry' : 'wet';
-          const totalBillableHours =
-            normalHours +
-            saturdayHours +
-            sundayHours +
-            publicHolidayHours +
-            breakdownHours +
-            rainDayHours +
-            strikeDayHours;
+            return {
+              assetId: asset.id || '',
+              assetType: asset.type,
+              plantNumber: asset.plantNumber,
+              registrationNumber: asset.registrationNumber,
+              rate,
+              rateType: rateType as 'wet' | 'dry',
+              normalHours,
+              saturdayHours,
+              sundayHours,
+              publicHolidayHours,
+              breakdownHours,
+              rainDayHours,
+              strikeDayHours,
+              totalBillableHours,
+              estimatedCost: totalBillableHours * rate,
+            };
+          })
+        );
 
-          return {
-            assetId: asset.id || '',
-            assetType: asset.type,
-            plantNumber: asset.plantNumber,
-            registrationNumber: asset.registrationNumber,
-            rate,
-            rateType: rateType as 'wet' | 'dry',
-            normalHours,
-            saturdayHours,
-            sundayHours,
-            publicHolidayHours,
-            breakdownHours,
-            rainDayHours,
-            strikeDayHours,
-            totalBillableHours,
-            estimatedCost: totalBillableHours * rate,
-          };
-        })
-      );
-      
-      setEphData(ephRecords);
-    } catch (error) {
-      console.error('Error generating EPH report:', error);
-    }
-  };
+        setEphData(ephRecords);
+      } catch (error) {
+        console.error('Error generating EPH report:', error);
+      }
+    },
+    [endDate, startDate, user?.masterAccountId]
+  );
+
+  const loadPlantAssets = useCallback(
+    async (subcontractorId: string) => {
+      setLoading(true);
+      try {
+        const q = query(
+          collection(db, 'plantAssets'),
+          where('masterAccountId', '==', user?.masterAccountId),
+          where('siteId', '==', user?.siteId),
+          where('ownerId', '==', subcontractorId),
+          where('ownerType', '==', 'subcontractor')
+        );
+        const snapshot = await getDocs(q);
+        const assets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PlantAsset));
+        setPlantAssets(assets);
+        await generateEPHReport(assets, subcontractorId);
+      } catch (error) {
+        console.error('Error loading plant assets:', error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [generateEPHReport, user?.masterAccountId, user?.siteId]
+  );
 
   const updateDayConfig = (
     dayType: keyof Omit<BillingConfig, 'rainDays'>,

@@ -383,45 +383,45 @@ export default function PlantAssetsTimesheetsTab({
     if (viewMode === 'plant') {
       return (
         <View style={[styles.timesheetRow, { backgroundColor: rowBg }]}>
-          <View style={styles.rowCell}>
-            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</Text>
+          <View style={styles.dateCell}>
+            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</Text>
             <View style={[styles.rowBadge, { backgroundColor: rowLabelColor }]}>
               <Text style={styles.rowBadgeText}>{rowLabel}</Text>
             </View>
           </View>
-          <Text style={[styles.rowCell, styles.cellText]}>{timesheet.operatorName}</Text>
-          <Text style={[styles.rowCell, styles.cellText]}>{timesheet.openHours}</Text>
-          <Text style={[styles.rowCell, styles.cellText]}>{timesheet.closeHours}</Text>
-          <Text style={[styles.rowCell, styles.cellText, styles.boldText]}>
+          <Text style={[styles.operatorCell, styles.cellText]} numberOfLines={2}>{timesheet.operatorName}</Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>{timesheet.openHours}</Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>{timesheet.closeHours}</Text>
+          <Text style={[styles.hoursCell, styles.cellText, styles.boldText]}>
             {timesheet.totalHours?.toFixed(1)}h
           </Text>
-          <Text style={[styles.rowCell, styles.cellText, styles.smallText]}>
-            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          <Text style={[styles.verifiedCell, styles.cellText, styles.smallText]}>
+            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
           </Text>
         </View>
       );
     } else {
       return (
         <View style={[styles.timesheetRow, { backgroundColor: rowBg }]}>
-          <View style={styles.rowCell}>
-            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</Text>
+          <View style={styles.dateCell}>
+            <Text style={styles.cellText}>{new Date(timesheet.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</Text>
             <View style={[styles.rowBadge, { backgroundColor: rowLabelColor }]}>
               <Text style={styles.rowBadgeText}>{rowLabel}</Text>
             </View>
           </View>
-          <Text style={[styles.rowCell, styles.cellText]}>{timesheet.startTime}</Text>
-          <Text style={[styles.rowCell, styles.cellText]}>{timesheet.stopTime}</Text>
-          <Text style={[styles.rowCell, styles.cellText, styles.boldText]}>
+          <Text style={[styles.timeCell, styles.cellText]}>{timesheet.startTime}</Text>
+          <Text style={[styles.timeCell, styles.cellText]}>{timesheet.stopTime}</Text>
+          <Text style={[styles.hoursCell, styles.cellText, styles.boldText]}>
             {timesheet.totalManHours?.toFixed(1)}h
           </Text>
-          <Text style={[styles.rowCell, styles.cellText]}>
+          <Text style={[styles.hoursCell, styles.cellText]}>
             {timesheet.normalHours?.toFixed(1)}h
           </Text>
-          <Text style={[styles.rowCell, styles.cellText]}>
+          <Text style={[styles.hoursCell, styles.cellText]}>
             {timesheet.overtimeHours?.toFixed(1)}h
           </Text>
-          <Text style={[styles.rowCell, styles.cellText, styles.smallText]}>
-            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          <Text style={[styles.verifiedCell, styles.cellText, styles.smallText]}>
+            {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
           </Text>
         </View>
       );
@@ -483,24 +483,24 @@ export default function PlantAssetsTimesheetsTab({
             <ScrollView horizontal showsHorizontalScrollIndicator={true} persistentScrollbar={true}>
               <View>
                 <View style={styles.tableHeader}>
-                  <Text style={styles.headerCell}>Date</Text>
+                  <Text style={styles.dateHeaderCell}>Date</Text>
                   {viewMode === 'plant' ? (
                     <>
-                      <Text style={styles.headerCell}>Operator</Text>
-                      <Text style={styles.headerCell}>Open</Text>
-                      <Text style={styles.headerCell}>Close</Text>
-                      <Text style={styles.headerCell}>Total</Text>
+                      <Text style={styles.operatorHeaderCell}>Operator</Text>
+                      <Text style={styles.hoursHeaderCell}>Open</Text>
+                      <Text style={styles.hoursHeaderCell}>Close</Text>
+                      <Text style={styles.hoursHeaderCell}>Total</Text>
                     </>
                   ) : (
                     <>
-                      <Text style={styles.headerCell}>Start</Text>
-                      <Text style={styles.headerCell}>Stop</Text>
-                      <Text style={styles.headerCell}>Total</Text>
-                      <Text style={styles.headerCell}>Normal</Text>
-                      <Text style={styles.headerCell}>Overtime</Text>
+                      <Text style={styles.timeHeaderCell}>Start</Text>
+                      <Text style={styles.timeHeaderCell}>Stop</Text>
+                      <Text style={styles.hoursHeaderCell}>Total</Text>
+                      <Text style={styles.hoursHeaderCell}>Normal</Text>
+                      <Text style={styles.hoursHeaderCell}>Overtime</Text>
                     </>
                   )}
-                  <Text style={styles.headerCell}>Verified</Text>
+                  <Text style={styles.verifiedHeaderCell}>Verified</Text>
                 </View>
 
                 {item.dateGroups.map((dateGroup, index) => {
@@ -936,25 +936,54 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f8fafc',
-    paddingVertical: 10,
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 2,
     borderBottomColor: '#e5e7eb',
   },
-  headerCell: {
-    width: 120,
+  dateHeaderCell: {
+    width: 100,
     fontSize: 11,
     fontWeight: '700' as const,
-    color: '#475569',
+    color: '#ffffff',
+    textTransform: 'uppercase' as const,
+  },
+  operatorHeaderCell: {
+    width: 140,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    textTransform: 'uppercase' as const,
+  },
+  hoursHeaderCell: {
+    width: 80,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    textTransform: 'uppercase' as const,
+  },
+  timeHeaderCell: {
+    width: 100,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    textTransform: 'uppercase' as const,
+  },
+  verifiedHeaderCell: {
+    width: 100,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#ffffff',
     textTransform: 'uppercase' as const,
   },
   timesheetRow: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e5e7eb',
+    alignItems: 'center',
   },
   showOriginalsButton: {
     flexDirection: 'row',
@@ -972,8 +1001,24 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#3b82f6',
   },
-  rowCell: {
-    width: 120,
+  dateCell: {
+    width: 100,
+    justifyContent: 'center',
+  },
+  operatorCell: {
+    width: 140,
+    justifyContent: 'center',
+  },
+  hoursCell: {
+    width: 80,
+    justifyContent: 'center',
+  },
+  timeCell: {
+    width: 100,
+    justifyContent: 'center',
+  },
+  verifiedCell: {
+    width: 100,
     justifyContent: 'center',
   },
   cellText: {

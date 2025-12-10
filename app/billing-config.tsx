@@ -143,6 +143,17 @@ const sanitizeNotes = (value?: string | null): string | undefined => {
   if (/^(\d+(\.\d+)?)(h|hr|hrs|hour|hours)?$/.test(normalized)) {
     return undefined;
   }
+  const lowerTrimmed = trimmed.toLowerCase();
+  const hourPatterns = [
+    /^\d+[.,:]?\d*\s*(h|hr|hrs|hour|hours)$/,
+    /^(h|hr|hrs|hour|hours)\s*[.,:]?\s*\d+[.,:]?\d*$/,
+    /^\d+[.,:]?\d*$/,
+  ];
+  for (const pattern of hourPatterns) {
+    if (pattern.test(lowerTrimmed)) {
+      return undefined;
+    }
+  }
   return trimmed;
 };
 
@@ -228,8 +239,9 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
     const group = groupMap.get(key)!;
     const sourceEntryId = getSourceEntryId(entry);
     const entryTimestamp = getEntryTimestamp(entry);
+    const isPMEntry = Boolean(entry.hasOriginalEntry || entry.isAdjustment || entry.adjustedBy);
 
-    if (entry.hasOriginalEntry && entry.originalEntryData) {
+    if (isPMEntry && entry.originalEntryData) {
       const originalRow = buildDisplayRow(
         {
           ...entry.originalEntryData,
@@ -243,8 +255,7 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
       group.rows.push(originalRow);
     }
 
-    const isAdjustment = Boolean(entry.hasOriginalEntry || entry.isAdjustment || entry.adjustedBy);
-    const rowType: 'original' | 'adjusted' = isAdjustment ? 'adjusted' : 'original';
+    const rowType: 'original' | 'adjusted' = isPMEntry ? 'adjusted' : 'original';
     group.rows.push(buildDisplayRow(entry, rowType, sourceEntryId, entryTimestamp));
   });
 
@@ -253,24 +264,48 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
   );
 
   groups.forEach((group) => {
-    group.rows = dedupeDisplayRows(group.rows);
-    group.rows.sort((a, b) => {
+    const dateOperatorPairs = new Map<string, { original?: TimesheetDisplayRow; pm?: TimesheetDisplayRow }>();
+    
+    group.rows.forEach((row) => {
+      const pairKey = `${row.isoDate}-${row.operatorName}`;
+      if (!dateOperatorPairs.has(pairKey)) {
+        dateOperatorPairs.set(pairKey, {});
+      }
+      const pair = dateOperatorPairs.get(pairKey)!;
+      
+      if (row.badgeLabel === 'ORIG') {
+        if (!pair.original || row.timestamp > pair.original.timestamp) {
+          pair.original = row;
+        }
+      } else {
+        if (!pair.pm || row.timestamp > pair.pm.timestamp) {
+          pair.pm = row;
+        }
+      }
+    });
+
+    const dedupedRows: TimesheetDisplayRow[] = [];
+    dateOperatorPairs.forEach((pair) => {
+      if (pair.original) {
+        dedupedRows.push(pair.original);
+      }
+      if (pair.pm) {
+        dedupedRows.push(pair.pm);
+      }
+    });
+
+    dedupedRows.sort((a, b) => {
       if (a.isOriginal === b.isOriginal) {
         return b.timestamp - a.timestamp;
       }
       return a.isOriginal ? -1 : 1;
     });
-    group.hasAdjustments = group.rows.some(row => !row.isOriginal);
+
+    group.rows = dedupedRows;
+    group.hasAdjustments = dedupedRows.some(row => !row.isOriginal);
   });
 
   return groups;
-};
-
-const getEntryPriority = (entry: TimesheetEntry): number => {
-  if (entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy)) {
-    return 2;
-  }
-  return 1;
 };
 
 const getEntryTimestamp = (entry: TimesheetEntry): number => {
@@ -299,80 +334,53 @@ const getSourceEntryId = (entry: Partial<TimesheetEntry>): string => {
   return `${dateKey}-${operator}-${open}-${close}`;
 };
 
-const dedupeDisplayRows = (rows: TimesheetDisplayRow[]): TimesheetDisplayRow[] => {
-  const pairMap = new Map<string, { original?: TimesheetDisplayRow; adjusted?: TimesheetDisplayRow }>();
-
-  rows.forEach((row) => {
-    const pair = pairMap.get(row.sourceEntryId) ?? {};
-    if (row.isOriginal) {
-      if (!pair.original || row.timestamp >= pair.original.timestamp) {
-        pair.original = row;
-      }
-    } else if (!pair.adjusted || row.timestamp >= pair.adjusted.timestamp) {
-      pair.adjusted = row;
-    }
-    pairMap.set(row.sourceEntryId, pair);
-  });
-
-  const flattened: TimesheetDisplayRow[] = [];
-  pairMap.forEach((pair) => {
-    if (pair.original) {
-      flattened.push(pair.original);
-    }
-    if (pair.adjusted) {
-      flattened.push(pair.adjusted);
-    }
-  });
-  return flattened;
-};
-
 const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[] => {
-  const entryMap = new Map<string, TimesheetEntry>();
-  const replacedOriginalIds = new Set<string>();
-  const originalsWithSnapshots = new Set<string>();
+  const pairingMap = new Map<string, { plantManager?: TimesheetEntry; operator?: TimesheetEntry }>();
+  const processedIds = new Set<string>();
 
   entries.forEach((entry) => {
-    if (entry.originalEntryId) {
-      replacedOriginalIds.add(entry.originalEntryId);
-      if (entry.originalEntryData) {
-        originalsWithSnapshots.add(entry.originalEntryId);
+    if (processedIds.has(entry.id)) {
+      return;
+    }
+
+    const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
+    const dateOperatorKey = `${entry.date}-${entry.operatorName}`;
+
+    if (!pairingMap.has(dateOperatorKey)) {
+      pairingMap.set(dateOperatorKey, {});
+    }
+
+    const pair = pairingMap.get(dateOperatorKey)!;
+
+    if (isPMEntry) {
+      if (!pair.plantManager || getEntryTimestamp(entry) > getEntryTimestamp(pair.plantManager)) {
+        if (pair.plantManager) {
+          processedIds.delete(pair.plantManager.id);
+        }
+        pair.plantManager = entry;
+        processedIds.add(entry.id);
       }
-    }
-
-    const mapKey = entry.originalEntryId ?? entry.id ?? `${entry.date}-${entry.operatorName}`;
-    const existing = entryMap.get(mapKey);
-
-    if (!existing) {
-      entryMap.set(mapKey, entry);
-      return;
-    }
-
-    const incomingPriority = getEntryPriority(entry);
-    const existingPriority = getEntryPriority(existing);
-
-    if (incomingPriority > existingPriority) {
-      entryMap.set(mapKey, entry);
-      return;
-    }
-
-    if (incomingPriority === existingPriority) {
-      if (getEntryTimestamp(entry) >= getEntryTimestamp(existing)) {
-        entryMap.set(mapKey, entry);
+    } else {
+      if (!pair.operator || getEntryTimestamp(entry) > getEntryTimestamp(pair.operator)) {
+        if (pair.operator) {
+          processedIds.delete(pair.operator.id);
+        }
+        pair.operator = entry;
+        processedIds.add(entry.id);
       }
     }
   });
 
-  return Array.from(entryMap.values()).filter((entry) => {
-    if (entry.originalEntryId) {
-      return true;
+  const result: TimesheetEntry[] = [];
+  pairingMap.forEach((pair) => {
+    if (pair.plantManager) {
+      result.push(pair.plantManager);
+    } else if (pair.operator) {
+      result.push(pair.operator);
     }
-
-    if (replacedOriginalIds.has(entry.id) && originalsWithSnapshots.has(entry.id)) {
-      return false;
-    }
-
-    return true;
   });
+
+  return result;
 };
 
 export default function BillingConfigScreen() {

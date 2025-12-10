@@ -117,6 +117,21 @@ const toTimeString = (value?: string | number | null): string => {
   return String(value);
 };
 
+const sanitizeNotes = (value?: string | null): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const normalized = trimmed.replace(/\s+/g, '').toLowerCase();
+  if (/^\d+(\.\d+)?h$/.test(normalized)) {
+    return undefined;
+  }
+  return trimmed;
+};
+
 const buildDisplayRow = (
   entry: Partial<TimesheetEntry> & { id?: string },
   type: 'original' | 'adjusted'
@@ -137,7 +152,7 @@ const buildDisplayRow = (
     badgeLabel: type === 'original' ? 'ORIG' : 'PM',
     adjustedBy: entry.adjustedBy,
     adjustedAt: entry.adjustedAt,
-    notes: entry.notes,
+    notes: sanitizeNotes(entry.notes),
     isRainDay: Boolean(entry.isRainDay),
     isStrikeDay: Boolean(entry.isStrikeDay),
     isBreakdown: Boolean(entry.isBreakdown),
@@ -809,7 +824,7 @@ export default function BillingConfigScreen() {
           isStrikeDay: Boolean(data.isStrikeDay),
           isBreakdown: Boolean(data.isBreakdown),
           isPublicHoliday: Boolean(data.isPublicHoliday),
-          notes: data.notes,
+          notes: sanitizeNotes(data.notes),
           verifiedAt: data.verifiedAt,
           hasOriginalEntry: data.hasOriginalEntry,
           originalEntryData: data.originalEntryData,

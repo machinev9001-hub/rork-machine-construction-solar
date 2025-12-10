@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import { Stack, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -66,7 +66,7 @@ type TimesheetEntry = {
   date: string;
   dayOfWeek: string;
   openHours: string;
-  closingHours: string;
+  closeHours: string;
   totalHours: number;
   operatorName: string;
   isRainDay: boolean;
@@ -74,6 +74,126 @@ type TimesheetEntry = {
   isBreakdown: boolean;
   isPublicHoliday: boolean;
   notes?: string;
+  verifiedAt?: string;
+  hasOriginalEntry?: boolean;
+  originalEntryData?: Partial<TimesheetEntry>;
+  originalEntryId?: string;
+  adjustedBy?: string;
+  adjustedAt?: string;
+  isAdjustment?: boolean;
+};
+
+type TimesheetDisplayRow = {
+  id: string;
+  isoDate: string;
+  dateLabel: string;
+  weekdayLabel: string;
+  operatorName: string;
+  openHours: string;
+  closeHours: string;
+  totalHours: number;
+  isOriginal: boolean;
+  badgeLabel: 'ORIG' | 'PM';
+  adjustedBy?: string;
+  adjustedAt?: string;
+  notes?: string;
+  isRainDay: boolean;
+  isStrikeDay: boolean;
+  isBreakdown: boolean;
+  isPublicHoliday: boolean;
+};
+
+type TimesheetDisplayGroup = {
+  date: string;
+  rows: TimesheetDisplayRow[];
+  hasAdjustments: boolean;
+};
+
+const toTimeString = (value?: string | number | null): string => {
+  if (value === null || value === undefined) {
+    return '00:00';
+  }
+  return String(value);
+};
+
+const buildDisplayRow = (
+  entry: Partial<TimesheetEntry> & { id?: string },
+  type: 'original' | 'adjusted'
+): TimesheetDisplayRow => {
+  const isoDate = entry.date ?? new Date().toISOString();
+  const dateObj = new Date(isoDate);
+
+  return {
+    id: entry.id ?? `${isoDate}-${type}-${Math.random().toString(36).slice(2, 8)}`,
+    isoDate,
+    dateLabel: dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+    weekdayLabel: dateObj.toLocaleDateString('en-GB', { weekday: 'short' }),
+    operatorName: entry.operatorName ?? 'Unknown',
+    openHours: toTimeString(entry.openHours),
+    closeHours: toTimeString(entry.closeHours ?? (entry as { closingHours?: string }).closingHours),
+    totalHours: Number(entry.totalHours ?? 0),
+    isOriginal: type === 'original',
+    badgeLabel: type === 'original' ? 'ORIG' : 'PM',
+    adjustedBy: entry.adjustedBy,
+    adjustedAt: entry.adjustedAt,
+    notes: entry.notes,
+    isRainDay: Boolean(entry.isRainDay),
+    isStrikeDay: Boolean(entry.isStrikeDay),
+    isBreakdown: Boolean(entry.isBreakdown),
+    isPublicHoliday: Boolean(entry.isPublicHoliday),
+  };
+};
+
+const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[] => {
+  const groupMap = new Map<string, TimesheetDisplayGroup>();
+
+  entries.forEach((entry) => {
+    const key = entry.date;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        date: key,
+        rows: [],
+        hasAdjustments: false,
+      });
+    }
+
+    const group = groupMap.get(key)!;
+
+    if (entry.hasOriginalEntry && entry.originalEntryData) {
+      const originalRow = buildDisplayRow(
+        {
+          ...entry.originalEntryData,
+          id: entry.originalEntryId ?? `${entry.id}-orig`,
+          date: entry.date,
+        },
+        'original'
+      );
+      group.rows.push(originalRow);
+      group.hasAdjustments = true;
+    }
+
+    const isAdjustment = Boolean(entry.hasOriginalEntry || entry.isAdjustment || entry.adjustedBy);
+    const rowType: 'original' | 'adjusted' = isAdjustment ? 'adjusted' : 'original';
+    group.rows.push(buildDisplayRow(entry, rowType));
+    if (isAdjustment) {
+      group.hasAdjustments = true;
+    }
+  });
+
+  const groups = Array.from(groupMap.values()).sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  groups.forEach((group) => {
+    group.rows.sort((a, b) => {
+      if (a.isOriginal === b.isOriginal) {
+        return 0;
+      }
+      return a.isOriginal ? -1 : 1;
+    });
+  });
+
+  return groups;
 };
 
 export default function BillingConfigScreen() {
@@ -129,18 +249,18 @@ export default function BillingConfigScreen() {
       thresholdHours: 1,
     },
   });
+  const [timesheetGroups, setTimesheetGroups] = useState<TimesheetDisplayGroup[]>([]);
+  const [showOriginalRows, setShowOriginalRows] = useState(false);
 
-  useEffect(() => {
-    if (activeTab === 'eph') {
-      loadSubcontractors();
-    }
-  }, [activeTab]);
+  const totalTimesheetHours = useMemo(() => {
+    return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
+  }, [timesheets]);
 
-  useEffect(() => {
-    loadBillingConfig();
-  }, []);
+  const hasAnyAdjustments = useMemo(() => {
+    return timesheetGroups.some(group => group.hasAdjustments);
+  }, [timesheetGroups]);
 
-  const loadSubcontractors = async () => {
+  const loadSubcontractors = useCallback(async () => {
     try {
       const q = query(
         collection(db, 'subcontractors'),
@@ -155,7 +275,7 @@ export default function BillingConfigScreen() {
     } catch (error) {
       console.error('Error loading subcontractors:', error);
     }
-  };
+  }, [user?.masterAccountId, user?.siteId]);
 
   const loadPlantAssets = async (subcontractorId: string) => {
     setLoading(true);
@@ -296,7 +416,7 @@ export default function BillingConfigScreen() {
     }));
   };
 
-  const loadBillingConfig = async () => {
+  const loadBillingConfig = useCallback(async () => {
     if (!user?.masterAccountId) return;
     
     try {
@@ -314,7 +434,7 @@ export default function BillingConfigScreen() {
     } catch (error) {
       console.error('Error loading billing config:', error);
     }
-  };
+  }, [user?.masterAccountId]);
 
   const handleSave = async () => {
     console.log('[BILLING] Save button pressed');
@@ -603,20 +723,31 @@ export default function BillingConfigScreen() {
           id: doc.id,
           date: data.date,
           dayOfWeek,
-          openHours: String(data.openHours || '00:00'),
-          closingHours: String(data.closeHours || '00:00'),
-          totalHours: data.totalHours || 0,
+          openHours: toTimeString(data.openHours),
+          closeHours: toTimeString(data.closeHours),
+          totalHours: Number(data.totalHours || 0),
           operatorName: data.operatorName || 'Unknown',
-          isRainDay: data.isRainDay || data.inclementWeather || false,
-          isStrikeDay: data.isStrikeDay || false,
-          isBreakdown: data.isBreakdown || false,
-          isPublicHoliday: data.isPublicHoliday || false,
+          isRainDay: Boolean(data.isRainDay || data.inclementWeather),
+          isStrikeDay: Boolean(data.isStrikeDay),
+          isBreakdown: Boolean(data.isBreakdown),
+          isPublicHoliday: Boolean(data.isPublicHoliday),
           notes: data.notes,
+          verifiedAt: data.verifiedAt,
+          hasOriginalEntry: data.hasOriginalEntry,
+          originalEntryData: data.originalEntryData,
+          originalEntryId: data.originalEntryId,
+          adjustedBy: data.adjustedBy,
+          adjustedAt: data.adjustedAt,
+          isAdjustment: data.isAdjustment,
         };
       });
 
       entries.sort((a, b) => a.date.localeCompare(b.date));
+      const grouped = buildTimesheetGroups(entries);
       setTimesheets(entries);
+      setTimesheetGroups(grouped);
+      setShowOriginalRows(false);
+      console.log('[Timesheets] Built display groups:', grouped.length);
     } catch (error) {
       console.error('Error loading timesheets:', error);
     } finally {

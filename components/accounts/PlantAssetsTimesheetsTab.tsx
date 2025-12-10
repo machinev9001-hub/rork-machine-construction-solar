@@ -9,13 +9,14 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, Edit } from 'lucide-react-native';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import FiltersBar, { FilterValues } from './FiltersBar';
 import ExportRequestModal, { ExportRequest, ExportType } from './ExportRequestModal';
+import AgreedHoursModal from './AgreedHoursModal';
 
 type ViewMode = 'plant' | 'man';
 
@@ -61,12 +62,23 @@ type VerifiedTimesheet = {
   originalEntryId?: string;
   adjustedBy?: string;
   adjustedAt?: string;
+  
+  agreedHours?: number;
+  agreedNormalHours?: number;
+  agreedOvertimeHours?: number;
+  agreedSundayHours?: number;
+  agreedPublicHolidayHours?: number;
+  agreedBy?: string;
+  agreedAt?: string;
+  agreedNotes?: string;
+  hasAgreedEntry?: boolean;
 };
 
 type DateGroup = {
   date: string;
   originalEntry?: VerifiedTimesheet;
   adjustmentEntry?: VerifiedTimesheet;
+  agreedEntry?: VerifiedTimesheet;
 };
 
 type TimesheetGroup = {

@@ -450,7 +450,7 @@ export default function BillingConfigScreen() {
     },
   });
   const [timesheetGroups, setTimesheetGroups] = useState<TimesheetDisplayGroup[]>([]);
-  const [showOriginalRows, setShowOriginalRows] = useState(false);
+  const [showOriginalRows, setShowOriginalRows] = useState(true);
   const [agreedHoursModalVisible, setAgreedHoursModalVisible] = useState(false);
   const [selectedTimesheetForAgreement, setSelectedTimesheetForAgreement] = useState<any>(null);
   const [ephTimesheets, setEphTimesheets] = useState<Map<string, TimesheetEntry[]>>(new Map());
@@ -1324,7 +1324,7 @@ export default function BillingConfigScreen() {
       });
       setTimesheets(normalizedEntries);
       setTimesheetGroups(grouped);
-      setShowOriginalRows(false);
+      setShowOriginalRows(true);
       console.log('[Timesheets] Removed', entries.length - normalizedEntries.length, 'duplicate entries');
     } catch (error) {
       console.error('Error loading timesheets:', error);
@@ -1555,7 +1555,7 @@ export default function BillingConfigScreen() {
                       !hasAnyAdjustments && styles.toggleOriginalButtonTextDisabled,
                     ]}
                   >
-                    {showOriginalRows ? 'Show All Versions' : 'Show Adjusted Only'}
+                    {showOriginalRows ? 'Show All' : 'Show PM Only'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1584,9 +1584,7 @@ export default function BillingConfigScreen() {
                   </View>
 
                   {timesheetGroups.map((group, groupIndex) => {
-                    const visibleRows = showOriginalRows
-                      ? group.rows
-                      : group.rows.filter(row => !row.isOriginal);
+                    const visibleRows = group.rows;
 
                     if (visibleRows.length === 0) {
                       return null;

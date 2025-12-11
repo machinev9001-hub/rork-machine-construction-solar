@@ -10,7 +10,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText } from 'lucide-react-native';
+import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square } from 'lucide-react-native';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
@@ -516,19 +516,44 @@ export default function PlantAssetsTimesheetsTab({
     }
   };
 
+  const toggleGroupSelection = (key: string) => {
+    setSelectedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   const renderGroup = ({ item }: { item: TimesheetGroup }) => {
     const isExpanded = expandedGroups.has(item.key);
     const showOriginals = showOriginalTimesheets.has(item.key);
     const hasAdjustments = item.dateGroups.some(dg => dg.originalEntry);
+    const isSelected = selectedGroups.has(item.key);
 
     return (
       <View style={styles.groupCard}>
-        <TouchableOpacity
-          style={styles.groupHeader}
-          onPress={() => toggleGroupExpansion(item.key)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.groupHeaderContent}>
+        <View style={styles.groupHeader}>
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => toggleGroupSelection(item.key)}
+            activeOpacity={0.7}
+          >
+            {isSelected ? (
+              <CheckSquare size={24} color="#10b981" />
+            ) : (
+              <Square size={24} color="#94a3b8" />
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.groupHeaderContent}
+            onPress={() => toggleGroupExpansion(item.key)}
+            activeOpacity={0.7}
+          >
             <Text style={styles.groupTitle}>{item.title}</Text>
             <Text style={styles.groupSubtitle}>{item.subtitle}</Text>
             <View style={styles.groupMeta}>
@@ -542,13 +567,20 @@ export default function PlantAssetsTimesheetsTab({
                 </View>
               )}
             </View>
-          </View>
-          {isExpanded ? (
-            <ChevronUp size={24} color="#64748b" />
-          ) : (
-            <ChevronDown size={24} color="#64748b" />
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => toggleGroupExpansion(item.key)}
+            activeOpacity={0.7}
+          >
+            {isExpanded ? (
+              <ChevronUp size={24} color="#64748b" />
+            ) : (
+              <ChevronDown size={24} color="#64748b" />
+            )}
+          </TouchableOpacity>
+        </View>
 
         {isExpanded && (
           <View style={styles.groupContent}>
@@ -1019,11 +1051,17 @@ const styles = StyleSheet.create({
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
+    gap: 12,
+  },
+  checkboxContainer: {
+    padding: 4,
   },
   groupHeaderContent: {
     flex: 1,
+  },
+  expandButton: {
+    padding: 4,
   },
   groupTitle: {
     fontSize: 16,

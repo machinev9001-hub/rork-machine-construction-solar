@@ -487,8 +487,8 @@ export default function BillingConfigScreen() {
 
   const generateEPHReport = useCallback(
     async (assets: PlantAsset[], subcontractorId: string) => {
-      console.log('Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
-      console.log('Assets to process:', assets.length);
+      console.log('[EPH] Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
+      console.log('[EPH] Assets to process:', assets.length);
 
       try {
         const ephRecords: EPHRecord[] = await Promise.all(
@@ -505,6 +505,15 @@ export default function BillingConfigScreen() {
 
             const timesheetSnapshot = await getDocs(timesheetQuery);
             console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
+            
+            const rawEntries = timesheetSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+
+            const dedupedEntries = deduplicateTimesheetEntries(rawEntries as TimesheetEntry[]);
+            console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries (removed', rawEntries.length - dedupedEntries.length, 'duplicates)');
+
             let normalHours = 0;
             let saturdayHours = 0;
             let sundayHours = 0;
@@ -513,15 +522,14 @@ export default function BillingConfigScreen() {
             let rainDayHours = 0;
             let strikeDayHours = 0;
 
-            timesheetSnapshot.forEach((doc) => {
-              const data = doc.data();
-              const hours = data.totalHours || 0;
-              const date = new Date(data.date);
+            dedupedEntries.forEach((entry) => {
+              const hours = entry.totalHours || 0;
+              const date = new Date(entry.date);
               const dayOfWeek = date.getDay();
-              const isBreakdown = data.isBreakdown || false;
-              const isRainDay = data.isRainDay || false;
-              const isStrikeDay = data.isStrikeDay || false;
-              const isPublicHoliday = data.isPublicHoliday || false;
+              const isBreakdown = entry.isBreakdown || false;
+              const isRainDay = entry.isRainDay || false;
+              const isStrikeDay = entry.isStrikeDay || false;
+              const isPublicHoliday = entry.isPublicHoliday || false;
 
               if (isBreakdown) {
                 breakdownHours += hours;

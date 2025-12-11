@@ -16,6 +16,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSend: (recipientEmail: string, message: string) => Promise<void>;
+  onDirectApprove?: () => Promise<void>;
   subcontractorName: string;
   assetCount: number;
   dateRange: { from: Date; to: Date };
@@ -25,6 +26,7 @@ export default function SendConfirmationModal({
   visible,
   onClose,
   onSend,
+  onDirectApprove,
   subcontractorName,
   assetCount,
   dateRange,
@@ -32,6 +34,7 @@ export default function SendConfirmationModal({
   const [recipientEmail, setRecipientEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const handleSend = async () => {
     if (!recipientEmail.trim()) {
@@ -55,6 +58,34 @@ export default function SendConfirmationModal({
     } finally {
       setSending(false);
     }
+  };
+
+  const handleDirectApprove = async () => {
+    if (!onDirectApprove) return;
+    
+    Alert.alert(
+      'Direct Approval',
+      'This will approve the EPH without subcontractor digital approval. You can send the PDF manually afterwards. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          style: 'default',
+          onPress: async () => {
+            setApproving(true);
+            try {
+              await onDirectApprove();
+              handleClose();
+            } catch (error) {
+              console.error('[SendConfirmationModal] Error approving:', error);
+              Alert.alert('Error', 'Failed to approve EPH');
+            } finally {
+              setApproving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleClose = () => {
@@ -118,6 +149,44 @@ export default function SendConfirmationModal({
               </Text>
             </View>
 
+            {onDirectApprove && (
+              <View style={styles.dividerContainer}>
+                <View style={styles.divider} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.divider} />
+              </View>
+            )}
+
+            {onDirectApprove && (
+              <View style={styles.directApprovalBox}>
+                <Text style={styles.directApprovalTitle}>Direct Approval (No Digital Workflow)</Text>
+                <Text style={styles.directApprovalDescription}>
+                  If subcontractor does not have app access, you can approve directly and send PDF manually via email/WhatsApp.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.directApproveButton, approving && styles.directApproveButtonDisabled]}
+                  onPress={handleDirectApprove}
+                  disabled={approving || sending}
+                >
+                  {approving ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Text style={styles.directApproveButtonText}>Approve & Finalize</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {onDirectApprove && (
+              <View style={styles.dividerContainer}>
+                <View style={styles.divider} />
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Send for Digital Approval</Text>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Recipient Email <Text style={styles.required}>*</Text>
@@ -159,21 +228,21 @@ export default function SendConfirmationModal({
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={handleClose}
-              disabled={sending}
+              disabled={sending || approving}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.sendButton, sending && styles.sendButtonDisabled]}
+              style={[styles.sendButton, (sending || approving) && styles.sendButtonDisabled]}
               onPress={handleSend}
-              disabled={sending}
+              disabled={sending || approving}
             >
               {sending ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <>
                   <Send size={20} color="#ffffff" />
-                  <Text style={styles.sendButtonText}>Send EPH</Text>
+                  <Text style={styles.sendButtonText}>Send for Approval</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -351,5 +420,63 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: '#ffffff',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#94a3b8',
+    marginHorizontal: 16,
+  },
+  directApprovalBox: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#86efac',
+  },
+  directApprovalTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#15803d',
+    marginBottom: 8,
+  },
+  directApprovalDescription: {
+    fontSize: 13,
+    color: '#166534',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  directApproveButton: {
+    backgroundColor: '#16a34a',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  directApproveButtonDisabled: {
+    opacity: 0.5,
+  },
+  directApproveButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#1e293b',
+    marginBottom: 16,
   },
 });

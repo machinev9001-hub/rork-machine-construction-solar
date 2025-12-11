@@ -221,9 +221,10 @@ export async function agreePlantAssetTimesheet(
     agreedHours?: number;
     agreedNotes?: string;
   },
-  agreedBy: string
+  agreedBy: string,
+  approvalType?: 'digital' | 'admin_direct'
 ): Promise<string> {
-  console.log('[agreedTimesheetManager] Creating agreed plant asset timesheet:', originalTimesheet.id);
+  console.log('[agreedTimesheetManager] Creating agreed plant asset timesheet:', originalTimesheet.id, 'type:', approvalType || 'digital');
 
   const params: CreateAgreedTimesheetParams = {
     originalTimesheetId: originalTimesheet.id!,
@@ -251,9 +252,36 @@ export async function agreePlantAssetTimesheet(
     agreedNotes: agreedData.agreedNotes,
     hasAgreedHours: true,
     agreedTimesheetId,
+    approvalType: approvalType || 'digital',
     updatedAt: Timestamp.now(),
   });
 
   console.log('[agreedTimesheetManager] Plant asset timesheet agreed:', agreedTimesheetId);
   return agreedTimesheetId;
+}
+
+export async function directApproveEPHTimesheets(
+  timesheets: PlantAssetTimesheet[],
+  agreedBy: string,
+  adminNotes?: string
+): Promise<string[]> {
+  console.log('[agreedTimesheetManager] Direct approving', timesheets.length, 'timesheets');
+  
+  const agreedIds: string[] = [];
+  
+  for (const timesheet of timesheets) {
+    const agreedId = await agreePlantAssetTimesheet(
+      timesheet,
+      {
+        agreedHours: timesheet.totalHours,
+        agreedNotes: adminNotes,
+      },
+      agreedBy,
+      'admin_direct'
+    );
+    agreedIds.push(agreedId);
+  }
+  
+  console.log('[agreedTimesheetManager] Direct approved', agreedIds.length, 'timesheets');
+  return agreedIds;
 }

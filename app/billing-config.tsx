@@ -24,7 +24,7 @@ import ReportGenerationModal from '@/components/accounts/ReportGenerationModal';
 import EditEPHHoursModal from '@/components/accounts/EditEPHHoursModal';
 import TimesheetComparisonModal from '@/components/accounts/TimesheetComparisonModal';
 import SendConfirmationModal from '@/components/accounts/SendConfirmationModal';
-import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId } from '@/utils/agreedTimesheetManager';
+import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId, directApproveEPHTimesheets } from '@/utils/agreedTimesheetManager';
 import { generateTimesheetPDF, downloadTimesheetPDF, emailTimesheetPDF } from '@/utils/timesheetPdfGenerator';
 import { createPendingEdit, getAllPendingEditsByAssetId, supersedePendingEdit, EPHPendingEdit } from '@/utils/ephPendingEditsManager';
 import { sendEPHToSubcontractor } from '@/utils/ephEmailService';
@@ -1800,6 +1800,58 @@ export default function BillingConfigScreen() {
     setComparisonModalVisible(true);
   };
 
+  const handleDirectApproveEPH = async () => {
+    if (!selectedSubcontractor || !user) {
+      Alert.alert('Error', 'Missing subcontractor or user information');
+      return;
+    }
+    
+    console.log('[EPH] Direct approving EPH for selected assets');
+    
+    try {
+      const selectedAssets = Array.from(selectedAssetIds).map(id => 
+        ephData.find(record => record.assetId === id)
+      ).filter(Boolean) as typeof ephData;
+      
+      if (selectedAssets.length === 0) {
+        Alert.alert('Error', 'No assets selected');
+        return;
+      }
+      
+      const allTimesheets: any[] = [];
+      for (const asset of selectedAssets) {
+        const timesheets = ephTimesheets.get(asset.assetId) || [];
+        const dedupedTimesheets = deduplicateTimesheetEntries(timesheets);
+        allTimesheets.push(...dedupedTimesheets);
+      }
+      
+      const agreedByIdentifier = user.userId || user.id || 'Admin';
+      await directApproveEPHTimesheets(
+        allTimesheets,
+        agreedByIdentifier,
+        `Direct approval by admin - ${new Date().toLocaleDateString('en-GB')}`
+      );
+      
+      Alert.alert(
+        'Success', 
+        `${selectedAssets.length} asset(s) approved and finalized. You can now generate PDF reports manually.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (selectedSubcontractor) {
+                loadPlantAssets(selectedSubcontractor);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('[EPH] Error direct approving:', error);
+      throw error;
+    }
+  };
+
   const handleSendToSubcontractor = async (recipientEmail: string, message: string) => {
     if (!selectedSubcontractor || !user) {
       Alert.alert('Error', 'Missing subcontractor or user information');
@@ -2341,6 +2393,7 @@ export default function BillingConfigScreen() {
         visible={sendModalVisible}
         onClose={() => setSendModalVisible(false)}
         onSend={handleSendToSubcontractor}
+        onDirectApprove={handleDirectApproveEPH}
         subcontractorName={subcontractors.find(s => s.id === selectedSubcontractor)?.name || 'Unknown'}
         assetCount={selectedAssetIds.size}
         dateRange={{ from: startDate, to: endDate }}

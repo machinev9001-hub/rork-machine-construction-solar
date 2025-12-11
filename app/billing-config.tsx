@@ -444,6 +444,7 @@ export default function BillingConfigScreen() {
   const [agreedHoursModalVisible, setAgreedHoursModalVisible] = useState(false);
   const [selectedTimesheetForAgreement, setSelectedTimesheetForAgreement] = useState<any>(null);
   const [ephTimesheets, setEphTimesheets] = useState<Map<string, TimesheetEntry[]>>(new Map());
+  const [agreedTimesheetIds, setAgreedTimesheetIds] = useState<Set<string>>(new Set());
 
   const totalTimesheetHours = useMemo(() => {
     return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
@@ -525,6 +526,20 @@ export default function BillingConfigScreen() {
             
             const dedupedEntries = deduplicateTimesheetEntries(rawEntries);
             console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries (removed', rawEntries.length - dedupedEntries.length, 'duplicates)');
+            
+            const agreedIds = new Set<string>();
+            for (const entry of dedupedEntries) {
+              const existingAgreed = await getAgreedTimesheetByOriginalId(entry.id);
+              if (existingAgreed) {
+                agreedIds.add(entry.id);
+              }
+            }
+            
+            setAgreedTimesheetIds(prev => {
+              const newSet = new Set(prev);
+              agreedIds.forEach(id => newSet.add(id));
+              return newSet;
+            });
 
             let normalHours = 0;
             let saturdayHours = 0;

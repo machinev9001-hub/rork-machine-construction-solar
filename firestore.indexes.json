@@ -1298,6 +1298,28 @@
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     },
+    {
+      "collectionGroup": "verifiedTimesheets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "assetId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "verifiedTimesheets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "ownerId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "verifiedAt", "order": "DESCENDING" }
+      ]
+    },
 
     {
       "collectionGroup": "ephPendingEdits",
@@ -1306,6 +1328,28 @@
         { "fieldPath": "masterAccountId", "order": "ASCENDING" },
         { "fieldPath": "assetId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ephPendingEdits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "assetId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ephPendingEdits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "subcontractorId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
       ]
     },
     {
@@ -1426,6 +1470,27 @@
         { "fieldPath": "masterAccountId", "order": "ASCENDING" },
         { "fieldPath": "assetId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agreedTimesheets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "assetId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agreedTimesheets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterAccountId", "order": "ASCENDING" },
+        { "fieldPath": "siteId", "order": "ASCENDING" },
+        { "fieldPath": "subcontractorId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
       ]
     }
   ],

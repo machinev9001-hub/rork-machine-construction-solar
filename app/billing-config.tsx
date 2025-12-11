@@ -521,12 +521,14 @@ export default function BillingConfigScreen() {
             console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
             console.log('[EPH] Query parameters:');
             console.log('[EPH]  - masterAccountId:', user?.masterAccountId);
+            console.log('[EPH]  - siteId:', user?.siteId);
             console.log('[EPH]  - assetId:', asset.assetId);
             console.log('[EPH]  - type:', 'plant_hours');
             console.log('[EPH]  - date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
             const timesheetQuery = query(
               collection(db, 'verifiedTimesheets'),
               where('masterAccountId', '==', user?.masterAccountId),
+              where('siteId', '==', user?.siteId),
               where('assetId', '==', asset.assetId),
               where('type', '==', 'plant_hours'),
               where('date', '>=', startDate.toISOString().split('T')[0]),

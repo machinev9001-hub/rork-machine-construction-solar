@@ -8,15 +8,18 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
-import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
+import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText } from 'lucide-react-native';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import FiltersBar, { FilterValues } from './FiltersBar';
 import ExportRequestModal, { ExportRequest, ExportType } from './ExportRequestModal';
+import ReportGenerationModal from './ReportGenerationModal';
 import { getAgreedTimesheetsByDateRange } from '@/utils/agreedTimesheetManager';
+import { generateTimesheetPDF, emailTimesheetPDF, downloadTimesheetPDF } from '@/utils/timesheetPdfGenerator';
 
 type ViewMode = 'plant' | 'man';
 
@@ -106,6 +109,8 @@ export default function PlantAssetsTimesheetsTab({
   const [viewMode, setViewMode] = useState<ViewMode>('plant');
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exportType, setExportType] = useState<ExportType>('plantHours');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [timesheets, setTimesheets] = useState<VerifiedTimesheet[]>([]);
   const [groups, setGroups] = useState<TimesheetGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -412,6 +417,51 @@ export default function PlantAssetsTimesheetsTab({
   const handleExport = () => {
     setExportType(viewMode === 'plant' ? 'plantHours' : 'workerTimesheets');
     setExportModalVisible(true);
+  };
+
+  const handleGenerateReport = () => {
+    setReportModalVisible(true);
+  };
+
+  const handleReportGenerate = async (options: {
+    scope: 'all' | 'selected';
+    deliveryMethod: 'download' | 'email';
+    recipientEmail?: string;
+  }) => {
+    console.log('[PlantAssetsTimesheetsTab] Generating report:', options);
+
+    try {
+      const subcontractorName = filters.subcontractorId 
+        ? subcontractors.find(s => s.id === filters.subcontractorId)?.name
+        : undefined;
+
+      const { uri, fileName } = await generateTimesheetPDF({
+        groups,
+        reportType: viewMode,
+        subcontractorName,
+        dateRange: {
+          from: filters.fromDate || new Date(new Date().setDate(1)),
+          to: filters.toDate || new Date(),
+        },
+        selectedOnly: options.scope === 'selected',
+        selectedGroups: options.scope === 'selected' ? selectedGroups : undefined,
+      });
+
+      console.log('[PlantAssetsTimesheetsTab] PDF generated:', { uri, fileName });
+
+      if (options.deliveryMethod === 'email') {
+        await emailTimesheetPDF(uri, fileName, {
+          recipientEmail: options.recipientEmail,
+        });
+        Alert.alert('Success', 'Email composer opened. Please send the email.');
+      } else {
+        await downloadTimesheetPDF(uri, fileName);
+      }
+    } catch (error) {
+      console.error('[PlantAssetsTimesheetsTab] Error generating report:', error);
+      Alert.alert('Error', 'Failed to generate report. Please try again.');
+      throw error;
+    }
   };
 
   const renderTimesheetRow = (timesheet: VerifiedTimesheet, isOriginal: boolean = false, rowBg: string) => {
@@ -796,14 +846,25 @@ export default function PlantAssetsTimesheetsTab({
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={handleExport}
-          testID="export-button"
-        >
-          <FileDown size={18} color="#ffffff" />
-          <Text style={styles.exportButtonText}>Export</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity
+            style={styles.generateReportButton}
+            onPress={handleGenerateReport}
+            testID="generate-report-button"
+          >
+            <FileText size={18} color="#ffffff" />
+            <Text style={styles.generateReportButtonText}>Generate Report</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExport}
+            testID="export-button"
+          >
+            <FileDown size={18} color="#ffffff" />
+            <Text style={styles.exportButtonText}>Export</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -841,6 +902,15 @@ export default function PlantAssetsTimesheetsTab({
         onSubmit={onExport}
         exportType={exportType}
         prefilledFilters={filters}
+      />
+
+      <ReportGenerationModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        onGenerate={handleReportGenerate}
+        hasSelection={selectedGroups.size > 0}
+        selectedCount={selectedGroups.size}
+        totalCount={groups.length}
       />
     </View>
   );
@@ -891,6 +961,25 @@ const styles = StyleSheet.create({
     color: '#3b82f6',
     fontWeight: '600' as const,
   },
+  buttonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 12,
+  },
+  generateReportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#10b981',
+    borderRadius: 8,
+  },
+  generateReportButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
   exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -899,7 +988,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#1e3a8a',
     borderRadius: 8,
-    marginLeft: 12,
   },
   exportButtonText: {
     fontSize: 14,

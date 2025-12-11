@@ -866,4 +866,41 @@ export type GridCellProgress = {
   updatedAt?: any;
 };
 
+export type TimesheetWorkflowStatus = 'pending_eph' | 'in_negotiation' | 'approved_for_billing' | 'rejected';
+
+export type AgreedTimesheet = {
+  id?: string;
+  originalTimesheetId: string;
+  timesheetType: 'operator' | 'plant_asset';
+  date: string;
+  operatorId?: string;
+  operatorName?: string;
+  assetId?: string;
+  assetType?: string;
+  originalHours: number;
+  agreedHours: number;
+  hoursDifference: number;
+  originalNotes?: string;
+  adminNotes?: string;
+  negotiationNotes?: string;
+  siteId?: string;
+  siteName?: string;
+  masterAccountId: string;
+  companyId?: string;
+  subcontractorId?: string;
+  subcontractorName?: string;
+  status: TimesheetWorkflowStatus;
+  verifiedAt?: any;
+  verifiedBy?: string;
+  agreedAt?: any;
+  agreedBy?: string;
+  approvedForBillingAt?: any;
+  approvedForBillingBy?: string;
+  rejectedAt?: any;
+  rejectedBy?: string;
+  rejectionReason?: string;
+  createdAt: any;
+  updatedAt?: any;
+};
+
 

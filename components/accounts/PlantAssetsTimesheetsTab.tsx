@@ -429,10 +429,12 @@ export default function PlantAssetsTimesheetsTab({
     recipientEmail?: string;
   }) => {
     console.log('[PlantAssetsTimesheetsTab] ===== GENERATING REPORT =====');
-    console.log('[PlantAssetsTimesheetsTab] Options:', options);
+    console.log('[PlantAssetsTimesheetsTab] Options:', JSON.stringify(options));
     console.log('[PlantAssetsTimesheetsTab] Total groups:', groups.length);
+    console.log('[PlantAssetsTimesheetsTab] Selected groups size:', selectedGroups.size);
     console.log('[PlantAssetsTimesheetsTab] Selected groups:', Array.from(selectedGroups));
     console.log('[PlantAssetsTimesheetsTab] View mode:', viewMode);
+    console.log('[PlantAssetsTimesheetsTab] Groups data:', JSON.stringify(groups.slice(0, 2), null, 2));
 
     try {
       const subcontractorName = filters.subcontractorId 
@@ -860,6 +862,21 @@ export default function PlantAssetsTimesheetsTab({
         showAssetFilters
       />
 
+      {selectedGroups.size > 0 && (
+        <View style={styles.selectionBanner}>
+          <CheckSquare size={18} color="#10b981" />
+          <Text style={styles.selectionBannerText}>
+            {selectedGroups.size} {viewMode === 'plant' ? 'asset' : 'operator'}{selectedGroups.size > 1 ? 's' : ''} selected
+          </Text>
+          <TouchableOpacity 
+            onPress={() => setSelectedGroups(new Set())}
+            style={styles.clearSelectionButton}
+          >
+            <Text style={styles.clearSelectionText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
       <View style={styles.controls}>
         <View style={styles.viewModeToggle}>
           <TouchableOpacity
@@ -1395,5 +1412,33 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#1e3a8a',
     marginLeft: 4,
+  },
+  selectionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#d1fae5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#10b981',
+  },
+  selectionBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#065f46',
+  },
+  clearSelectionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  clearSelectionText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#10b981',
   },
 });

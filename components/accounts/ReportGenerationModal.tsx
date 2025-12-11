@@ -42,16 +42,28 @@ export default function ReportGenerationModal({
   const [generating, setGenerating] = useState(false);
 
   const handleGenerate = async () => {
+    console.log('[ReportGenerationModal] Generate button pressed');
+    console.log('[ReportGenerationModal] Scope:', scope);
+    console.log('[ReportGenerationModal] Has Selection:', hasSelection);
+    console.log('[ReportGenerationModal] Delivery Method:', deliveryMethod);
+
     if (deliveryMethod === 'email' && !recipientEmail.trim()) {
+      console.log('[ReportGenerationModal] Email required but not provided');
       Alert.alert('Email Required', 'Please enter a recipient email address');
       return;
     }
 
     if (scope === 'selected' && !hasSelection) {
-      Alert.alert('No Selection', 'Please select at least one asset/operator to generate a report');
+      console.log('[ReportGenerationModal] No selection made');
+      Alert.alert(
+        'No Selection',
+        'Please select at least one asset/operator by tapping the checkbox next to them, then try again.',
+        [{ text: 'OK' }]
+      );
       return;
     }
 
+    console.log('[ReportGenerationModal] Starting PDF generation...');
     setGenerating(true);
     try {
       await onGenerate({
@@ -59,9 +71,15 @@ export default function ReportGenerationModal({
         deliveryMethod,
         recipientEmail: deliveryMethod === 'email' ? recipientEmail.trim() : undefined,
       });
+      console.log('[ReportGenerationModal] PDF generation completed');
       handleClose();
     } catch (error) {
       console.error('[ReportGenerationModal] Generate error:', error);
+      Alert.alert(
+        'Generation Failed',
+        'Failed to generate the report. Please check the console for details.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setGenerating(false);
     }

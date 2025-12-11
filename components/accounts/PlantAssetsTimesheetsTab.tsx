@@ -428,12 +428,19 @@ export default function PlantAssetsTimesheetsTab({
     deliveryMethod: 'download' | 'email';
     recipientEmail?: string;
   }) => {
-    console.log('[PlantAssetsTimesheetsTab] Generating report:', options);
+    console.log('[PlantAssetsTimesheetsTab] ===== GENERATING REPORT =====');
+    console.log('[PlantAssetsTimesheetsTab] Options:', options);
+    console.log('[PlantAssetsTimesheetsTab] Total groups:', groups.length);
+    console.log('[PlantAssetsTimesheetsTab] Selected groups:', Array.from(selectedGroups));
+    console.log('[PlantAssetsTimesheetsTab] View mode:', viewMode);
 
     try {
       const subcontractorName = filters.subcontractorId 
         ? subcontractors.find(s => s.id === filters.subcontractorId)?.name
         : undefined;
+
+      console.log('[PlantAssetsTimesheetsTab] Subcontractor name:', subcontractorName);
+      console.log('[PlantAssetsTimesheetsTab] Calling generateTimesheetPDF...');
 
       const { uri, fileName } = await generateTimesheetPDF({
         groups,
@@ -447,19 +454,29 @@ export default function PlantAssetsTimesheetsTab({
         selectedGroups: options.scope === 'selected' ? selectedGroups : undefined,
       });
 
-      console.log('[PlantAssetsTimesheetsTab] PDF generated:', { uri, fileName });
+      console.log('[PlantAssetsTimesheetsTab] PDF generated successfully:');
+      console.log('[PlantAssetsTimesheetsTab] URI:', uri);
+      console.log('[PlantAssetsTimesheetsTab] Filename:', fileName);
 
       if (options.deliveryMethod === 'email') {
+        console.log('[PlantAssetsTimesheetsTab] Opening email composer...');
         await emailTimesheetPDF(uri, fileName, {
           recipientEmail: options.recipientEmail,
         });
         Alert.alert('Success', 'Email composer opened. Please send the email.');
       } else {
+        console.log('[PlantAssetsTimesheetsTab] Downloading/sharing PDF...');
         await downloadTimesheetPDF(uri, fileName);
       }
+
+      console.log('[PlantAssetsTimesheetsTab] ===== REPORT GENERATION COMPLETE =====');
     } catch (error) {
-      console.error('[PlantAssetsTimesheetsTab] Error generating report:', error);
-      Alert.alert('Error', 'Failed to generate report. Please try again.');
+      console.error('[PlantAssetsTimesheetsTab] ❌ Error generating report:', error);
+      console.error('[PlantAssetsTimesheetsTab] Error details:', JSON.stringify(error, null, 2));
+      Alert.alert(
+        'Error',
+        `Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}. Check console for details.`
+      );
       throw error;
     }
   };

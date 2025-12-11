@@ -1788,7 +1788,7 @@ export default function BillingConfigScreen() {
         >
           <ClipboardList size={20} color={activeTab === 'timesheets' ? '#1e3a8a' : '#64748b'} />
           <Text style={[styles.tabText, activeTab === 'timesheets' && styles.tabTextActive]}>
-            Timesheets
+            Process Payments
           </Text>
         </TouchableOpacity>
       </View>

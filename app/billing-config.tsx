@@ -1186,6 +1186,14 @@ export default function BillingConfigScreen() {
       
       const entries: TimesheetEntry[] = snapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('[Timesheets] Raw timesheet data for', doc.id, ':', {
+          hasOriginalEntry: data.hasOriginalEntry,
+          isAdjustment: data.isAdjustment,
+          adjustedBy: data.adjustedBy,
+          operatorName: data.operatorName,
+          totalHours: data.totalHours,
+          hasOriginalEntryData: !!data.originalEntryData,
+        });
         const date = new Date(data.date);
         const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
         const rawNotes = typeof data.notes === 'string' ? data.notes : undefined;
@@ -1242,13 +1250,47 @@ export default function BillingConfigScreen() {
       });
 
       entries.sort((a, b) => a.date.localeCompare(b.date));
+      console.log('[Timesheets] Before dedup:', entries.length, 'entries');
+      entries.forEach((e, i) => {
+        console.log(`[Timesheets] Entry ${i}:`, {
+          id: e.id.substring(0, 8),
+          operator: e.operatorName,
+          hours: e.totalHours,
+          hasOriginalEntry: e.hasOriginalEntry,
+          isAdjustment: e.isAdjustment,
+          adjustedBy: e.adjustedBy,
+          hasOriginalData: !!e.originalEntryData,
+        });
+      });
       const normalizedEntries = deduplicateTimesheetEntries(entries);
       normalizedEntries.sort((a, b) => a.date.localeCompare(b.date));
+      console.log('[Timesheets] After dedup:', normalizedEntries.length, 'entries');
+      normalizedEntries.forEach((e, i) => {
+        console.log(`[Timesheets] Deduped Entry ${i}:`, {
+          id: e.id.substring(0, 8),
+          operator: e.operatorName,
+          hours: e.totalHours,
+          hasOriginalEntry: e.hasOriginalEntry,
+          isAdjustment: e.isAdjustment,
+          adjustedBy: e.adjustedBy,
+          hasOriginalData: !!e.originalEntryData,
+          originalOperator: e.originalEntryData?.operatorName,
+          originalHours: e.originalEntryData?.totalHours,
+        });
+      });
       const grouped = buildTimesheetGroups(normalizedEntries);
+      console.log('[Timesheets] Built display groups:', grouped.length);
+      grouped.forEach((g, i) => {
+        console.log(`[Timesheets] Group ${i} (${g.date}):`, {
+          rows: g.rows.length,
+          hasAdjustments: g.hasAdjustments,
+          rowTypes: g.rows.map(r => r.badgeLabel).join(', '),
+        });
+      });
       setTimesheets(normalizedEntries);
       setTimesheetGroups(grouped);
       setShowOriginalRows(false);
-      console.log('[Timesheets] Built display groups:', grouped.length, 'after deduping', entries.length - normalizedEntries.length, 'duplicate entries');
+      console.log('[Timesheets] Removed', entries.length - normalizedEntries.length, 'duplicate entries');
     } catch (error) {
       console.error('Error loading timesheets:', error);
     } finally {

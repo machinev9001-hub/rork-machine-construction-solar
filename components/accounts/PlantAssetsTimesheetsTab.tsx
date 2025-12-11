@@ -238,9 +238,9 @@ export default function PlantAssetsTimesheetsTab({
       
       let loadedTimesheets: VerifiedTimesheet[] = agreedTimesheets.map(at => {
         const isPlant = at.timesheetType === 'plant_asset';
-        const totalHours = at.agreedHours;
+        const hasAdjustment = at.originalHours !== at.agreedHours;
         
-        return {
+        const baseEntry: VerifiedTimesheet = {
           id: at.id,
           date: at.date,
           operatorName: at.operatorName || '',
@@ -252,9 +252,9 @@ export default function PlantAssetsTimesheetsTab({
           siteId: at.siteId || '',
           type: isPlant ? 'plant_hours' : 'man_hours',
           
-          totalHours: isPlant ? totalHours : undefined,
+          totalHours: isPlant ? at.agreedHours : undefined,
           openHours: isPlant ? 0 : undefined,
-          closeHours: isPlant ? totalHours : undefined,
+          closeHours: isPlant ? at.agreedHours : undefined,
           
           assetId: at.assetId,
           assetType: at.assetType,
@@ -264,7 +264,7 @@ export default function PlantAssetsTimesheetsTab({
           ownerType: 'subcontractor',
           ownerName: at.subcontractorName,
           
-          totalManHours: !isPlant ? totalHours : undefined,
+          totalManHours: !isPlant ? at.agreedHours : undefined,
           normalHours: at.agreedNormalHours,
           overtimeHours: at.agreedOvertimeHours,
           sundayHours: at.agreedSundayHours,
@@ -279,7 +279,33 @@ export default function PlantAssetsTimesheetsTab({
           agreedAt: at.agreedAt ? (at.agreedAt as Timestamp).toDate().toISOString() : undefined,
           agreedNotes: at.adminNotes,
           hasAgreedEntry: true,
-        } as VerifiedTimesheet;
+        };
+        
+        if (hasAdjustment) {
+          const originalEntry: VerifiedTimesheet = {
+            ...baseEntry,
+            id: `${at.id}-original`,
+            totalHours: isPlant ? at.originalHours : undefined,
+            closeHours: isPlant ? at.originalHours : undefined,
+            totalManHours: !isPlant ? at.originalHours : undefined,
+            normalHours: at.originalNormalHours,
+            overtimeHours: at.originalOvertimeHours,
+            sundayHours: at.originalSundayHours,
+            publicHolidayHours: at.originalPublicHolidayHours,
+            agreedHours: undefined,
+            agreedNormalHours: undefined,
+            agreedOvertimeHours: undefined,
+            agreedSundayHours: undefined,
+            agreedPublicHolidayHours: undefined,
+            agreedNotes: undefined,
+            hasAgreedEntry: false,
+          };
+          
+          baseEntry.hasOriginalEntry = true;
+          baseEntry.originalEntryData = originalEntry;
+        }
+        
+        return baseEntry;
       });
 
       loadedTimesheets.sort((a, b) => {

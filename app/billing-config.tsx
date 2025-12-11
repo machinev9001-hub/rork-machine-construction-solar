@@ -631,7 +631,7 @@ export default function BillingConfigScreen() {
               strikeDayHours;
 
             return {
-              assetId: asset.id || '',
+              assetId: asset.assetId,
               assetType: asset.type,
               plantNumber: asset.plantNumber,
               registrationNumber: asset.registrationNumber,

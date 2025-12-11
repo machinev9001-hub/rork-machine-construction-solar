@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, Edit3 } from 'lucide-react-native';
+import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, Edit3, CheckSquare, Square } from 'lucide-react-native';
 import { Alert } from 'react-native';
 import { collection, getDocs, query, where, orderBy, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -407,6 +407,7 @@ export default function BillingConfigScreen() {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [selectedEphAssetForTimesheets, setSelectedEphAssetForTimesheets] = useState<string | null>(null);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   
   const [config, setConfig] = useState<BillingConfig>({
     weekdays: {
@@ -1482,16 +1483,46 @@ export default function BillingConfigScreen() {
     }
   };
 
+  const toggleAssetSelection = (assetId: string) => {
+    setSelectedAssetIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(assetId)) {
+        newSet.delete(assetId);
+      } else {
+        newSet.add(assetId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleGenerateSelectedReport = () => {
+    if (selectedSubcontractor && selectedAssetIds.size > 0) {
+      const selectedAssets = plantAssets.filter(asset => selectedAssetIds.has(asset.id || ''));
+      generateEPHReport(selectedAssets, selectedSubcontractor);
+    }
+  };
+
   const renderEPHRecord = ({ item }: { item: EPHRecord }) => {
     const isExpanded = expandedCards.has(item.assetId);
+    const isSelected = selectedAssetIds.has(item.assetId);
 
     return (
-      <TouchableOpacity 
-        style={styles.ephCard} 
-        onPress={() => toggleCardExpansion(item.assetId)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.ephHeader}>
+      <View style={styles.ephCard}>
+        <TouchableOpacity 
+          style={styles.ephCardHeader}
+          onPress={() => toggleCardExpansion(item.assetId)}
+          activeOpacity={0.7}
+        >
+          <TouchableOpacity
+            onPress={() => toggleAssetSelection(item.assetId)}
+            style={styles.checkboxContainer}
+          >
+            {isSelected ? (
+              <CheckSquare size={24} color="#1e3a8a" />
+            ) : (
+              <Square size={24} color="#94a3b8" />
+            )}
+          </TouchableOpacity>
           <View style={styles.ephHeaderLeft}>
             <Text style={styles.ephAssetType}>{item.assetType}</Text>
             <Text style={styles.ephAssetNumber}>
@@ -1503,7 +1534,7 @@ export default function BillingConfigScreen() {
           ) : (
             <ChevronDown size={24} color="#64748b" />
           )}
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.ephMinimalInfo}>
           <View style={styles.ephInfoRow}>
@@ -1578,7 +1609,7 @@ export default function BillingConfigScreen() {
             </View>
           </View>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -1763,12 +1794,32 @@ export default function BillingConfigScreen() {
             </View>
 
             {selectedSubcontractor && (
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={handleRefreshReport}
-              >
-                <Text style={styles.refreshButtonText}>Generate Report</Text>
-              </TouchableOpacity>
+              <View style={styles.generateButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.generateButton, styles.generateButtonPrimary]}
+                  onPress={handleRefreshReport}
+                >
+                  <FileText size={18} color="#ffffff" />
+                  <Text style={styles.generateButtonText}>Generate All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.generateButton,
+                    styles.generateButtonSecondary,
+                    selectedAssetIds.size === 0 && styles.generateButtonDisabled,
+                  ]}
+                  onPress={handleGenerateSelectedReport}
+                  disabled={selectedAssetIds.size === 0}
+                >
+                  <CheckSquare size={18} color={selectedAssetIds.size === 0 ? "#94a3b8" : "#1e3a8a"} />
+                  <Text style={[
+                    styles.generateButtonTextSecondary,
+                    selectedAssetIds.size === 0 && styles.generateButtonTextDisabled,
+                  ]}>
+                    Generate Selected ({selectedAssetIds.size})
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
@@ -2618,5 +2669,58 @@ const styles = StyleSheet.create({
     color: '#15803d',
     textAlign: 'center',
     fontWeight: '500' as const,
+  },
+  ephCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    gap: 12,
+  },
+  checkboxContainer: {
+    paddingRight: 8,
+  },
+  generateButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  generateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  generateButtonPrimary: {
+    backgroundColor: '#1e3a8a',
+  },
+  generateButtonSecondary: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#1e3a8a',
+  },
+  generateButtonDisabled: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  generateButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
+  generateButtonTextSecondary: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1e3a8a',
+  },
+  generateButtonTextDisabled: {
+    color: '#94a3b8',
   },
 });

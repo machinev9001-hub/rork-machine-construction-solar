@@ -826,12 +826,68 @@ export default function BillingConfigScreen() {
             adjustedBy: ts.adjustedBy,
             adjustedAt: ts.adjustedAt,
           })),
-          dateGroups: dedupedTimesheets.map(ts => ({
-            date: ts.date,
-            adjustmentEntry: ts.hasOriginalEntry || ts.isAdjustment ? ts as any : undefined,
-            originalEntry: ts.originalEntryData ? { ...ts.originalEntryData, id: ts.originalEntryId || ts.id, date: ts.date } as any : undefined,
-            agreedEntry: undefined,
-          })),
+          dateGroups: dedupedTimesheets.map(ts => {
+            const hasAdjustment = ts.hasOriginalEntry || ts.isAdjustment || Boolean(ts.adjustedBy);
+            
+            if (hasAdjustment && ts.originalEntryData) {
+              return {
+                date: ts.date,
+                originalEntry: {
+                  ...ts.originalEntryData,
+                  id: ts.originalEntryId || ts.id,
+                  date: ts.date,
+                  operatorName: ts.originalEntryData.operatorName || ts.operatorName,
+                  openHours: parseFloat(String(ts.originalEntryData.openHours || 0)),
+                  closeHours: parseFloat(String(ts.originalEntryData.closeHours || ts.originalEntryData.closingHours || 0)),
+                  totalHours: ts.originalEntryData.totalHours || 0,
+                  isBreakdown: ts.originalEntryData.isBreakdown,
+                  inclementWeather: ts.originalEntryData.isRainDay,
+                  isRainDay: ts.originalEntryData.isRainDay,
+                  isStrikeDay: ts.originalEntryData.isStrikeDay,
+                  isPublicHoliday: ts.originalEntryData.isPublicHoliday,
+                  notes: ts.originalEntryData.notes,
+                } as any,
+                adjustmentEntry: {
+                  ...ts,
+                  id: ts.id,
+                  date: ts.date,
+                  operatorName: ts.operatorName,
+                  openHours: parseFloat(String(ts.openHours || 0)),
+                  closeHours: parseFloat(String(ts.closeHours || ts.closingHours || 0)),
+                  totalHours: ts.totalHours || 0,
+                  isBreakdown: ts.isBreakdown,
+                  inclementWeather: ts.isRainDay,
+                  isRainDay: ts.isRainDay,
+                  isStrikeDay: ts.isStrikeDay,
+                  isPublicHoliday: ts.isPublicHoliday,
+                  notes: ts.notes || ts.adminNotes || ts.billingNotes,
+                  adjustedBy: ts.adjustedBy,
+                  adjustedAt: ts.adjustedAt,
+                } as any,
+                agreedEntry: undefined,
+              };
+            } else {
+              return {
+                date: ts.date,
+                originalEntry: {
+                  id: ts.id,
+                  date: ts.date,
+                  operatorName: ts.operatorName,
+                  openHours: parseFloat(String(ts.openHours || 0)),
+                  closeHours: parseFloat(String(ts.closeHours || ts.closingHours || 0)),
+                  totalHours: ts.totalHours || 0,
+                  isBreakdown: ts.isBreakdown,
+                  inclementWeather: ts.isRainDay,
+                  isRainDay: ts.isRainDay,
+                  isStrikeDay: ts.isStrikeDay,
+                  isPublicHoliday: ts.isPublicHoliday,
+                  notes: ts.notes || ts.operatorNotes,
+                } as any,
+                adjustmentEntry: undefined,
+                agreedEntry: undefined,
+              };
+            }
+          }),
         };
       });
 

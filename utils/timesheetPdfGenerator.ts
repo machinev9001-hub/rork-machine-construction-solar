@@ -21,6 +21,10 @@ type VerifiedTimesheet = {
   isBreakdown?: boolean;
   inclementWeather?: boolean;
   hasAttachment?: boolean;
+  isRainDay?: boolean;
+  isStrikeDay?: boolean;
+  isPublicHoliday?: boolean;
+  notes?: string;
   
   assetId?: string;
   assetType?: string;
@@ -96,6 +100,15 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     ? groups.filter(g => options.selectedGroups!.has(g.key))
     : groups;
 
+  const formatStatusIcons = (e: any) => {
+    const icons = [];
+    if (e.isBreakdown) icons.push('🔧');
+    if (e.isRainDay || e.inclementWeather) icons.push('🌧️');
+    if (e.isStrikeDay) icons.push('⚠️');
+    if (e.isPublicHoliday) icons.push('🎉');
+    return icons.length > 0 ? icons.join(' ') : '-';
+  };
+
   const rows = filteredGroups.map(group => {
     const assetRows = group.dateGroups.map(dateGroup => {
       const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
@@ -115,6 +128,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${originalEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(originalEntry)}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${originalEntry!.notes || '-'}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
               <span style="background-color: #6c757d; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">ORIG</span>
             </td>
@@ -127,6 +142,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${adjustedEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(adjustedEntry)}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${adjustedEntry!.notes || '-'}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
               <span style="background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">PM</span>
             </td>
@@ -140,6 +157,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours || 0}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${entry.totalHours?.toFixed(1) || '0.0'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(entry)}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${entry.notes || '-'}</td>
             <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">-</td>
           </tr>
         `}
@@ -165,18 +184,18 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
         <style>
           body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1.4;
             color: #212529;
             margin: 20px;
           }
           h1 {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 10px;
             color: #1e3a8a;
           }
           .meta {
-            font-size: 12px;
+            font-size: 11px;
             color: #6c757d;
             margin-bottom: 20px;
           }
@@ -184,17 +203,19 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            font-size: 10px;
           }
           th {
             background-color: #1e3a8a;
             color: white;
-            padding: 10px 8px;
+            padding: 8px 6px;
             text-align: left;
             border: 1px solid #dee2e6;
             font-weight: 600;
+            font-size: 10px;
           }
           td {
-            padding: 8px;
+            padding: 6px;
             border: 1px solid #dee2e6;
           }
           .summary {
@@ -236,9 +257,11 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <th>Asset Type</th>
               <th>Asset Number</th>
               <th>Operator</th>
-              <th style="text-align: right;">Open Hours</th>
-              <th style="text-align: right;">Close Hours</th>
-              <th style="text-align: right;">Total Hours</th>
+              <th style="text-align: right;">Open</th>
+              <th style="text-align: right;">Close</th>
+              <th style="text-align: right;">Hours</th>
+              <th style="text-align: center;">Status</th>
+              <th>Notes</th>
               <th style="text-align: center;">Type</th>
             </tr>
           </thead>
@@ -265,6 +288,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
         <div class="footer">
           <p>This report was automatically generated from the approved billing timesheets.</p>
           <p><strong>Legend:</strong> ORIG = Operator Original Entry, PM = Plant Manager Adjusted Entry</p>
+          <p><strong>Status Icons:</strong> 🔧 = Breakdown, 🌧️ = Rain Day, ⚠️ = Strike Day, 🎉 = Public Holiday</p>
         </div>
       </body>
     </html>

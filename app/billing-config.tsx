@@ -664,6 +664,14 @@ export default function BillingConfigScreen() {
 
   const loadPlantAssets = useCallback(
     async (subcontractorId: string) => {
+      console.log('[loadPlantAssets] Starting load for subcontractor:', subcontractorId);
+      console.log('[loadPlantAssets] Query params:', {
+        masterAccountId: user?.masterAccountId,
+        siteId: user?.siteId,
+        ownerId: subcontractorId,
+        ownerType: 'subcontractor'
+      });
+      
       setLoading(true);
       try {
         const q = query(
@@ -674,11 +682,26 @@ export default function BillingConfigScreen() {
           where('ownerType', '==', 'subcontractor')
         );
         const snapshot = await getDocs(q);
-        const assets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PlantAsset));
+        console.log('[loadPlantAssets] Found', snapshot.docs.length, 'assets in query');
+        
+        const assets = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('[loadPlantAssets] Asset:', doc.id, data);
+          return { id: doc.id, ...data } as PlantAsset;
+        });
+        
+        console.log('[loadPlantAssets] Processed assets:', assets.length);
         setPlantAssets(assets);
-        await generateEPHReport(assets, subcontractorId);
+        
+        if (assets.length > 0) {
+          console.log('[loadPlantAssets] Generating EPH report for', assets.length, 'assets');
+          await generateEPHReport(assets, subcontractorId);
+        } else {
+          console.log('[loadPlantAssets] ⚠️ No assets found - clearing EPH data');
+          setEphData([]);
+        }
       } catch (error) {
-        console.error('Error loading plant assets:', error);
+        console.error('[loadPlantAssets] Error:', error);
       } finally {
         setLoading(false);
       }

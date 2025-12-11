@@ -1898,6 +1898,7 @@ export default function BillingConfigScreen() {
   const renderEPHRecord = ({ item }: { item: EPHRecord }) => {
     const isExpanded = expandedCards.has(item.assetId);
     const isSelected = selectedAssetIds.has(item.assetId);
+    const hasPendingEdits = pendingEdits.has(item.assetId);
 
     return (
       <View style={styles.ephCard}>
@@ -1917,7 +1918,14 @@ export default function BillingConfigScreen() {
             )}
           </TouchableOpacity>
           <View style={styles.ephHeaderLeft}>
-            <Text style={styles.ephAssetType}>{item.assetType}</Text>
+            <View style={styles.ephHeaderTitleRow}>
+              <Text style={styles.ephAssetType}>{item.assetType}</Text>
+              {hasPendingEdits && (
+                <View style={styles.pendingEditBadge}>
+                  <Text style={styles.pendingEditBadgeText}>Edits Pending</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.ephAssetNumber}>
               {item.plantNumber || item.registrationNumber || item.assetId}
             </Text>
@@ -1991,6 +1999,26 @@ export default function BillingConfigScreen() {
                 <ClipboardList size={18} color="#1e3a8a" />
                 <Text style={styles.viewTimesheetsButtonText}>View Timesheets</Text>
               </TouchableOpacity>
+
+              <View style={styles.ephActionRow}>
+                <TouchableOpacity
+                  style={styles.editHoursButton}
+                  onPress={() => handleEditHours(item.assetId)}
+                >
+                  <Edit3 size={16} color="#3b82f6" />
+                  <Text style={styles.editHoursButtonText}>Edit Hours</Text>
+                </TouchableOpacity>
+
+                {hasPendingEdits && (
+                  <TouchableOpacity
+                    style={styles.compareButton}
+                    onPress={() => handleCompareVersions(item.assetId)}
+                  >
+                    <GitCompare size={16} color="#10b981" />
+                    <Text style={styles.compareButtonText}>Compare</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               
               <TouchableOpacity
                 style={styles.agreeHoursButton}
@@ -2212,6 +2240,34 @@ export default function BillingConfigScreen() {
                     Generate Selected ({selectedAssetIds.size})
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.generateButton,
+                    styles.sendToSubButton,
+                    selectedAssetIds.size === 0 && styles.generateButtonDisabled,
+                  ]}
+                  onPress={() => {
+                    if (selectedAssetIds.size === 0) {
+                      Alert.alert('No Selection', 'Please select at least one asset');
+                      return;
+                    }
+                    const subcontractor = subcontractors.find(s => s.id === selectedSubcontractor);
+                    if (!subcontractor) {
+                      Alert.alert('Error', 'Subcontractor not found');
+                      return;
+                    }
+                    setSendModalVisible(true);
+                  }}
+                  disabled={selectedAssetIds.size === 0}
+                >
+                  <Send size={18} color={selectedAssetIds.size === 0 ? "#94a3b8" : "#10b981"} />
+                  <Text style={[
+                    styles.sendToSubButtonText,
+                    selectedAssetIds.size === 0 && styles.generateButtonTextDisabled,
+                  ]}>
+                    Send to Subcontractor
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -2260,6 +2316,34 @@ export default function BillingConfigScreen() {
         hasSelection={selectedAssetIds.size > 0}
         selectedCount={selectedAssetIds.size}
         totalCount={ephData.length}
+      />
+
+      <EditEPHHoursModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedTimesheetForEdit(null);
+        }}
+        onSave={handleSaveEdit}
+        timesheet={selectedTimesheetForEdit}
+      />
+
+      <TimesheetComparisonModal
+        visible={comparisonModalVisible}
+        onClose={() => {
+          setComparisonModalVisible(false);
+          setSelectedComparison(null);
+        }}
+        comparison={selectedComparison}
+      />
+
+      <SendConfirmationModal
+        visible={sendModalVisible}
+        onClose={() => setSendModalVisible(false)}
+        onSend={handleSendToSubcontractor}
+        subcontractorName={subcontractors.find(s => s.id === selectedSubcontractor)?.name || 'Unknown'}
+        assetCount={selectedAssetIds.size}
+        dateRange={{ from: startDate, to: endDate }}
       />
     </View>
   );
@@ -3124,5 +3208,74 @@ const styles = StyleSheet.create({
   },
   generateButtonTextDisabled: {
     color: '#94a3b8',
+  },
+  sendToSubButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  sendToSubButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#10b981',
+  },
+  ephHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pendingEditBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+  },
+  pendingEditBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#92400e',
+    textTransform: 'uppercase' as const,
+  },
+  ephActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editHoursButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  editHoursButtonText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#3b82f6',
+  },
+  compareButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  compareButtonText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#10b981',
   },
 });

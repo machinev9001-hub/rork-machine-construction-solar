@@ -817,11 +817,14 @@ export default function BillingConfigScreen() {
 
       const subcontractor = subcontractors.find(s => s.id === selectedSubcontractor);
       console.log('[PDF] Selected assets:', selectedAssets.map(a => ({ id: a.assetId, type: a.assetType, plant: a.plantNumber })));
+      console.log('[PDF] ephTimesheets map has', ephTimesheets.size, 'assets');
 
       const groups = selectedAssets.map(record => {
-        const timesheets = record.rawTimesheets || [];
-        console.log('[PDF] Asset', record.assetId, record.assetType, record.plantNumber, 'has', timesheets.length, 'raw timesheets');
-        console.log('[PDF] Sample timesheet data:', timesheets[0]);
+        const rawTimesheets = ephTimesheets.get(record.assetId) || [];
+        const timesheets = deduplicateTimesheetEntries(rawTimesheets);
+        console.log('[PDF] Asset', record.assetId, record.assetType, record.plantNumber, 'has', rawTimesheets.length, 'raw timesheets');
+        console.log('[PDF] Sample timesheet data:', rawTimesheets[0]);
+        console.log('[PDF] After dedup:', timesheets.length, 'entries');
         console.log('[PDF] Timesheets:', timesheets.map(ts => ({
           date: ts.date,
           operator: ts.operatorName,

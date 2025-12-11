@@ -820,7 +820,7 @@ export default function BillingConfigScreen() {
       console.log('[PDF] ephTimesheets map has', ephTimesheets.size, 'assets');
 
       const groups = selectedAssets.map(record => {
-        const rawTimesheets = ephTimesheets.get(record.assetId) || [];
+        const rawTimesheets = record.rawTimesheets || [];
         const timesheets = deduplicateTimesheetEntries(rawTimesheets);
         console.log('[PDF] Asset', record.assetId, record.assetType, record.plantNumber, 'has', rawTimesheets.length, 'raw timesheets');
         console.log('[PDF] Sample timesheet data:', rawTimesheets[0]);

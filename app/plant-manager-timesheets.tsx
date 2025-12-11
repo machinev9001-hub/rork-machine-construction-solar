@@ -844,7 +844,7 @@ export default function PlantManagerTimesheetsScreen() {
                           <Text style={styles.adjustmentBadge}>PM EDIT</Text>
                         )}
                         {isVerified && (
-                          <Text style={styles.verifiedBadge}>SUBMITTED</Text>
+                          <Text style={styles.verifiedBadge}>VERIFIED</Text>
                         )}
                       </View>
                       
@@ -1003,7 +1003,7 @@ export default function PlantManagerTimesheetsScreen() {
                           <Text style={styles.adjustmentBadge}>PM EDIT</Text>
                         )}
                         {isVerified && (
-                          <Text style={styles.verifiedBadge}>SUBMITTED</Text>
+                          <Text style={styles.verifiedBadge}>VERIFIED</Text>
                         )}
                       </View>
                       

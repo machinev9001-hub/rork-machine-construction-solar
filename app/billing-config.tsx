@@ -20,7 +20,9 @@ import { PlantAsset, Subcontractor } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { HeaderTitleWithSync } from '@/components/HeaderSyncStatus';
 import AgreedHoursModal from '@/components/accounts/AgreedHoursModal';
+import ReportGenerationModal from '@/components/accounts/ReportGenerationModal';
 import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId } from '@/utils/agreedTimesheetManager';
+import { generateTimesheetPDF, downloadTimesheetPDF, emailTimesheetPDF } from '@/utils/timesheetPdfGenerator';
 
 type BillingMethod = 'PER_HOUR' | 'MINIMUM_BILLING';
 
@@ -446,6 +448,8 @@ export default function BillingConfigScreen() {
   const [selectedTimesheetForAgreement, setSelectedTimesheetForAgreement] = useState<any>(null);
   const [ephTimesheets, setEphTimesheets] = useState<Map<string, TimesheetEntry[]>>(new Map());
   const [agreedTimesheetIds, setAgreedTimesheetIds] = useState<Set<string>>(new Set());
+  const [reportGenerationModalVisible, setReportGenerationModalVisible] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const totalTimesheetHours = useMemo(() => {
     return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
@@ -741,6 +745,120 @@ export default function BillingConfigScreen() {
   const handleRefreshReport = () => {
     if (selectedSubcontractor) {
       loadPlantAssets(selectedSubcontractor);
+    }
+  };
+
+  const handleGeneratePDFReport = async (options: {
+    scope: 'all' | 'selected';
+    deliveryMethod: 'download' | 'email';
+    recipientEmail?: string;
+  }) => {
+    console.log('[PDF] Starting PDF generation with options:', options);
+    
+    if (!selectedSubcontractor) {
+      Alert.alert('Error', 'No subcontractor selected');
+      return;
+    }
+
+    const selectedAssets = options.scope === 'selected'
+      ? ephData.filter(record => selectedAssetIds.has(record.assetId))
+      : ephData;
+
+    if (selectedAssets.length === 0) {
+      Alert.alert('Error', 'No assets to include in the report');
+      return;
+    }
+
+    console.log('[PDF] Generating report for', selectedAssets.length, 'assets');
+
+    try {
+      setPdfGenerating(true);
+
+      const subcontractor = subcontractors.find(s => s.id === selectedSubcontractor);
+      const groups = selectedAssets.map(record => {
+        const timesheets = ephTimesheets.get(record.assetId) || [];
+        const dedupedTimesheets = deduplicateTimesheetEntries(timesheets);
+        
+        return {
+          key: record.assetId,
+          title: record.assetType,
+          subtitle: record.plantNumber || record.registrationNumber || record.assetId,
+          entries: dedupedTimesheets.map(ts => ({
+            id: ts.id,
+            date: ts.date,
+            operatorName: ts.operatorName,
+            operatorId: ts.operatorName || '',
+            verified: true,
+            verifiedAt: ts.verifiedAt || new Date().toISOString(),
+            verifiedBy: ts.adjustedBy || 'system',
+            masterAccountId: user?.masterAccountId || '',
+            siteId: user?.siteId || '',
+            type: 'plant_hours' as const,
+            openHours: parseFloat(ts.openHours) || 0,
+            closeHours: parseFloat(ts.closeHours) || 0,
+            totalHours: ts.totalHours || 0,
+            isBreakdown: ts.isBreakdown,
+            inclementWeather: ts.isRainDay,
+            hasAttachment: false,
+            assetId: record.assetId,
+            assetType: record.assetType,
+            plantNumber: record.plantNumber,
+            registrationNumber: record.registrationNumber,
+            ownerId: selectedSubcontractor,
+            ownerType: 'subcontractor' as const,
+            ownerName: subcontractor?.name,
+            hasOriginalEntry: ts.hasOriginalEntry,
+            originalEntryData: ts.originalEntryData,
+            isAdjustment: ts.isAdjustment,
+            originalEntryId: ts.originalEntryId,
+            adjustedBy: ts.adjustedBy,
+            adjustedAt: ts.adjustedAt,
+          })),
+          dateGroups: dedupedTimesheets.map(ts => ({
+            date: ts.date,
+            adjustmentEntry: ts.hasOriginalEntry || ts.isAdjustment ? ts as any : undefined,
+            originalEntry: ts.originalEntryData ? { ...ts.originalEntryData, id: ts.originalEntryId || ts.id, date: ts.date } as any : undefined,
+            agreedEntry: undefined,
+          })),
+        };
+      });
+
+      console.log('[PDF] Calling generateTimesheetPDF with', groups.length, 'groups');
+      
+      const { uri, fileName } = await generateTimesheetPDF({
+        groups,
+        reportType: 'plant',
+        subcontractorName: subcontractor?.name,
+        dateRange: {
+          from: startDate,
+          to: endDate,
+        },
+        selectedOnly: options.scope === 'selected',
+        selectedGroups: options.scope === 'selected' 
+          ? new Set(selectedAssets.map(r => r.assetId))
+          : undefined,
+      });
+
+      console.log('[PDF] PDF generated successfully:', uri);
+
+      if (options.deliveryMethod === 'email') {
+        console.log('[PDF] Sending via email to:', options.recipientEmail);
+        await emailTimesheetPDF(uri, fileName, {
+          recipientEmail: options.recipientEmail,
+          subject: `Plant Hours Report - ${subcontractor?.name || 'Unknown'} - ${formatDate(startDate)} to ${formatDate(endDate)}`,
+          body: `Please find attached the plant hours timesheet report for ${subcontractor?.name || 'Unknown Subcontractor'}.\n\nDate Range: ${formatDate(startDate)} to ${formatDate(endDate)}\nAssets Included: ${selectedAssets.length}`,
+        });
+        Alert.alert('Success', 'Report generated and email composer opened');
+      } else {
+        console.log('[PDF] Downloading/sharing PDF');
+        await downloadTimesheetPDF(uri, fileName);
+        Alert.alert('Success', 'Report generated successfully');
+      }
+    } catch (error) {
+      console.error('[PDF] Error generating PDF:', error);
+      Alert.alert('Error', `Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setPdfGenerating(false);
     }
   };
 
@@ -1496,10 +1614,21 @@ export default function BillingConfigScreen() {
   };
 
   const handleGenerateSelectedReport = () => {
-    if (selectedSubcontractor && selectedAssetIds.size > 0) {
-      const selectedAssets = plantAssets.filter(asset => selectedAssetIds.has(asset.id || ''));
-      generateEPHReport(selectedAssets, selectedSubcontractor);
+    console.log('[Generate] Generate Selected clicked');
+    if (selectedAssetIds.size === 0) {
+      Alert.alert(
+        'No Selection',
+        'Please select at least one asset by tapping the checkbox next to it, then try again.',
+        [{ text: 'OK' }]
+      );
+      return;
     }
+    setReportGenerationModalVisible(true);
+  };
+
+  const handleGenerateAllReport = () => {
+    console.log('[Generate] Generate All clicked');
+    setReportGenerationModalVisible(true);
   };
 
   const renderEPHRecord = ({ item }: { item: EPHRecord }) => {
@@ -1797,7 +1926,7 @@ export default function BillingConfigScreen() {
               <View style={styles.generateButtonsContainer}>
                 <TouchableOpacity
                   style={[styles.generateButton, styles.generateButtonPrimary]}
-                  onPress={handleRefreshReport}
+                  onPress={handleGenerateAllReport}
                 >
                   <FileText size={18} color="#ffffff" />
                   <Text style={styles.generateButtonText}>Generate All</Text>
@@ -1858,6 +1987,15 @@ export default function BillingConfigScreen() {
         onSubmit={handleAgreeHours}
         timesheet={selectedTimesheetForAgreement}
         viewMode="plant"
+      />
+
+      <ReportGenerationModal
+        visible={reportGenerationModalVisible}
+        onClose={() => setReportGenerationModalVisible(false)}
+        onGenerate={handleGeneratePDFReport}
+        hasSelection={selectedAssetIds.size > 0}
+        selectedCount={selectedAssetIds.size}
+        totalCount={ephData.length}
       />
     </View>
   );

@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, Edit3, CheckSquare, Square } from 'lucide-react-native';
+import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, Edit3, CheckSquare, Square, Send, GitCompare } from 'lucide-react-native';
 import { Alert } from 'react-native';
 import { collection, getDocs, query, where, orderBy, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -21,8 +21,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { HeaderTitleWithSync } from '@/components/HeaderSyncStatus';
 import AgreedHoursModal from '@/components/accounts/AgreedHoursModal';
 import ReportGenerationModal from '@/components/accounts/ReportGenerationModal';
+import EditEPHHoursModal from '@/components/accounts/EditEPHHoursModal';
+import TimesheetComparisonModal from '@/components/accounts/TimesheetComparisonModal';
+import SendConfirmationModal from '@/components/accounts/SendConfirmationModal';
 import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId } from '@/utils/agreedTimesheetManager';
 import { generateTimesheetPDF, downloadTimesheetPDF, emailTimesheetPDF } from '@/utils/timesheetPdfGenerator';
+import { createPendingEdit, getAllPendingEditsByAssetId, supersedePendingEdit, EPHPendingEdit } from '@/utils/ephPendingEditsManager';
+import { sendEPHToSubcontractor } from '@/utils/ephEmailService';
 
 type BillingMethod = 'PER_HOUR' | 'MINIMUM_BILLING';
 
@@ -450,6 +455,13 @@ export default function BillingConfigScreen() {
   const [agreedTimesheetIds, setAgreedTimesheetIds] = useState<Set<string>>(new Set());
   const [reportGenerationModalVisible, setReportGenerationModalVisible] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [comparisonModalVisible, setComparisonModalVisible] = useState(false);
+  const [sendModalVisible, setSendModalVisible] = useState(false);
+  const [selectedTimesheetForEdit, setSelectedTimesheetForEdit] = useState<any>(null);
+  const [selectedComparison, setSelectedComparison] = useState<any>(null);
+  const [pendingEdits, setPendingEdits] = useState<Map<string, EPHPendingEdit[]>>(new Map());
 
   const totalTimesheetHours = useMemo(() => {
     return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
@@ -1629,6 +1641,258 @@ export default function BillingConfigScreen() {
   const handleGenerateAllReport = () => {
     console.log('[Generate] Generate All clicked');
     setReportGenerationModalVisible(true);
+  };
+
+  const loadPendingEdits = useCallback(async () => {
+    if (!user?.masterAccountId) return;
+    
+    console.log('[EPH] Loading pending edits for all assets');
+    const editsMap = new Map<string, EPHPendingEdit[]>();
+    
+    for (const asset of plantAssets) {
+      const edits = await getAllPendingEditsByAssetId(asset.assetId, user.masterAccountId);
+      if (edits.length > 0) {
+        editsMap.set(asset.assetId, edits);
+      }
+    }
+    
+    setPendingEdits(editsMap);
+    console.log('[EPH] Loaded pending edits for', editsMap.size, 'assets');
+  }, [plantAssets, user?.masterAccountId]);
+
+  useEffect(() => {
+    if (activeTab === 'eph' && plantAssets.length > 0) {
+      loadPendingEdits();
+    }
+  }, [activeTab, plantAssets, loadPendingEdits]);
+
+  const handleEditHours = async (assetId: string) => {
+    console.log('[EPH] Edit hours clicked for asset:', assetId);
+    const timesheets = ephTimesheets.get(assetId);
+    
+    if (!timesheets || timesheets.length === 0) {
+      Alert.alert('No Timesheets', 'No timesheets found for this asset.');
+      return;
+    }
+    
+    if (timesheets.length > 1) {
+      Alert.alert(
+        'Multiple Timesheets',
+        `This asset has ${timesheets.length} timesheet entries. Please use View Timesheets to edit individual dates.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    const asset = plantAssets.find(a => a.assetId === assetId);
+    setSelectedTimesheetForEdit({
+      ...timesheets[0],
+      assetType: asset?.type,
+      plantNumber: asset?.plantNumber || asset?.registrationNumber,
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async (editedValues: any) => {
+    if (!selectedTimesheetForEdit || !user) {
+      console.error('[EPH] Missing timesheet or user');
+      return;
+    }
+    
+    try {
+      console.log('[EPH] Saving edit:', editedValues);
+      const asset = plantAssets.find(a => a.assetId === selectedTimesheetForEdit.assetId);
+      const subcontractor = subcontractors.find(s => s.id === selectedSubcontractor);
+      
+      await createPendingEdit({
+        originalTimesheetId: selectedTimesheetForEdit.id,
+        assetId: selectedTimesheetForEdit.assetId,
+        assetType: asset?.type || 'Unknown',
+        plantNumber: asset?.plantNumber || asset?.registrationNumber,
+        date: selectedTimesheetForEdit.date,
+        editedBy: 'admin',
+        editedByUserId: user.userId || user.id || 'unknown',
+        editedByName: user.name || user.email || 'Admin',
+        totalHours: editedValues.totalHours,
+        openHours: editedValues.openHours,
+        closeHours: editedValues.closeHours,
+        isBreakdown: editedValues.isBreakdown,
+        isRainDay: editedValues.isRainDay,
+        isStrikeDay: editedValues.isStrikeDay,
+        isPublicHoliday: editedValues.isPublicHoliday,
+        notes: editedValues.adminNotes,
+        originalTotalHours: selectedTimesheetForEdit.totalHours || 0,
+        originalOpenHours: selectedTimesheetForEdit.openHours || '00:00',
+        originalCloseHours: selectedTimesheetForEdit.closeHours || '00:00',
+        masterAccountId: user.masterAccountId || '',
+        siteId: user.siteId || '',
+        subcontractorId: selectedSubcontractor || '',
+        subcontractorName: subcontractor?.name || 'Unknown',
+      });
+      
+      Alert.alert('Success', 'Hours edited successfully. Changes are pending subcontractor review.');
+      await loadPendingEdits();
+    } catch (error) {
+      console.error('[EPH] Error saving edit:', error);
+      throw error;
+    }
+  };
+
+  const handleCompareVersions = async (assetId: string) => {
+    console.log('[EPH] Compare versions clicked for asset:', assetId);
+    const timesheets = ephTimesheets.get(assetId);
+    const edits = pendingEdits.get(assetId);
+    
+    if (!timesheets || timesheets.length === 0) {
+      Alert.alert('No Timesheets', 'No timesheets found for this asset.');
+      return;
+    }
+    
+    if (!edits || edits.length === 0) {
+      Alert.alert('No Edits', 'No pending edits found for this asset.');
+      return;
+    }
+    
+    const plantManagerVersion = timesheets[0];
+    const adminEdit = edits.find(e => e.editedBy === 'admin');
+    const subcontractorEdit = edits.find(e => e.editedBy === 'subcontractor');
+    
+    const asset = plantAssets.find(a => a.assetId === assetId);
+    
+    setSelectedComparison({
+      plantManager: {
+        ...plantManagerVersion,
+        assetType: asset?.type,
+        plantNumber: asset?.plantNumber || asset?.registrationNumber,
+      },
+      adminEdited: adminEdit ? {
+        id: adminEdit.id,
+        date: adminEdit.date,
+        operatorName: plantManagerVersion.operatorName,
+        assetType: adminEdit.assetType,
+        plantNumber: adminEdit.plantNumber,
+        totalHours: adminEdit.totalHours,
+        openHours: adminEdit.openHours,
+        closeHours: adminEdit.closeHours,
+        isBreakdown: adminEdit.isBreakdown,
+        isRainDay: adminEdit.isRainDay,
+        isStrikeDay: adminEdit.isStrikeDay,
+        isPublicHoliday: adminEdit.isPublicHoliday,
+        notes: adminEdit.notes,
+      } : undefined,
+      subcontractorEdited: subcontractorEdit ? {
+        id: subcontractorEdit.id,
+        date: subcontractorEdit.date,
+        operatorName: plantManagerVersion.operatorName,
+        assetType: subcontractorEdit.assetType,
+        plantNumber: subcontractorEdit.plantNumber,
+        totalHours: subcontractorEdit.totalHours,
+        openHours: subcontractorEdit.openHours,
+        closeHours: subcontractorEdit.closeHours,
+        isBreakdown: subcontractorEdit.isBreakdown,
+        isRainDay: subcontractorEdit.isRainDay,
+        isStrikeDay: subcontractorEdit.isStrikeDay,
+        isPublicHoliday: subcontractorEdit.isPublicHoliday,
+        notes: subcontractorEdit.notes,
+      } : undefined,
+    });
+    
+    setComparisonModalVisible(true);
+  };
+
+  const handleSendToSubcontractor = async (recipientEmail: string, message: string) => {
+    if (!selectedSubcontractor || !user) {
+      Alert.alert('Error', 'Missing subcontractor or user information');
+      return;
+    }
+    
+    console.log('[EPH] Sending to subcontractor:', recipientEmail);
+    
+    try {
+      const selectedAssets = Array.from(selectedAssetIds).map(id => 
+        ephData.find(record => record.assetId === id)
+      ).filter(Boolean) as typeof ephData;
+      
+      const totalHours = selectedAssets.reduce((sum, asset) => sum + asset.totalBillableHours, 0);
+      const subcontractor = subcontractors.find(s => s.id === selectedSubcontractor);
+      
+      const groups = selectedAssets.map(record => {
+        const timesheets = ephTimesheets.get(record.assetId) || [];
+        const dedupedTimesheets = deduplicateTimesheetEntries(timesheets);
+        
+        return {
+          key: record.assetId,
+          title: record.assetType,
+          subtitle: record.plantNumber || record.registrationNumber || record.assetId,
+          entries: dedupedTimesheets.map(ts => ({
+            id: ts.id,
+            date: ts.date,
+            operatorName: ts.operatorName,
+            operatorId: ts.operatorName || '',
+            verified: true,
+            verifiedAt: ts.verifiedAt || new Date().toISOString(),
+            verifiedBy: ts.adjustedBy || 'system',
+            masterAccountId: user?.masterAccountId || '',
+            siteId: user?.siteId || '',
+            type: 'plant_hours' as const,
+            openHours: parseFloat(ts.openHours) || 0,
+            closeHours: parseFloat(ts.closeHours) || 0,
+            totalHours: ts.totalHours || 0,
+            isBreakdown: ts.isBreakdown,
+            inclementWeather: ts.isRainDay,
+            hasAttachment: false,
+            assetId: record.assetId,
+            assetType: record.assetType,
+            plantNumber: record.plantNumber,
+            registrationNumber: record.registrationNumber,
+            ownerId: selectedSubcontractor,
+            ownerType: 'subcontractor' as const,
+            ownerName: subcontractor?.name,
+            hasOriginalEntry: ts.hasOriginalEntry,
+            originalEntryData: ts.originalEntryData,
+            isAdjustment: ts.isAdjustment,
+            originalEntryId: ts.originalEntryId,
+            adjustedBy: ts.adjustedBy,
+            adjustedAt: ts.adjustedAt,
+          })),
+          dateGroups: dedupedTimesheets.map(ts => ({
+            date: ts.date,
+            adjustmentEntry: ts.hasOriginalEntry || ts.isAdjustment ? ts as any : undefined,
+            originalEntry: ts.originalEntryData ? { ...ts.originalEntryData, id: ts.originalEntryId || ts.id, date: ts.date } as any : undefined,
+            agreedEntry: undefined,
+          })),
+        };
+      });
+      
+      const { uri, fileName } = await generateTimesheetPDF({
+        groups,
+        reportType: 'plant',
+        subcontractorName: subcontractor?.name,
+        dateRange: {
+          from: startDate,
+          to: endDate,
+        },
+        selectedOnly: true,
+        selectedGroups: new Set(selectedAssets.map(r => r.assetId)),
+      });
+      
+      await sendEPHToSubcontractor({
+        recipientEmail,
+        message,
+        pdfUri: uri,
+        pdfFileName: fileName,
+        subcontractorName: subcontractor?.name || 'Unknown',
+        dateRange: { from: startDate, to: endDate },
+        assetCount: selectedAssets.length,
+        totalHours,
+        companyName: user.companyName || 'Your Company',
+      });
+      
+      Alert.alert('Success', 'EPH report sent to subcontractor');
+    } catch (error) {
+      console.error('[EPH] Error sending to subcontractor:', error);
+      throw error;
+    }
   };
 
   const renderEPHRecord = ({ item }: { item: EPHRecord }) => {

@@ -465,9 +465,8 @@ export default function PlantAssetsTimesheetsTab({
         await emailTimesheetPDF(uri, fileName, {
           recipientEmail: options.recipientEmail,
         });
-        Alert.alert('Success', 'Email composer opened. Please send the email.');
       } else {
-        console.log('[PlantAssetsTimesheetsTab] Downloading/sharing PDF...');
+        console.log('[PlantAssetsTimesheetsTab] Downloading/sharing report...');
         await downloadTimesheetPDF(uri, fileName);
       }
 

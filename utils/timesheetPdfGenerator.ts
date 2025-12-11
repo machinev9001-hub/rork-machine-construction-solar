@@ -499,14 +499,28 @@ export async function generateTimesheetPDF(options: ReportOptions): Promise<{ ur
 
     const fileName = `${options.reportType}_hours_report_${formatDate(new Date()).replace(/\s/g, '_')}.pdf`;
 
-    const { uri } = await Print.printToFileAsync({
+    if (Platform.OS === 'web') {
+      console.log('[timesheetPdfGenerator] Web platform - creating data URI from HTML');
+      const blob = new Blob([html], { type: 'text/html' });
+      const uri = URL.createObjectURL(blob);
+      console.log('[timesheetPdfGenerator] HTML blob created for web:', uri);
+      return { uri, fileName: fileName.replace('.pdf', '.html') };
+    }
+
+    console.log('[timesheetPdfGenerator] Native platform - generating PDF');
+    const result = await Print.printToFileAsync({
       html,
       base64: false,
     });
 
-    console.log('[timesheetPdfGenerator] PDF generated successfully:', uri);
+    if (!result || !result.uri) {
+      console.error('[timesheetPdfGenerator] Print.printToFileAsync returned invalid result:', result);
+      throw new Error('PDF generation failed - no URI returned');
+    }
 
-    return { uri, fileName };
+    console.log('[timesheetPdfGenerator] PDF generated successfully:', result.uri);
+
+    return { uri: result.uri, fileName };
   } catch (error) {
     console.error('[timesheetPdfGenerator] Error generating PDF:', error);
     throw new Error('Failed to generate PDF report');
@@ -555,16 +569,28 @@ export async function emailTimesheetPDF(
 }
 
 export async function downloadTimesheetPDF(pdfUri: string, fileName: string): Promise<void> {
-  console.log('[timesheetPdfGenerator] Downloading PDF:', fileName);
+  console.log('[timesheetPdfGenerator] Downloading/Sharing file:', fileName);
+  console.log('[timesheetPdfGenerator] URI:', pdfUri);
+  console.log('[timesheetPdfGenerator] Platform:', Platform.OS);
 
   try {
     if (Platform.OS === 'web') {
-      const link = document.createElement('a');
-      link.href = pdfUri;
-      link.download = fileName;
-      link.click();
-      Alert.alert('Success', 'PDF downloaded successfully');
+      console.log('[timesheetPdfGenerator] Opening file in new window for web');
+      const newWindow = window.open(pdfUri, '_blank');
+      if (newWindow) {
+        newWindow.focus();
+        Alert.alert(
+          'Report Generated',
+          'The timesheet report has been opened in a new window. You can print it to PDF using your browser\'s print function (Ctrl/Cmd + P).'
+        );
+      } else {
+        Alert.alert(
+          'Popup Blocked',
+          'Please allow popups for this site to view the report, or check your downloads folder.'
+        );
+      }
     } else {
+      console.log('[timesheetPdfGenerator] Sharing PDF on native platform');
       const isAvailable = await Sharing.isAvailableAsync();
       
       if (isAvailable) {
@@ -579,7 +605,7 @@ export async function downloadTimesheetPDF(pdfUri: string, fileName: string): Pr
       }
     }
   } catch (error) {
-    console.error('[timesheetPdfGenerator] Error downloading/sharing PDF:', error);
-    Alert.alert('Error', 'Failed to save or share PDF');
+    console.error('[timesheetPdfGenerator] Error downloading/sharing:', error);
+    Alert.alert('Error', 'Failed to open or share the report. Please try again.');
   }
 }

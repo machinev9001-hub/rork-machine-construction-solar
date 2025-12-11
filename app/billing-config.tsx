@@ -443,6 +443,7 @@ export default function BillingConfigScreen() {
   const [showOriginalRows, setShowOriginalRows] = useState(false);
   const [agreedHoursModalVisible, setAgreedHoursModalVisible] = useState(false);
   const [selectedTimesheetForAgreement, setSelectedTimesheetForAgreement] = useState<any>(null);
+  const [ephTimesheets, setEphTimesheets] = useState<Map<string, TimesheetEntry[]>>(new Map());
 
   const totalTimesheetHours = useMemo(() => {
     return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
@@ -514,9 +515,15 @@ export default function BillingConfigScreen() {
             const rawEntries = timesheetSnapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-            }));
+            })) as TimesheetEntry[];
 
-            const dedupedEntries = deduplicateTimesheetEntries(rawEntries as TimesheetEntry[]);
+            setEphTimesheets(prev => {
+              const newMap = new Map(prev);
+              newMap.set(asset.assetId, rawEntries);
+              return newMap;
+            });
+            
+            const dedupedEntries = deduplicateTimesheetEntries(rawEntries);
             console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries (removed', rawEntries.length - dedupedEntries.length, 'duplicates)');
 
             let normalHours = 0;
@@ -1396,6 +1403,70 @@ export default function BillingConfigScreen() {
     }
   };
 
+  const handleOpenAgreedHoursModal = async (assetId: string) => {
+    console.log('[EPH] Opening agreed hours modal for asset:', assetId);
+    const timesheets = ephTimesheets.get(assetId);
+    
+    if (!timesheets || timesheets.length === 0) {
+      Alert.alert('No Timesheets', 'No timesheets found for this asset in the selected date range.');
+      return;
+    }
+
+    const dedupedEntries = deduplicateTimesheetEntries(timesheets);
+    
+    if (dedupedEntries.length === 1) {
+      const existingAgreed = await getAgreedTimesheetByOriginalId(dedupedEntries[0].id);
+      if (existingAgreed) {
+        Alert.alert(
+          'Already Agreed',
+          `This timesheet has already been agreed on ${new Date(existingAgreed.agreedAt.toDate()).toLocaleDateString('en-GB')}.\n\nAgreed Hours: ${existingAgreed.agreedHours}h\nOriginal Hours: ${existingAgreed.originalHours}h`,
+          [
+            { text: 'OK', style: 'default' },
+          ]
+        );
+        return;
+      }
+      
+      setSelectedTimesheetForAgreement(dedupedEntries[0]);
+      setAgreedHoursModalVisible(true);
+    } else {
+      Alert.alert(
+        'Multiple Timesheets',
+        `This asset has ${dedupedEntries.length} timesheet entries in the selected date range. Please use the View Timesheets option to agree hours for individual dates.`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleAgreeHours = async (data: { agreedHours?: number; agreedNotes?: string }) => {
+    if (!selectedTimesheetForAgreement || !user) {
+      console.error('[EPH] Missing timesheet or user');
+      return;
+    }
+
+    try {
+      console.log('[EPH] Agreeing hours:', data);
+      const agreedByIdentifier = user.userId || user.id || 'Unknown Admin';
+      await agreePlantAssetTimesheet(
+        selectedTimesheetForAgreement,
+        {
+          agreedHours: data.agreedHours,
+          agreedNotes: data.agreedNotes,
+        },
+        agreedByIdentifier
+      );
+
+      Alert.alert('Success', 'Hours agreed successfully and ready for billing.');
+      
+      if (selectedSubcontractor) {
+        await loadPlantAssets(selectedSubcontractor);
+      }
+    } catch (error) {
+      console.error('[EPH] Error agreeing hours:', error);
+      throw error;
+    }
+  };
+
   const renderEPHRecord = ({ item }: { item: EPHRecord }) => {
     const isExpanded = expandedCards.has(item.assetId);
 
@@ -1473,13 +1544,23 @@ export default function BillingConfigScreen() {
               </View>
             </View>
             
-            <TouchableOpacity
-              style={styles.viewTimesheetsButton}
-              onPress={() => handleViewTimesheets(item.assetId)}
-            >
-              <ClipboardList size={18} color="#1e3a8a" />
-              <Text style={styles.viewTimesheetsButtonText}>View Timesheets</Text>
-            </TouchableOpacity>
+            <View style={styles.ephActions}>
+              <TouchableOpacity
+                style={styles.viewTimesheetsButton}
+                onPress={() => handleViewTimesheets(item.assetId)}
+              >
+                <ClipboardList size={18} color="#1e3a8a" />
+                <Text style={styles.viewTimesheetsButtonText}>View Timesheets</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.agreeHoursButton}
+                onPress={() => handleOpenAgreedHoursModal(item.assetId)}
+              >
+                <Edit3 size={18} color="#ffffff" />
+                <Text style={styles.agreeHoursButtonText}>Agree Hours</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </TouchableOpacity>
@@ -1701,6 +1782,17 @@ export default function BillingConfigScreen() {
           )}
         </View>
       )}
+
+      <AgreedHoursModal
+        visible={agreedHoursModalVisible}
+        onClose={() => {
+          setAgreedHoursModalVisible(false);
+          setSelectedTimesheetForAgreement(null);
+        }}
+        onSubmit={handleAgreeHours}
+        timesheet={selectedTimesheetForAgreement}
+        viewMode="plant"
+      />
     </View>
   );
 }
@@ -2458,6 +2550,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#1e3a8a',
+  },
+  ephActions: {
+    gap: 8,
+    marginTop: 12,
+  },
+  agreeHoursButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#10b981',
+    borderRadius: 8,
+  },
+  agreeHoursButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#ffffff',
   },
   ephLinkBanner: {
     backgroundColor: '#eff6ff',

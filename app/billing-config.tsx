@@ -1712,7 +1712,7 @@ export default function BillingConfigScreen() {
         date: selectedTimesheetForEdit.date,
         editedBy: 'admin',
         editedByUserId: user.userId || user.id || 'unknown',
-        editedByName: user.name || user.email || 'Admin',
+        editedByName: user.name || 'Admin',
         totalHours: editedValues.totalHours,
         openHours: editedValues.openHours,
         closeHours: editedValues.closeHours,

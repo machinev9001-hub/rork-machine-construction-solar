@@ -12,12 +12,15 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList } from 'lucide-react-native';
+import { DollarSign, Save, Clock, Calendar, FileText, CloudRain, Wrench, AlertTriangle, ChevronDown, ChevronUp, CalendarDays, ClipboardList, Edit3 } from 'lucide-react-native';
+import { Alert } from 'react-native';
 import { collection, getDocs, query, where, orderBy, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { PlantAsset, Subcontractor } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { HeaderTitleWithSync } from '@/components/HeaderSyncStatus';
+import AgreedHoursModal from '@/components/accounts/AgreedHoursModal';
+import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId } from '@/utils/agreedTimesheetManager';
 
 type BillingMethod = 'PER_HOUR' | 'MINIMUM_BILLING';
 
@@ -438,6 +441,8 @@ export default function BillingConfigScreen() {
   });
   const [timesheetGroups, setTimesheetGroups] = useState<TimesheetDisplayGroup[]>([]);
   const [showOriginalRows, setShowOriginalRows] = useState(false);
+  const [agreedHoursModalVisible, setAgreedHoursModalVisible] = useState(false);
+  const [selectedTimesheetForAgreement, setSelectedTimesheetForAgreement] = useState<any>(null);
 
   const totalTimesheetHours = useMemo(() => {
     return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);

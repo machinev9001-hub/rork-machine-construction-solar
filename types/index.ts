@@ -545,6 +545,50 @@ export type OperatorTimesheet = {
   adjustmentId?: string;
   isAdjustment?: boolean;
   originalEntryId?: string;
+  agreedNormalHours?: number;
+  agreedOvertimeHours?: number;
+  agreedSundayHours?: number;
+  agreedPublicHolidayHours?: number;
+  agreedNotes?: string;
+  hasAgreedHours?: boolean;
+  agreedTimesheetId?: string;
+  createdAt: any;
+  updatedAt: any;
+};
+
+export type AgreedTimesheet = {
+  id: string;
+  originalTimesheetId: string;
+  timesheetType: 'operator' | 'plant_asset';
+  date: string;
+  operatorId?: string;
+  operatorName?: string;
+  assetId?: string;
+  assetType?: string;
+  originalHours: number;
+  agreedHours: number;
+  agreedNormalHours?: number;
+  agreedOvertimeHours?: number;
+  agreedSundayHours?: number;
+  agreedPublicHolidayHours?: number;
+  originalNormalHours?: number;
+  originalOvertimeHours?: number;
+  originalSundayHours?: number;
+  originalPublicHolidayHours?: number;
+  hoursDifference: number;
+  originalNotes?: string;
+  adminNotes?: string;
+  siteId?: string;
+  siteName?: string;
+  masterAccountId: string;
+  companyId?: string;
+  subcontractorId?: string;
+  subcontractorName?: string;
+  status: 'approved_for_billing' | 'disputed' | 'rejected';
+  agreedAt: any;
+  agreedBy: string;
+  approvedForBillingAt?: any;
+  approvedForBillingBy?: string;
   createdAt: any;
   updatedAt: any;
 };
@@ -867,40 +911,5 @@ export type GridCellProgress = {
 };
 
 export type TimesheetWorkflowStatus = 'pending_eph' | 'in_negotiation' | 'approved_for_billing' | 'rejected';
-
-export type AgreedTimesheet = {
-  id?: string;
-  originalTimesheetId: string;
-  timesheetType: 'operator' | 'plant_asset';
-  date: string;
-  operatorId?: string;
-  operatorName?: string;
-  assetId?: string;
-  assetType?: string;
-  originalHours: number;
-  agreedHours: number;
-  hoursDifference: number;
-  originalNotes?: string;
-  adminNotes?: string;
-  negotiationNotes?: string;
-  siteId?: string;
-  siteName?: string;
-  masterAccountId: string;
-  companyId?: string;
-  subcontractorId?: string;
-  subcontractorName?: string;
-  status: TimesheetWorkflowStatus;
-  verifiedAt?: any;
-  verifiedBy?: string;
-  agreedAt?: any;
-  agreedBy?: string;
-  approvedForBillingAt?: any;
-  approvedForBillingBy?: string;
-  rejectedAt?: any;
-  rejectedBy?: string;
-  rejectionReason?: string;
-  createdAt: any;
-  updatedAt?: any;
-};
 
 

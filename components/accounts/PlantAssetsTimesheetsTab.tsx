@@ -9,14 +9,14 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, Edit } from 'lucide-react-native';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar } from 'lucide-react-native';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import FiltersBar, { FilterValues } from './FiltersBar';
 import ExportRequestModal, { ExportRequest, ExportType } from './ExportRequestModal';
-import AgreedHoursModal from './AgreedHoursModal';
+import { getAgreedTimesheetsByDateRange } from '@/utils/agreedTimesheetManager';
 
 type ViewMode = 'plant' | 'man';
 
@@ -210,32 +210,70 @@ export default function PlantAssetsTimesheetsTab({
       return;
     }
 
-    console.log('[PlantAssetsTimesheetsTab] ===== LOADING VERIFIED TIMESHEETS =====');
+    console.log('[PlantAssetsTimesheetsTab] ===== LOADING AGREED TIMESHEETS (APPROVED FOR BILLING) =====');
     console.log('[PlantAssetsTimesheetsTab] masterAccountId:', user.masterAccountId);
     console.log('[PlantAssetsTimesheetsTab] siteId:', user.siteId);
     console.log('[PlantAssetsTimesheetsTab] viewMode:', viewMode);
     console.log('[PlantAssetsTimesheetsTab] filters:', filters);
-    console.log('[PlantAssetsTimesheetsTab] type filter:', viewMode === 'plant' ? 'plant_hours' : 'man_hours');
     setLoading(true);
 
     try {
-      const timesheetsRef = collection(db, 'verifiedTimesheets');
-      let q = query(
-        timesheetsRef,
-        where('masterAccountId', '==', user.masterAccountId),
-        where('siteId', '==', user.siteId),
-        where('type', '==', viewMode === 'plant' ? 'plant_hours' : 'man_hours')
+      const fromDateStr = filters.fromDate?.toISOString().split('T')[0] || '2020-01-01';
+      const toDateStr = filters.toDate?.toISOString().split('T')[0] || '2099-12-31';
+
+      console.log('[PlantAssetsTimesheetsTab] Fetching agreed timesheets from', fromDateStr, 'to', toDateStr);
+      
+      const agreedTimesheets = await getAgreedTimesheetsByDateRange(
+        user.masterAccountId,
+        fromDateStr,
+        toDateStr
       );
 
-      console.log('[PlantAssetsTimesheetsTab] Executing query...');
-      const snapshot = await getDocs(q);
-      console.log('[PlantAssetsTimesheetsTab] Query returned', snapshot.docs.length, 'documents');
+      console.log('[PlantAssetsTimesheetsTab] Query returned', agreedTimesheets.length, 'agreed timesheets');
       
-      let loadedTimesheets = snapshot.docs.map(doc => {
-        const data = doc.data();
+      let loadedTimesheets: VerifiedTimesheet[] = agreedTimesheets.map(at => {
+        const isPlant = at.timesheetType === 'plant_asset';
+        const totalHours = at.agreedHours;
+        
         return {
-          id: doc.id,
-          ...data,
+          id: at.id,
+          date: at.date,
+          operatorName: at.operatorName || '',
+          operatorId: at.operatorId || '',
+          verified: true,
+          verifiedAt: at.agreedAt ? (at.agreedAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
+          verifiedBy: at.agreedBy,
+          masterAccountId: at.masterAccountId,
+          siteId: at.siteId || '',
+          type: isPlant ? 'plant_hours' : 'man_hours',
+          
+          totalHours: isPlant ? totalHours : undefined,
+          openHours: isPlant ? 0 : undefined,
+          closeHours: isPlant ? totalHours : undefined,
+          
+          assetId: at.assetId,
+          assetType: at.assetType,
+          plantNumber: at.assetId,
+          registrationNumber: undefined,
+          ownerId: at.subcontractorId,
+          ownerType: 'subcontractor',
+          ownerName: at.subcontractorName,
+          
+          totalManHours: !isPlant ? totalHours : undefined,
+          normalHours: at.agreedNormalHours,
+          overtimeHours: at.agreedOvertimeHours,
+          sundayHours: at.agreedSundayHours,
+          publicHolidayHours: at.agreedPublicHolidayHours,
+          
+          agreedHours: at.agreedHours,
+          agreedNormalHours: at.agreedNormalHours,
+          agreedOvertimeHours: at.agreedOvertimeHours,
+          agreedSundayHours: at.agreedSundayHours,
+          agreedPublicHolidayHours: at.agreedPublicHolidayHours,
+          agreedBy: at.agreedBy,
+          agreedAt: at.agreedAt ? (at.agreedAt as Timestamp).toDate().toISOString() : undefined,
+          agreedNotes: at.adminNotes,
+          hasAgreedEntry: true,
         } as VerifiedTimesheet;
       });
 
@@ -246,6 +284,13 @@ export default function PlantAssetsTimesheetsTab({
       });
 
       console.log('[PlantAssetsTimesheetsTab] Before filtering:', loadedTimesheets.length, 'timesheets');
+
+      if (viewMode === 'plant') {
+        loadedTimesheets = loadedTimesheets.filter(t => t.type === 'plant_hours');
+      } else {
+        loadedTimesheets = loadedTimesheets.filter(t => t.type === 'man_hours');
+      }
+      console.log('[PlantAssetsTimesheetsTab] After type filter:', loadedTimesheets.length, 'timesheets');
 
       if (filters.assetId) {
         console.log('[PlantAssetsTimesheetsTab] Filtering by assetId:', filters.assetId);
@@ -259,39 +304,20 @@ export default function PlantAssetsTimesheetsTab({
         console.log('[PlantAssetsTimesheetsTab] After subcontractor filter:', loadedTimesheets.length, 'timesheets');
       }
 
-      if (filters.fromDate) {
-        const fromDateStr = filters.fromDate.toISOString().split('T')[0];
-        console.log('[PlantAssetsTimesheetsTab] Filtering from date:', fromDateStr);
-        loadedTimesheets = loadedTimesheets.filter(t => t.date >= fromDateStr);
-        console.log('[PlantAssetsTimesheetsTab] After fromDate filter:', loadedTimesheets.length, 'timesheets');
-      }
-
-      if (filters.toDate) {
-        const toDateStr = filters.toDate.toISOString().split('T')[0];
-        console.log('[PlantAssetsTimesheetsTab] Filtering to date:', toDateStr);
-        loadedTimesheets = loadedTimesheets.filter(t => t.date <= toDateStr);
-        console.log('[PlantAssetsTimesheetsTab] After toDate filter:', loadedTimesheets.length, 'timesheets');
+      if (filters.siteId) {
+        console.log('[PlantAssetsTimesheetsTab] Filtering by siteId:', filters.siteId);
+        loadedTimesheets = loadedTimesheets.filter(t => t.siteId === filters.siteId);
+        console.log('[PlantAssetsTimesheetsTab] After siteId filter:', loadedTimesheets.length, 'timesheets');
       }
 
       console.log('[PlantAssetsTimesheetsTab] Final filtered count:', loadedTimesheets.length, 'timesheets');
       if (loadedTimesheets.length > 0) {
         console.log('[PlantAssetsTimesheetsTab] First timesheet sample:', JSON.stringify(loadedTimesheets[0], null, 2));
       }
-      if (loadedTimesheets.length === 0 && filters.assetId) {
-        console.log('[PlantAssetsTimesheetsTab] ⚠️ No timesheets found after filtering');
-        console.log('[PlantAssetsTimesheetsTab] Applied filters:', JSON.stringify(filters, null, 2));
-        console.log('[PlantAssetsTimesheetsTab] Try checking:');
-        console.log('[PlantAssetsTimesheetsTab] 1. assetId filter value:', filters.assetId);
-        console.log('[PlantAssetsTimesheetsTab] 2. Available assetIds in all timesheets:', 
-          snapshot.docs.map(d => d.data().assetId).filter((v, i, arr) => arr.indexOf(v) === i));
-        console.log('[PlantAssetsTimesheetsTab] 3. All unique assetIds from raw data:');
-        snapshot.docs.forEach(d => {
-          console.log('[PlantAssetsTimesheetsTab]    - assetId:', d.data().assetId, '| plantNumber:', d.data().plantNumber);
-        });
-      }
+      
       setTimesheets(loadedTimesheets);
     } catch (error) {
-      console.error('[PlantAssetsTimesheetsTab] ❌ Error loading timesheets:', error);
+      console.error('[PlantAssetsTimesheetsTab] ❌ Error loading agreed timesheets:', error);
       console.error('[PlantAssetsTimesheetsTab] Error details:', JSON.stringify(error, null, 2));
       setTimesheets([]);
     } finally {
@@ -783,7 +809,7 @@ export default function PlantAssetsTimesheetsTab({
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={styles.loadingText}>Loading verified timesheets...</Text>
+          <Text style={styles.loadingText}>Loading approved billing timesheets...</Text>
         </View>
       ) : groups.length === 0 ? (
         <View style={styles.emptyState}>
@@ -792,11 +818,11 @@ export default function PlantAssetsTimesheetsTab({
           ) : (
             <User size={48} color="#cbd5e1" />
           )}
-          <Text style={styles.emptyTitle}>No verified timesheets found</Text>
+          <Text style={styles.emptyTitle}>No approved timesheets for billing</Text>
           <Text style={styles.emptyText}>
             {viewMode === 'plant'
-              ? 'No plant hours timesheets have been verified yet'
-              : 'No man hours timesheets have been verified yet'}
+              ? 'No plant hours timesheets have been approved from EPH yet'
+              : 'No man hours timesheets have been approved from EPH yet'}
           </Text>
         </View>
       ) : (

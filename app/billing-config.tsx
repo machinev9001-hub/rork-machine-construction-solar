@@ -384,10 +384,11 @@ const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[
 
   const result: TimesheetEntry[] = [];
   pairingMap.forEach((pair) => {
+    if (pair.operator) {
+      result.push(pair.operator);
+    }
     if (pair.plantManager) {
       result.push(pair.plantManager);
-    } else if (pair.operator) {
-      result.push(pair.operator);
     }
   });
 

@@ -1555,7 +1555,7 @@ export default function BillingConfigScreen() {
                       !hasAnyAdjustments && styles.toggleOriginalButtonTextDisabled,
                     ]}
                   >
-                    {showOriginalRows ? 'Hide Operator Lines' : 'Show Operator Lines'}
+                    {showOriginalRows ? 'Show All Versions' : 'Show Adjusted Only'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1584,10 +1584,9 @@ export default function BillingConfigScreen() {
                   </View>
 
                   {timesheetGroups.map((group, groupIndex) => {
-                    const visibleRows =
-                      !group.hasAdjustments || showOriginalRows
-                        ? group.rows
-                        : group.rows.filter(row => !row.isOriginal);
+                    const visibleRows = showOriginalRows
+                      ? group.rows
+                      : group.rows.filter(row => !row.isOriginal);
 
                     if (visibleRows.length === 0) {
                       return null;

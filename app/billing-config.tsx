@@ -518,6 +518,11 @@ export default function BillingConfigScreen() {
         const ephRecords: EPHRecord[] = await Promise.all(
           assets.map(async (asset) => {
             console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
+            console.log('[EPH] Query parameters:');
+            console.log('[EPH]  - masterAccountId:', user?.masterAccountId);
+            console.log('[EPH]  - assetId:', asset.assetId);
+            console.log('[EPH]  - type:', 'plant_hours');
+            console.log('[EPH]  - date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
             const timesheetQuery = query(
               collection(db, 'verifiedTimesheets'),
               where('masterAccountId', '==', user?.masterAccountId),
@@ -529,6 +534,28 @@ export default function BillingConfigScreen() {
 
             const timesheetSnapshot = await getDocs(timesheetQuery);
             console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
+            
+            if (timesheetSnapshot.docs.length === 0) {
+              console.log('[EPH] ⚠️ No timesheets found. Checking if any verifiedTimesheets exist for this asset...');
+              const checkQuery = query(
+                collection(db, 'verifiedTimesheets'),
+                where('assetId', '==', asset.assetId),
+                where('type', '==', 'plant_hours')
+              );
+              const checkSnapshot = await getDocs(checkQuery);
+              console.log('[EPH] Total verifiedTimesheets for this asset (any date/account):', checkSnapshot.docs.length);
+              if (checkSnapshot.docs.length > 0) {
+                const sample = checkSnapshot.docs[0].data();
+                console.log('[EPH] Sample timesheet:', {
+                  date: sample.date,
+                  masterAccountId: sample.masterAccountId,
+                  assetId: sample.assetId,
+                  type: sample.type,
+                  operatorName: sample.operatorName,
+                  totalHours: sample.totalHours,
+                });
+              }
+            }
             
             const rawEntries = timesheetSnapshot.docs.map(doc => ({
               id: doc.id,

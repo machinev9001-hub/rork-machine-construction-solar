@@ -278,7 +278,7 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
     const dateOperatorPairs = new Map<string, { original?: TimesheetDisplayRow; pm?: TimesheetDisplayRow }>();
     
     group.rows.forEach((row) => {
-      const pairKey = `${row.isoDate}-${row.operatorName}`;
+      const pairKey = `${row.isoDate}-${row.sourceEntryId}`;
       if (!dateOperatorPairs.has(pairKey)) {
         dateOperatorPairs.set(pairKey, {});
       }

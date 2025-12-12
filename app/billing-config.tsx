@@ -1621,10 +1621,8 @@ export default function BillingConfigScreen() {
         </View>
       </View>
 
-      {renderDayTypeCardMachine('Weekdays', 'weekdays', '📅', expandedDayCards.has('weekdays'), () => toggleDayCard('weekdays'))}
-      {renderDayTypeCardMachine('Saturday', 'saturday', '🏖️', expandedDayCards.has('saturday'), () => toggleDayCard('saturday'))}
-      {renderDayTypeCardMachine('Sunday', 'sunday', '☀️', expandedDayCards.has('sunday'), () => toggleDayCard('sunday'))}
-      {renderDayTypeCardMachine('Public Holidays', 'publicHolidays', '🎉', expandedDayCards.has('publicHolidays'), () => toggleDayCard('publicHolidays'))}
+      {renderDayTypeCardMachine('Weekdays (Monday - Friday)', 'weekdays', '📅', expandedDayCards.has('weekdays'), () => toggleDayCard('weekdays'))}
+      {renderDayTypeCardMachine('Weekends (Saturday & Sunday)', 'saturday', '🏖️', expandedDayCards.has('saturday'), () => toggleDayCard('saturday'))}
       {renderRainDayConfig()}
       {renderBreakdownConfig()}
     </ScrollView>

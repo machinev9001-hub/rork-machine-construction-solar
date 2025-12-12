@@ -20,6 +20,7 @@ import ExportRequestModal, { ExportRequest, ExportType } from './ExportRequestMo
 import ReportGenerationModal from './ReportGenerationModal';
 import { getAgreedTimesheetsByDateRange } from '@/utils/agreedTimesheetManager';
 import { generateTimesheetPDF, emailTimesheetPDF, downloadTimesheetPDF } from '@/utils/timesheetPdfGenerator';
+import { calculateBillableHours, BillingConfigForCalculation, TimesheetForBilling, BillableHoursResult } from '@/utils/billableHoursCalculator';
 
 type ViewMode = 'plant' | 'man';
 
@@ -34,6 +35,9 @@ type VerifiedTimesheet = {
   masterAccountId: string;
   siteId: string;
   type: 'plant_hours' | 'man_hours';
+  actualHours?: number;
+  billableHours?: number;
+  billingRule?: string;
   
   openHours?: number;
   closeHours?: number;
@@ -117,6 +121,7 @@ export default function PlantAssetsTimesheetsTab({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [showOriginalTimesheets, setShowOriginalTimesheets] = useState<Set<string>>(new Set());
   const [subcontractors, setSubcontractors] = useState<{ id: string; name: string }[]>([]);
+  const [billingConfig, setBillingConfig] = useState<BillingConfigForCalculation | null>(null);
   const [plantAssets, setPlantAssets] = useState<{ id: string; type: string; plantNumber?: string; registrationNumber?: string; assetId: string }[]>([]);
   const [showSelector, setShowSelector] = useState(true);
   const [tempSubcontractor, setTempSubcontractor] = useState<string | null>(null);
@@ -133,6 +138,7 @@ export default function PlantAssetsTimesheetsTab({
       console.log('[PlantAssetsTimesheetsTab] Tab focused, loading subcontractors');
       if (user?.siteId && user?.masterAccountId) {
         loadSubcontractors();
+        loadBillingConfig();
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.siteId, user?.masterAccountId])

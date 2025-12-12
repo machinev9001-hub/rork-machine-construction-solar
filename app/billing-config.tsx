@@ -52,6 +52,7 @@ type BillingConfig = {
 };
 
 type TabType = 'config' | 'eph' | 'timesheets';
+type TimesheetsSubTab = 'machine' | 'man';
 
 type EPHRecord = {
   assetId: string;
@@ -489,6 +490,7 @@ export default function BillingConfigScreen() {
   const [selectedTimesheetForEdit, setSelectedTimesheetForEdit] = useState<any>(null);
   const [selectedComparison, setSelectedComparison] = useState<any>(null);
   const [pendingEdits, setPendingEdits] = useState<Map<string, EPHPendingEdit[]>>(new Map());
+  const [timesheetsSubTab, setTimesheetsSubTab] = useState<TimesheetsSubTab>('machine');
 
   const totalTimesheetHours = useMemo(() => {
     // Calculate total hours using hierarchy:
@@ -1405,6 +1407,24 @@ export default function BillingConfigScreen() {
       setLoading(false);
     }
   };
+
+  const renderManHoursView = () => (
+    <View style={styles.timesheetsContainer}>
+      <View style={styles.comingSoonContainer}>
+        <Clock size={64} color="#94a3b8" />
+        <Text style={styles.comingSoonTitle}>Man Hours Processing</Text>
+        <Text style={styles.comingSoonText}>
+          This section will handle operator man hours timesheets, allowing you to review and process operator work hours separately from plant asset hours.
+        </Text>
+        <View style={styles.comingSoonFeatureList}>
+          <Text style={styles.comingSoonFeature}>• Review operator daily timesheets</Text>
+          <Text style={styles.comingSoonFeature}>• Compare operator vs plant manager entries</Text>
+          <Text style={styles.comingSoonFeature}>• Process billing for labor costs</Text>
+          <Text style={styles.comingSoonFeature}>• Generate operator timesheet reports</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   const renderTimesheetsView = () => (
     <View style={styles.timesheetsContainer}>
@@ -2401,7 +2421,29 @@ export default function BillingConfigScreen() {
           {renderRainDayConfig()}
         </ScrollView>
       ) : activeTab === 'timesheets' ? (
-        renderTimesheetsView()
+        <View style={styles.timesheetsMainContainer}>
+          <View style={styles.timesheetsSubTabBar}>
+            <TouchableOpacity
+              style={[styles.timesheetsSubTab, timesheetsSubTab === 'machine' && styles.timesheetsSubTabActive]}
+              onPress={() => setTimesheetsSubTab('machine')}
+            >
+              <Wrench size={18} color={timesheetsSubTab === 'machine' ? '#1e3a8a' : '#64748b'} />
+              <Text style={[styles.timesheetsSubTabText, timesheetsSubTab === 'machine' && styles.timesheetsSubTabTextActive]}>
+                Machine Hours
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.timesheetsSubTab, timesheetsSubTab === 'man' && styles.timesheetsSubTabActive]}
+              onPress={() => setTimesheetsSubTab('man')}
+            >
+              <Clock size={18} color={timesheetsSubTab === 'man' ? '#1e3a8a' : '#64748b'} />
+              <Text style={[styles.timesheetsSubTabText, timesheetsSubTab === 'man' && styles.timesheetsSubTabTextActive]}>
+                Man Hours
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {timesheetsSubTab === 'machine' ? renderTimesheetsView() : renderManHoursView()}
+        </View>
       ) : (
         <View style={styles.ephContainer}>
           <View style={styles.ephSelector}>
@@ -3566,5 +3608,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#10b981',
+  },
+  timesheetsMainContainer: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+  },
+  timesheetsSubTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 16,
+  },
+  timesheetsSubTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  timesheetsSubTabActive: {
+    borderBottomColor: '#1e3a8a',
+  },
+  timesheetsSubTabText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#64748b',
+  },
+  timesheetsSubTabTextActive: {
+    color: '#1e3a8a',
+  },
+  comingSoonContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#1e293b',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  comingSoonText: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  comingSoonFeatureList: {
+    alignSelf: 'stretch',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 12,
+  },
+  comingSoonFeature: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
   },
 });

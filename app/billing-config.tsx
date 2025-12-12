@@ -1240,36 +1240,6 @@ export default function BillingConfigScreen() {
                 placeholderTextColor="#9ca3af"
               />
             </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Rate Multiplier</Text>
-              <View style={styles.inputWithIcon}>
-                <Text style={styles.inputIcon}>×</Text>
-                <TextInput
-                  style={[styles.input, styles.inputWithIconField]}
-                  value={dayConfig.rateMultiplier?.toString() || '1.0'}
-                  onChangeText={(text) =>
-                    updateDayConfig(
-                      dayType,
-                      'rateMultiplier',
-                      parseFloat(text) || 1.0
-                    )
-                  }
-                  keyboardType="decimal-pad"
-                  placeholder="1.0"
-                  placeholderTextColor="#9ca3af"
-                />
-              </View>
-              <Text style={styles.helperText}>
-                {dayConfig.rateMultiplier === 1.0
-                  ? 'Standard rate'
-                  : dayConfig.rateMultiplier > 1.0
-                  ? `${((dayConfig.rateMultiplier - 1) * 100).toFixed(0)}% premium`
-                  : dayConfig.rateMultiplier === 0
-                  ? 'No billing'
-                  : `${((1 - dayConfig.rateMultiplier) * 100).toFixed(0)}% reduced`}
-              </Text>
-            </View>
           </View>
         )}
       </View>

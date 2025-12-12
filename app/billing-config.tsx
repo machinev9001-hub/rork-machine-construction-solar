@@ -1556,68 +1556,8 @@ export default function BillingConfigScreen() {
         <View style={styles.infoContent}>
           <Text style={styles.infoTitle}>Billing Rules - Machine Hours</Text>
           <Text style={styles.infoText}>
-            Configure billing methods and rates for different day types for plant/machine hours. Weekdays,
-            weekends, and public holidays are automatically determined. Event-based
-            conditions (rain days, strike days, breakdowns) are marked by operators in
-            the timesheet.
+            Configure minimum hours and billing rules for plant/machine hours. The billing method (Per Hour vs Minimum Billing) is set per asset during plant onboarding. Weekdays, weekends, and public holidays are automatically determined. Event-based conditions (rain days, breakdowns) are marked by operators in the timesheet.
           </Text>
-        </View>
-      </View>
-
-      <View style={styles.globalBillingMethodCard}>
-        <Text style={styles.globalBillingMethodTitle}>Billing Method</Text>
-        <Text style={styles.globalBillingMethodSubtitle}>Select billing method for all day types</Text>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.methodButton,
-              globalBillingMethod === 'PER_HOUR' && styles.methodButtonActive,
-            ]}
-            onPress={() => applyGlobalBillingMethod('PER_HOUR')}
-          >
-            <Clock
-              size={18}
-              color={
-                globalBillingMethod === 'PER_HOUR' ? '#ffffff' : '#64748b'
-              }
-            />
-            <Text
-              style={[
-                styles.methodButtonText,
-                globalBillingMethod === 'PER_HOUR' &&
-                  styles.methodButtonTextActive,
-              ]}
-            >
-              Per Hour
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.methodButton,
-              globalBillingMethod === 'MINIMUM_BILLING' &&
-                styles.methodButtonActive,
-            ]}
-            onPress={() => applyGlobalBillingMethod('MINIMUM_BILLING')}
-          >
-            <Calendar
-              size={18}
-              color={
-                globalBillingMethod === 'MINIMUM_BILLING'
-                  ? '#ffffff'
-                  : '#64748b'
-              }
-            />
-            <Text
-              style={[
-                styles.methodButtonText,
-                globalBillingMethod === 'MINIMUM_BILLING' &&
-                  styles.methodButtonTextActive,
-              ]}
-            >
-              Minimum Billing
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 

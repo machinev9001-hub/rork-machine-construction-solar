@@ -53,6 +53,7 @@ type BillingConfig = {
 
 type TabType = 'config' | 'eph' | 'timesheets';
 type TimesheetsSubTab = 'machine' | 'man';
+type ConfigSubTab = 'machine' | 'man';
 
 type EPHRecord = {
   assetId: string;
@@ -491,6 +492,7 @@ export default function BillingConfigScreen() {
   const [selectedComparison, setSelectedComparison] = useState<any>(null);
   const [pendingEdits, setPendingEdits] = useState<Map<string, EPHPendingEdit[]>>(new Map());
   const [timesheetsSubTab, setTimesheetsSubTab] = useState<TimesheetsSubTab>('machine');
+  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>('machine');
 
   const totalTimesheetHours = useMemo(() => {
     // Calculate total hours using hierarchy:
@@ -1424,6 +1426,69 @@ export default function BillingConfigScreen() {
         </View>
       </View>
     </View>
+  );
+
+  const renderMachineHoursConfig = () => (
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: insets.bottom + 20 },
+      ]}
+    >
+      <View style={styles.infoCard}>
+        <DollarSign size={24} color="#3b82f6" />
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Billing Rules - Machine Hours</Text>
+          <Text style={styles.infoText}>
+            Configure billing methods and rates for different day types for plant/machine hours. Weekdays,
+            weekends, and public holidays are automatically determined. Event-based
+            conditions (rain days, strike days, breakdowns) are marked by operators in
+            the timesheet.
+          </Text>
+        </View>
+      </View>
+
+      {renderDayTypeCard('Weekdays', 'weekdays', '📅')}
+      {renderDayTypeCard('Saturday', 'saturday', '🏖️')}
+      {renderDayTypeCard('Sunday', 'sunday', '☀️')}
+      {renderDayTypeCard('Public Holidays', 'publicHolidays', '🎉')}
+      {renderRainDayConfig()}
+    </ScrollView>
+  );
+
+  const renderManHoursConfig = () => (
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: insets.bottom + 20 },
+      ]}
+    >
+      <View style={styles.infoCard}>
+        <Clock size={24} color="#3b82f6" />
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Billing Rules - Man Hours</Text>
+          <Text style={styles.infoText}>
+            Configure billing methods and rates for different day types for operator man hours. This section will handle operator labor billing separately from machine hours.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.comingSoonContainer}>
+        <Clock size={64} color="#94a3b8" />
+        <Text style={styles.comingSoonTitle}>Man Hours Billing Configuration</Text>
+        <Text style={styles.comingSoonText}>
+          This section will allow you to configure billing rates and rules for operator man hours, including weekday rates, weekend premiums, and holiday rates.
+        </Text>
+        <View style={styles.comingSoonFeatureList}>
+          <Text style={styles.comingSoonFeature}>• Configure weekday billing rates</Text>
+          <Text style={styles.comingSoonFeature}>• Set weekend and holiday multipliers</Text>
+          <Text style={styles.comingSoonFeature}>• Define overtime thresholds</Text>
+          <Text style={styles.comingSoonFeature}>• Configure rain day and strike day billing</Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 
   const renderTimesheetsView = () => (
@@ -2394,32 +2459,29 @@ export default function BillingConfigScreen() {
       </View>
 
       {activeTab === 'config' ? (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: insets.bottom + 20 },
-          ]}
-        >
-          <View style={styles.infoCard}>
-            <DollarSign size={24} color="#3b82f6" />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>Billing Rules</Text>
-              <Text style={styles.infoText}>
-                Configure billing methods and rates for different day types. Weekdays,
-                weekends, and public holidays are automatically determined. Event-based
-                conditions (rain days, strike days, breakdowns) are marked by operators in
-                the timesheet.
+        <View style={styles.configMainContainer}>
+          <View style={styles.configSubTabBar}>
+            <TouchableOpacity
+              style={[styles.configSubTab, configSubTab === 'machine' && styles.configSubTabActive]}
+              onPress={() => setConfigSubTab('machine')}
+            >
+              <Wrench size={18} color={configSubTab === 'machine' ? '#1e3a8a' : '#64748b'} />
+              <Text style={[styles.configSubTabText, configSubTab === 'machine' && styles.configSubTabTextActive]}>
+                Machine Hours
               </Text>
-            </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.configSubTab, configSubTab === 'man' && styles.configSubTabActive]}
+              onPress={() => setConfigSubTab('man')}
+            >
+              <Clock size={18} color={configSubTab === 'man' ? '#1e3a8a' : '#64748b'} />
+              <Text style={[styles.configSubTabText, configSubTab === 'man' && styles.configSubTabTextActive]}>
+                Man Hours
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {renderDayTypeCard('Weekdays', 'weekdays', '📅')}
-          {renderDayTypeCard('Saturday', 'saturday', '🏖️')}
-          {renderDayTypeCard('Sunday', 'sunday', '☀️')}
-          {renderDayTypeCard('Public Holidays', 'publicHolidays', '🎉')}
-          {renderRainDayConfig()}
-        </ScrollView>
+          {configSubTab === 'machine' ? renderMachineHoursConfig() : renderManHoursConfig()}
+        </View>
       ) : activeTab === 'timesheets' ? (
         <View style={styles.timesheetsMainContainer}>
           <View style={styles.timesheetsSubTabBar}>
@@ -3674,5 +3736,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     lineHeight: 20,
+  },
+  configMainContainer: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+  },
+  configSubTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: 16,
+  },
+  configSubTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  configSubTabActive: {
+    borderBottomColor: '#1e3a8a',
+  },
+  configSubTabText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#64748b',
+  },
+  configSubTabTextActive: {
+    color: '#1e3a8a',
   },
 });

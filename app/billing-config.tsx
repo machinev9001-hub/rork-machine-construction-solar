@@ -1432,11 +1432,45 @@ export default function BillingConfigScreen() {
       ]}
     >
       <View style={styles.infoCard}>
-        <DollarSign size={24} color="#3b82f6" />
+        <Wrench size={24} color="#3b82f6" />
         <View style={styles.infoContent}>
           <Text style={styles.infoTitle}>Billing Rules - Machine Hours</Text>
           <Text style={styles.infoText}>
-            Configure billing methods and rates for different day types for plant/machine hours. Weekdays,
+            Configure billing methods and rates for different day types for plant/machine hours. This configuration will be customized for machine-specific billing.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.comingSoonContainer}>
+        <Wrench size={64} color="#94a3b8" />
+        <Text style={styles.comingSoonTitle}>Machine Hours Billing Configuration</Text>
+        <Text style={styles.comingSoonText}>
+          This section will be customized for machine-specific billing configurations, including wet/dry rates, minimum billing hours, and machine-specific multipliers.
+        </Text>
+        <View style={styles.comingSoonFeatureList}>
+          <Text style={styles.comingSoonFeature}>• Configure wet/dry rate billing</Text>
+          <Text style={styles.comingSoonFeature}>• Set machine-specific minimum hours</Text>
+          <Text style={styles.comingSoonFeature}>• Define breakdown and standby rates</Text>
+          <Text style={styles.comingSoonFeature}>• Configure machine availability billing</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  const renderManHoursConfig = () => (
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: insets.bottom + 20 },
+      ]}
+    >
+      <View style={styles.infoCard}>
+        <Clock size={24} color="#3b82f6" />
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Billing Rules - Man Hours</Text>
+          <Text style={styles.infoText}>
+            Configure billing methods and rates for different day types for operator man hours. Weekdays,
             weekends, and public holidays are automatically determined. Event-based
             conditions (rain days, strike days, breakdowns) are marked by operators in
             the timesheet.
@@ -1506,40 +1540,6 @@ export default function BillingConfigScreen() {
       {renderDayTypeCard('Sunday', 'sunday', '☀️', expandedDayCards.has('sunday'), () => toggleDayCard('sunday'))}
       {renderDayTypeCard('Public Holidays', 'publicHolidays', '🎉', expandedDayCards.has('publicHolidays'), () => toggleDayCard('publicHolidays'))}
       {renderRainDayConfig()}
-    </ScrollView>
-  );
-
-  const renderManHoursConfig = () => (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={[
-        styles.scrollContent,
-        { paddingBottom: insets.bottom + 20 },
-      ]}
-    >
-      <View style={styles.infoCard}>
-        <Clock size={24} color="#3b82f6" />
-        <View style={styles.infoContent}>
-          <Text style={styles.infoTitle}>Billing Rules - Man Hours</Text>
-          <Text style={styles.infoText}>
-            Configure billing methods and rates for different day types for operator man hours. This section will handle operator labor billing separately from machine hours.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.comingSoonContainer}>
-        <Clock size={64} color="#94a3b8" />
-        <Text style={styles.comingSoonTitle}>Man Hours Billing Configuration</Text>
-        <Text style={styles.comingSoonText}>
-          This section will allow you to configure billing rates and rules for operator man hours, including weekday rates, weekend premiums, and holiday rates.
-        </Text>
-        <View style={styles.comingSoonFeatureList}>
-          <Text style={styles.comingSoonFeature}>• Configure weekday billing rates</Text>
-          <Text style={styles.comingSoonFeature}>• Set weekend and holiday multipliers</Text>
-          <Text style={styles.comingSoonFeature}>• Define overtime thresholds</Text>
-          <Text style={styles.comingSoonFeature}>• Configure rain day and strike day billing</Text>
-        </View>
-      </View>
     </ScrollView>
   );
 

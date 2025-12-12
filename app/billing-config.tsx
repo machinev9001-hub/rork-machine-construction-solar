@@ -491,8 +491,56 @@ export default function BillingConfigScreen() {
   const [pendingEdits, setPendingEdits] = useState<Map<string, EPHPendingEdit[]>>(new Map());
 
   const totalTimesheetHours = useMemo(() => {
-    return timesheets.reduce((sum, entry) => sum + entry.totalHours, 0);
-  }, [timesheets]);
+    // Calculate total hours using hierarchy:
+    // 1. If admin edit exists -> use admin's hours (highest priority for billing)
+    // 2. If plant manager edited -> use plant manager's hours
+    // 3. If only operator entry -> use operator's hours
+    // Note: Subcontractor edits are display only, not used for calculation
+    
+    let total = 0;
+    const processedDates = new Set<string>();
+    
+    for (const entry of timesheets) {
+      const dateKey = `${entry.date}-${entry.operatorName}`;
+      
+      if (processedDates.has(dateKey)) {
+        continue;
+      }
+      
+      // Check for admin edit in pendingEdits (highest priority for calculation)
+      const assetPendingEdits = selectedAssetForTimesheets 
+        ? pendingEdits.get(selectedAssetForTimesheets.assetId) || []
+        : [];
+      
+      const adminEdit = assetPendingEdits.find(
+        edit => edit.date === entry.date && edit.editedBy === 'admin' && edit.status === 'pending_review'
+      );
+      
+      if (adminEdit) {
+        // Use admin's hours (highest priority)
+        total += adminEdit.totalHours;
+        console.log(`[TotalHours] Date ${entry.date}: Using ADMIN edit hours: ${adminEdit.totalHours}`);
+      } else {
+        // Check if this is a Plant Manager entry (has adjustment)
+        const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
+        
+        if (isPMEntry) {
+          // Use Plant Manager's hours (they edited the operator's entry)
+          total += entry.totalHours;
+          console.log(`[TotalHours] Date ${entry.date}: Using PM edit hours: ${entry.totalHours}`);
+        } else {
+          // Use Operator's original hours
+          total += entry.totalHours;
+          console.log(`[TotalHours] Date ${entry.date}: Using OPERATOR hours: ${entry.totalHours}`);
+        }
+      }
+      
+      processedDates.add(dateKey);
+    }
+    
+    console.log(`[TotalHours] Final calculated total: ${total}`);
+    return total;
+  }, [timesheets, pendingEdits, selectedAssetForTimesheets]);
 
   const hasAnyAdjustments = useMemo(() => {
     return timesheetGroups.some(group => group.hasAdjustments);
@@ -1591,10 +1639,35 @@ export default function BillingConfigScreen() {
                     }
 
                     const groupDate = new Date(group.date);
-                    const groupHours = visibleRows.reduce((sum, row) => sum + row.totalHours, 0);
+                    // Calculate effective hours for this day using hierarchy:
+                    // Admin edit > Plant Manager edit > Operator entry
+                    const assetPendingEditsForGroup = selectedAssetForTimesheets
+                      ? pendingEdits.get(selectedAssetForTimesheets.assetId) || []
+                      : [];
+                    const adminEditForDay = assetPendingEditsForGroup.find(
+                      edit => edit.date === group.date && edit.editedBy === 'admin' && edit.status === 'pending_review'
+                    );
+                    
+                    let groupHours = 0;
+                    if (adminEditForDay) {
+                      // Use admin's hours if admin edited this day
+                      groupHours = adminEditForDay.totalHours;
+                    } else {
+                      // Look for PM entry (adjusted), if not found use operator entry
+                      const pmRow = visibleRows.find(row => row.badgeLabel === 'PM');
+                      const origRow = visibleRows.find(row => row.badgeLabel === 'ORIG');
+                      
+                      if (pmRow) {
+                        groupHours = pmRow.totalHours;
+                      } else if (origRow) {
+                        groupHours = origRow.totalHours;
+                      } else {
+                        // Fallback: use first visible row
+                        groupHours = visibleRows.length > 0 ? visibleRows[0].totalHours : 0;
+                      }
+                    }
+                    
                     const backgroundColor = groupIndex % 2 === 0 ? '#f8fafc' : '#ffffff';
-                    const adjustmentCount = group.rows.filter(row => !row.isOriginal).length;
-                    const operatorCount = new Set(group.rows.map(row => row.operatorName)).size;
 
                     return (
                       <View

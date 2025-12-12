@@ -65,6 +65,7 @@ export default function OnboardingAssetDetailScreen() {
   const [dryRate, setDryRate] = useState('');
   const [wetRate, setWetRate] = useState('');
   const [dailyRate, setDailyRate] = useState('');
+  const [billingMethod, setBillingMethod] = useState<'PER_HOUR' | 'MINIMUM_BILLING'>('PER_HOUR');
 
   const loadSubcontractors = useCallback(async () => {
     if (!user?.masterAccountId) return;
@@ -119,6 +120,7 @@ export default function OnboardingAssetDetailScreen() {
         setDryRate(data.dryRate !== undefined && data.dryRate !== null ? String(data.dryRate) : '');
         setWetRate(data.wetRate !== undefined && data.wetRate !== null ? String(data.wetRate) : '');
         setDailyRate(data.dailyRate !== undefined && data.dailyRate !== null ? String(data.dailyRate) : '');
+        setBillingMethod(data.billingMethod || 'PER_HOUR');
       } else {
         Alert.alert('Error', 'Asset not found');
         router.back();
@@ -343,6 +345,7 @@ export default function OnboardingAssetDetailScreen() {
         dryRate: dryRateNum,
         wetRate: wetRateNum,
         dailyRate: dailyRateNum,
+        billingMethod,
         ratesSetAt: serverTimestamp(),
         ratesSetBy: user.userId,
         updatedAt: serverTimestamp(),
@@ -790,6 +793,59 @@ export default function OnboardingAssetDetailScreen() {
 
           {isRatesExpanded && (
             <View style={styles.expandableContent}>
+              <View style={styles.billingMethodSection}>
+                <Text style={styles.billingMethodTitle}>Billing Method</Text>
+                <Text style={styles.billingMethodSubtitle}>Select how this asset will be billed</Text>
+                <View style={styles.billingMethodButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.billingMethodButton,
+                      billingMethod === 'PER_HOUR' && styles.billingMethodButtonActive,
+                    ]}
+                    onPress={() => setBillingMethod('PER_HOUR')}
+                    disabled={isSaving}
+                  >
+                    <Clock size={20} color={billingMethod === 'PER_HOUR' ? '#3b82f6' : '#64748b'} />
+                    <View style={styles.billingMethodButtonContent}>
+                      <Text
+                        style={[
+                          styles.billingMethodButtonText,
+                          billingMethod === 'PER_HOUR' && styles.billingMethodButtonTextActive,
+                        ]}
+                      >
+                        Per Hour
+                      </Text>
+                      <Text style={styles.billingMethodButtonSubtext}>
+                        Bill for actual hours worked
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.billingMethodButton,
+                      billingMethod === 'MINIMUM_BILLING' && styles.billingMethodButtonActive,
+                    ]}
+                    onPress={() => setBillingMethod('MINIMUM_BILLING')}
+                    disabled={isSaving}
+                  >
+                    <Calendar size={20} color={billingMethod === 'MINIMUM_BILLING' ? '#10b981' : '#64748b'} />
+                    <View style={styles.billingMethodButtonContent}>
+                      <Text
+                        style={[
+                          styles.billingMethodButtonText,
+                          billingMethod === 'MINIMUM_BILLING' && styles.billingMethodButtonTextActive,
+                        ]}
+                      >
+                        Minimum Billing
+                      </Text>
+                      <Text style={styles.billingMethodButtonSubtext}>
+                        Apply minimum hours per day
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <View style={styles.ratesRow}>
                 <View style={styles.rateInputContainer}>
                   <View style={styles.inputLabel}>
@@ -1730,5 +1786,52 @@ const styles = StyleSheet.create({
   },
   datePickerIOS: {
     height: 200,
+  },
+  billingMethodSection: {
+    marginBottom: 20,
+  },
+  billingMethodTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.background,
+    marginBottom: 4,
+  },
+  billingMethodSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  billingMethodButtons: {
+    gap: 12,
+  },
+  billingMethodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  billingMethodButtonActive: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#eff6ff',
+  },
+  billingMethodButtonContent: {
+    flex: 1,
+  },
+  billingMethodButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  billingMethodButtonTextActive: {
+    color: '#1e293b',
+  },
+  billingMethodButtonSubtext: {
+    fontSize: 12,
+    color: '#94a3b8',
   },
 });

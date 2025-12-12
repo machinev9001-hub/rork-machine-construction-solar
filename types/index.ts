@@ -659,6 +659,7 @@ export type PlantAsset = {
   dryRate?: number;
   wetRate?: number;
   dailyRate?: number;
+  billingMethod?: 'PER_HOUR' | 'MINIMUM_BILLING';
   ratesSetAt?: any;
   ratesSetBy?: string;
   archived?: boolean;

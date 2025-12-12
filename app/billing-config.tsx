@@ -493,6 +493,8 @@ export default function BillingConfigScreen() {
   const [pendingEdits, setPendingEdits] = useState<Map<string, EPHPendingEdit[]>>(new Map());
   const [timesheetsSubTab, setTimesheetsSubTab] = useState<TimesheetsSubTab>('machine');
   const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>('machine');
+  const [globalBillingMethod, setGlobalBillingMethod] = useState<BillingMethod>('PER_HOUR');
+  const [expandedDayCards, setExpandedDayCards] = useState<Set<string>>(new Set());
 
   const totalTimesheetHours = useMemo(() => {
     // Calculate total hours using hierarchy:
@@ -801,6 +803,29 @@ export default function BillingConfigScreen() {
     }));
   };
 
+  const toggleDayCard = (dayType: string) => {
+    setExpandedDayCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dayType)) {
+        newSet.delete(dayType);
+      } else {
+        newSet.add(dayType);
+      }
+      return newSet;
+    });
+  };
+
+  const applyGlobalBillingMethod = (method: BillingMethod) => {
+    setGlobalBillingMethod(method);
+    setConfig(prev => ({
+      ...prev,
+      weekdays: { ...prev.weekdays, billingMethod: method },
+      saturday: { ...prev.saturday, billingMethod: method },
+      sunday: { ...prev.sunday, billingMethod: method },
+      publicHolidays: { ...prev.publicHolidays, billingMethod: method },
+    }));
+  };
+
   const updateRainDayConfig = (field: keyof BillingConfig['rainDays'], value: any) => {
     setConfig(prev => ({
       ...prev,
@@ -1078,85 +1103,40 @@ export default function BillingConfigScreen() {
   const renderDayTypeCard = (
     title: string,
     dayType: keyof Omit<BillingConfig, 'rainDays'>,
-    icon: string
+    icon: string,
+    isExpanded: boolean,
+    onToggle: () => void
   ) => {
     const dayConfig = config[dayType] as DayTypeConfig;
 
     return (
       <View style={styles.card}>
-        <View style={styles.cardHeader}>
+        <TouchableOpacity 
+          style={styles.cardHeader}
+          onPress={onToggle}
+          activeOpacity={0.7}
+        >
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardIcon}>{icon}</Text>
             <Text style={styles.cardTitle}>{title}</Text>
           </View>
-          <Switch
-            value={dayConfig.enabled}
-            onValueChange={(value) => updateDayConfig(dayType, 'enabled', value)}
-            trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-            thumbColor={dayConfig.enabled ? '#ffffff' : '#f3f4f6'}
-          />
-        </View>
+          {isExpanded ? (
+            <ChevronUp size={24} color="#64748b" />
+          ) : (
+            <ChevronDown size={24} color="#64748b" />
+          )}
+        </TouchableOpacity>
 
-        {dayConfig.enabled && (
+        {isExpanded && (
           <View style={styles.cardContent}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Billing Method</Text>
-              <View style={styles.buttonGroup}>
-                <TouchableOpacity
-                  style={[
-                    styles.methodButton,
-                    dayConfig.billingMethod === 'PER_HOUR' && styles.methodButtonActive,
-                  ]}
-                  onPress={() =>
-                    updateDayConfig(dayType, 'billingMethod', 'PER_HOUR')
-                  }
-                >
-                  <Clock
-                    size={18}
-                    color={
-                      dayConfig.billingMethod === 'PER_HOUR' ? '#ffffff' : '#64748b'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.methodButtonText,
-                      dayConfig.billingMethod === 'PER_HOUR' &&
-                        styles.methodButtonTextActive,
-                    ]}
-                  >
-                    Per Hour
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.methodButton,
-                    dayConfig.billingMethod === 'MINIMUM_BILLING' &&
-                      styles.methodButtonActive,
-                  ]}
-                  onPress={() =>
-                    updateDayConfig(dayType, 'billingMethod', 'MINIMUM_BILLING')
-                  }
-                >
-                  <Calendar
-                    size={18}
-                    color={
-                      dayConfig.billingMethod === 'MINIMUM_BILLING'
-                        ? '#ffffff'
-                        : '#64748b'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.methodButtonText,
-                      dayConfig.billingMethod === 'MINIMUM_BILLING' &&
-                        styles.methodButtonTextActive,
-                    ]}
-                  >
-                    Minimum Billing
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.label}>Enabled</Text>
+              <Switch
+                value={dayConfig.enabled}
+                onValueChange={(value) => updateDayConfig(dayType, 'enabled', value)}
+                trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
+                thumbColor={dayConfig.enabled ? '#ffffff' : '#f3f4f6'}
+              />
             </View>
 
             {dayConfig.billingMethod === 'MINIMUM_BILLING' && (
@@ -1208,64 +1188,79 @@ export default function BillingConfigScreen() {
                   : `${((1 - dayConfig.rateMultiplier) * 100).toFixed(0)}% reduced`}
               </Text>
             </View>
-
-
           </View>
         )}
       </View>
     );
   };
 
-  const renderRainDayConfig = () => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleRow}>
-          <CloudRain size={24} color="#3b82f6" style={{ marginRight: 12 }} />
-          <Text style={styles.cardTitle}>Rain Day Configuration</Text>
-        </View>
-        <Switch
-          value={config.rainDays.enabled}
-          onValueChange={(value) => updateRainDayConfig('enabled', value)}
-          trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-          thumbColor={config.rainDays.enabled ? '#ffffff' : '#f3f4f6'}
-        />
+  const renderRainDayConfig = () => {
+    const isExpanded = expandedDayCards.has('rainDays');
+    
+    return (
+      <View style={styles.card}>
+        <TouchableOpacity 
+          style={styles.cardHeader}
+          onPress={() => toggleDayCard('rainDays')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.cardTitleRow}>
+            <CloudRain size={24} color="#3b82f6" style={{ marginRight: 12 }} />
+            <Text style={styles.cardTitle}>Rain Day Configuration</Text>
+          </View>
+          {isExpanded ? (
+            <ChevronUp size={24} color="#64748b" />
+          ) : (
+            <ChevronDown size={24} color="#64748b" />
+          )}
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.cardContent}>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Enabled</Text>
+              <Switch
+                value={config.rainDays.enabled}
+                onValueChange={(value) => updateRainDayConfig('enabled', value)}
+                trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
+                thumbColor={config.rainDays.enabled ? '#ffffff' : '#f3f4f6'}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Minimum Billing Hours (Rain Day)</Text>
+              <TextInput
+                style={styles.input}
+                value={config.rainDays.minHours.toString()}
+                onChangeText={(text) => updateRainDayConfig('minHours', parseFloat(text) || 0)}
+                keyboardType="decimal-pad"
+                placeholder="4.5"
+                placeholderTextColor="#9ca3af"
+              />
+              <Text style={styles.helperText}>
+                Minimum hours paid if meter reading exceeds threshold
+              </Text>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Threshold Hours</Text>
+              <TextInput
+                style={styles.input}
+                value={config.rainDays.thresholdHours.toString()}
+                onChangeText={(text) => updateRainDayConfig('thresholdHours', parseFloat(text) || 0)}
+                keyboardType="decimal-pad"
+                placeholder="1"
+                placeholderTextColor="#9ca3af"
+              />
+              <Text style={styles.helperText}>
+                If meter reading exceeds this, minimum billing applies. If meter reading exceeds minimum hours, actual hours × rate is paid.
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
-
-      {config.rainDays.enabled && (
-        <View style={styles.cardContent}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Minimum Billing Hours (Rain Day)</Text>
-            <TextInput
-              style={styles.input}
-              value={config.rainDays.minHours.toString()}
-              onChangeText={(text) => updateRainDayConfig('minHours', parseFloat(text) || 0)}
-              keyboardType="decimal-pad"
-              placeholder="4.5"
-              placeholderTextColor="#9ca3af"
-            />
-            <Text style={styles.helperText}>
-              Minimum hours paid if meter reading exceeds threshold
-            </Text>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Threshold Hours</Text>
-            <TextInput
-              style={styles.input}
-              value={config.rainDays.thresholdHours.toString()}
-              onChangeText={(text) => updateRainDayConfig('thresholdHours', parseFloat(text) || 0)}
-              keyboardType="decimal-pad"
-              placeholder="1"
-              placeholderTextColor="#9ca3af"
-            />
-            <Text style={styles.helperText}>
-              If meter reading exceeds this, minimum billing applies. If meter reading exceeds minimum hours, actual hours × rate is paid.
-            </Text>
-          </View>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   const toggleCardExpansion = (assetId: string) => {
     setExpandedCards(prev => {
@@ -1449,10 +1444,67 @@ export default function BillingConfigScreen() {
         </View>
       </View>
 
-      {renderDayTypeCard('Weekdays', 'weekdays', '📅')}
-      {renderDayTypeCard('Saturday', 'saturday', '🏖️')}
-      {renderDayTypeCard('Sunday', 'sunday', '☀️')}
-      {renderDayTypeCard('Public Holidays', 'publicHolidays', '🎉')}
+      <View style={styles.globalBillingMethodCard}>
+        <Text style={styles.globalBillingMethodTitle}>Billing Method</Text>
+        <Text style={styles.globalBillingMethodSubtitle}>Select billing method for all day types</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.methodButton,
+              globalBillingMethod === 'PER_HOUR' && styles.methodButtonActive,
+            ]}
+            onPress={() => applyGlobalBillingMethod('PER_HOUR')}
+          >
+            <Clock
+              size={18}
+              color={
+                globalBillingMethod === 'PER_HOUR' ? '#ffffff' : '#64748b'
+              }
+            />
+            <Text
+              style={[
+                styles.methodButtonText,
+                globalBillingMethod === 'PER_HOUR' &&
+                  styles.methodButtonTextActive,
+              ]}
+            >
+              Per Hour
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.methodButton,
+              globalBillingMethod === 'MINIMUM_BILLING' &&
+                styles.methodButtonActive,
+            ]}
+            onPress={() => applyGlobalBillingMethod('MINIMUM_BILLING')}
+          >
+            <Calendar
+              size={18}
+              color={
+                globalBillingMethod === 'MINIMUM_BILLING'
+                  ? '#ffffff'
+                  : '#64748b'
+              }
+            />
+            <Text
+              style={[
+                styles.methodButtonText,
+                globalBillingMethod === 'MINIMUM_BILLING' &&
+                  styles.methodButtonTextActive,
+              ]}
+            >
+              Minimum Billing
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {renderDayTypeCard('Weekdays', 'weekdays', '📅', expandedDayCards.has('weekdays'), () => toggleDayCard('weekdays'))}
+      {renderDayTypeCard('Saturday', 'saturday', '🏖️', expandedDayCards.has('saturday'), () => toggleDayCard('saturday'))}
+      {renderDayTypeCard('Sunday', 'sunday', '☀️', expandedDayCards.has('sunday'), () => toggleDayCard('sunday'))}
+      {renderDayTypeCard('Public Holidays', 'publicHolidays', '🎉', expandedDayCards.has('publicHolidays'), () => toggleDayCard('publicHolidays'))}
       {renderRainDayConfig()}
     </ScrollView>
   );
@@ -3768,5 +3820,27 @@ const styles = StyleSheet.create({
   },
   configSubTabTextActive: {
     color: '#1e3a8a',
+  },
+  globalBillingMethodCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  globalBillingMethodTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  globalBillingMethodSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 16,
   },
 });

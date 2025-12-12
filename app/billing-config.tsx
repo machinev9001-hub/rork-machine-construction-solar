@@ -237,7 +237,9 @@ const buildDisplayRow = (
 const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[] => {
   const groupMap = new Map<string, TimesheetDisplayGroup>();
 
-  entries.forEach((entry) => {
+  console.log('[buildTimesheetGroups] Processing', entries.length, 'entries');
+
+  entries.forEach((entry, idx) => {
     const key = entry.date;
     if (!groupMap.has(key)) {
       groupMap.set(key, {
@@ -252,7 +254,19 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
     const entryTimestamp = getEntryTimestamp(entry);
     const isPMEntry = Boolean(entry.hasOriginalEntry || entry.isAdjustment || entry.adjustedBy);
 
+    console.log(`[buildTimesheetGroups] Entry ${idx}:`, {
+      id: entry.id?.substring(0, 8),
+      isPMEntry,
+      hasOriginalEntry: entry.hasOriginalEntry,
+      isAdjustment: entry.isAdjustment,
+      adjustedBy: entry.adjustedBy,
+      hasOriginalData: !!entry.originalEntryData,
+      originalHours: entry.originalEntryData?.totalHours,
+      currentHours: entry.totalHours,
+    });
+
     if (isPMEntry && entry.originalEntryData) {
+      console.log(`[buildTimesheetGroups] Creating ORIG row from originalEntryData for entry ${idx}`);
       const originalRow = buildDisplayRow(
         {
           ...entry.originalEntryData,
@@ -261,13 +275,24 @@ const buildTimesheetGroups = (entries: TimesheetEntry[]): TimesheetDisplayGroup[
         },
         'original',
         sourceEntryId,
-        entryTimestamp,
+        entryTimestamp - 1,
       );
       group.rows.push(originalRow);
+      console.log(`[buildTimesheetGroups] Added ORIG row:`, {
+        badge: originalRow.badgeLabel,
+        hours: originalRow.totalHours,
+        operator: originalRow.operatorName,
+      });
     }
 
     const rowType: 'original' | 'adjusted' = isPMEntry ? 'adjusted' : 'original';
-    group.rows.push(buildDisplayRow(entry, rowType, sourceEntryId, entryTimestamp));
+    const mainRow = buildDisplayRow(entry, rowType, sourceEntryId, entryTimestamp);
+    group.rows.push(mainRow);
+    console.log(`[buildTimesheetGroups] Added ${rowType.toUpperCase()} row:`, {
+      badge: mainRow.badgeLabel,
+      hours: mainRow.totalHours,
+      operator: mainRow.operatorName,
+    });
   });
 
   const groups = Array.from(groupMap.values()).sort(
@@ -1533,31 +1558,6 @@ export default function BillingConfigScreen() {
                       : '—'}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  testID="timesheet-toggle-original-rows"
-                  onPress={() => setShowOriginalRows(prev => !prev)}
-                  disabled={!hasAnyAdjustments}
-                  style={[
-                    styles.toggleOriginalButton,
-                    showOriginalRows && styles.toggleOriginalButtonActive,
-                    !hasAnyAdjustments && styles.toggleOriginalButtonDisabled,
-                  ]}
-                >
-                  <ChevronDown
-                    size={18}
-                    color={showOriginalRows ? '#1e3a8a' : '#0f172a'}
-                    style={{ transform: [{ rotate: showOriginalRows ? '180deg' : '0deg' }] }}
-                  />
-                  <Text
-                    style={[
-                      styles.toggleOriginalButtonText,
-                      showOriginalRows && styles.toggleOriginalButtonTextActive,
-                      !hasAnyAdjustments && styles.toggleOriginalButtonTextDisabled,
-                    ]}
-                  >
-                    {showOriginalRows ? 'Show All' : 'Show PM Only'}
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               <ScrollView
@@ -1611,7 +1611,7 @@ export default function BillingConfigScreen() {
                               {groupDate.toLocaleDateString('en-GB', { weekday: 'long' })}
                             </Text>
                             <Text style={styles.groupHeaderInsight}>
-                              {`${operatorCount} operator${operatorCount === 1 ? '' : 's'} · ${adjustmentCount} plant manager entr${adjustmentCount === 1 ? 'y' : 'ies'}`}
+                              {`${group.rows.filter(r => r.badgeLabel === 'ORIG').length} operator · ${group.rows.filter(r => r.badgeLabel === 'PM').length} plant manager entries`}
                             </Text>
                           </View>
                           <View style={styles.groupMeta}>

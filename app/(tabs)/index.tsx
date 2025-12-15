@@ -122,8 +122,8 @@ export default function HomeScreen() {
           headerRight: () => <StandardHeaderRight />,
         }}
       />
-      <View style={[styles.headerBorder, { backgroundColor: roleAccentColor }]} />
       <StandardSiteIndicator />
+      <View style={[styles.headerBorder, { backgroundColor: roleAccentColor }]} />
       
       <ScrollView 
         testID="home-scroll"

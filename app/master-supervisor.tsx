@@ -383,8 +383,8 @@ export default function MasterSupervisorScreen() {
           },
         }}
       />
-      <View style={commonStyles.headerBorder} />
       <StandardSiteIndicator />
+      <View style={commonStyles.headerBorder} />
       
       <View style={styles.actionButtonsRow}>
         <TouchableOpacity

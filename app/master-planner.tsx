@@ -188,8 +188,8 @@ export default function MasterPlannerScreen() {
           headerTintColor: theme.text,
         }}
       />
-      <View style={commonStyles.headerBorder} />
       <StandardSiteIndicator />
+      <View style={commonStyles.headerBorder} />
       
       <View style={styles.actionButtonsRow}>
         <TouchableOpacity

@@ -1,4 +1,4 @@
-# Welcome to MACHINE
+# Welcome to MACHINE the Business Tracker app, phased built for every industry sector independantly
 
 ## Project info
 
@@ -236,9 +236,8 @@ bun start --dev-client
 
 Integrate with backend services:
 
-- **Supabase** - PostgreSQL database with real-time features
-- **Firebase** - Google's mobile development platform
-- **Custom API** - Connect to your own backend
+- -Currently ussing **Firebase** - Google's mobile development platform
+- Future option **Custom API** - Connect to your own backend
 
 ### **Add Authentication**
 

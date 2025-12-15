@@ -67,11 +67,15 @@ export const ActivityCard = React.memo<ActivityCardProps>(({
     return ((qcValue / scopeValue) * 100).toFixed(2);
   }, [qcValue, scopeValue, scopeApproved]);
 
+  const unverifiedAmount = useMemo(() => {
+    if (!scopeApproved) return 0;
+    return Math.max(0, scopeValue - qcValue);
+  }, [qcValue, scopeValue, scopeApproved]);
+
   const unverifiedPercentage = useMemo(() => {
     if (!scopeApproved || scopeValue === 0) return '—';
-    const inputValue = supervisorInputValue || 0;
-    return ((inputValue / scopeValue) * 100).toFixed(2);
-  }, [supervisorInputValue, scopeValue, scopeApproved]);
+    return ((unverifiedAmount / scopeValue) * 100).toFixed(2);
+  }, [unverifiedAmount, scopeValue, scopeApproved]);
 
   const showValues = !hasHandoff && (scopeApproved || qcValue > 0);
 
@@ -100,7 +104,7 @@ export const ActivityCard = React.memo<ActivityCardProps>(({
               <View style={styles.progressDivider} />
               <View style={styles.progressItem}>
                 <Text style={styles.progressLabel}>Unverified</Text>
-                <Text style={styles.progressValue}>{unverifiedPercentage}%</Text>
+                <Text style={styles.progressValue}>{unverifiedAmount}{scopeUnit || unit}</Text>
               </View>
               <View style={styles.progressDivider} />
               <View style={styles.progressItem}>

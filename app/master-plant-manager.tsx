@@ -62,9 +62,9 @@ export default function MasterPlantManagerScreen() {
             fontWeight: '600',
           },
         }}
-      />
-      <View style={commonStyles.headerBorder} />
+      />      
       <StandardSiteIndicator />
+      <View style={commonStyles.headerBorder} />
 
       <ScrollView style={commonStyles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.actionButtonsRow}>

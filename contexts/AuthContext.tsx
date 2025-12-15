@@ -372,27 +372,42 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     hasInitialized.current = true;
     
     console.log('[Auth] Initializing auth system...');
+    console.log('[Auth] Current timestamp:', new Date().toISOString());
     
+    // Emergency fallback - force complete after 3 seconds no matter what
+    const emergencyTimeout = setTimeout(() => {
+      console.error('[Auth] 🚨 EMERGENCY TIMEOUT - Force completing auth initialization');
+      setIsLoading(false);
+      setAuthInitializing(false);
+      setUser(null);
+      setMasterAccount(null);
+    }, 3000);
+    
+    // Normal safety timeout
     const safetyTimeout = setTimeout(() => {
       console.warn('[Auth] Safety timeout triggered - forcing auth to complete');
       setIsLoading(false);
       setAuthInitializing(false);
     }, 1500);
     
+    console.log('[Auth] Starting loadUserFromStorage...');
     loadUserFromStorage()
       .then(() => {
-        console.log('[Auth] loadUserFromStorage completed successfully');
+        console.log('[Auth] ✓ loadUserFromStorage completed successfully');
         clearTimeout(safetyTimeout);
+        clearTimeout(emergencyTimeout);
       })
       .catch(err => {
-        console.error('[Auth] Load failed:', err?.message || 'Unknown error');
+        console.error('[Auth] ✗ Load failed:', err?.message || 'Unknown error');
         clearTimeout(safetyTimeout);
+        clearTimeout(emergencyTimeout);
         setIsLoading(false);
         setAuthInitializing(false);
       });
     
     return () => {
       clearTimeout(safetyTimeout);
+      clearTimeout(emergencyTimeout);
     };
   }, [loadUserFromStorage]);
 

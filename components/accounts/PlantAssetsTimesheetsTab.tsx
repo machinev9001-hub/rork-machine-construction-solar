@@ -184,6 +184,54 @@ export default function PlantAssetsTimesheetsTab({
     }
   }, [user?.siteId, user?.masterAccountId]);
 
+  const loadBillingConfig = useCallback(async () => {
+    if (!user?.masterAccountId || !user?.siteId) return;
+
+    try {
+      const billingConfigRef = collection(db, 'billingConfigs');
+      const q = query(
+        billingConfigRef,
+        where('masterAccountId', '==', user.masterAccountId),
+        where('siteId', '==', user.siteId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const configData = snapshot.docs[0].data();
+        const config: BillingConfigForCalculation = {
+          weekdays: {
+            minHours: configData.machineHours?.weekdayMinimum ?? 0,
+          },
+          saturday: {
+            minHours: configData.machineHours?.saturdayMinimum ?? 0,
+          },
+          sunday: {
+            minHours: configData.machineHours?.saturdayMinimum ?? 0,
+          },
+          publicHolidays: {
+            minHours: 0,
+          },
+          rainDays: {
+            enabled: true,
+            minHours: configData.machineHours?.rainDayHours ?? 0,
+          },
+          breakdown: {
+            enabled: true,
+            minHours: configData.machineHours?.breakdownHours ?? 0,
+          },
+        };
+        console.log('[PlantAssetsTimesheetsTab] Loaded billing config:', config);
+        setBillingConfig(config);
+      } else {
+        console.log('[PlantAssetsTimesheetsTab] No billing config found');
+        setBillingConfig(null);
+      }
+    } catch (error) {
+      console.error('[PlantAssetsTimesheetsTab] Error loading billing config:', error);
+      setBillingConfig(null);
+    }
+  }, [user?.masterAccountId, user?.siteId]);
+
   const loadPlantAssets = async (subcontractorId: string) => {
     if (!user?.siteId || !user?.masterAccountId) return;
 

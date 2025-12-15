@@ -38,6 +38,9 @@ type QCRequest = {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   scopeValue?: number;
+  pvArea?: string;
+  blockNumber?: string;
+  scopeAdjusted?: boolean;
 };
 
 export default function QCRequestsScreen() {
@@ -117,6 +120,9 @@ export default function QCRequestsScreen() {
               if (!activitiesSnap.empty) {
                 const activityData = activitiesSnap.docs[0].data();
                 requestData.activityName = activityData.name || 'N/A';
+                requestData.pvArea = activityData.pvArea || 'N/A';
+                requestData.blockNumber = activityData.blockNumber || 'N/A';
+                requestData.scopeAdjusted = activityData.scopeAdjusted || false;
               }
 
               const taskDoc = await getDoc(doc(db, 'tasks', data.taskId));
@@ -263,7 +269,7 @@ export default function QCRequestsScreen() {
   });
   
   const completeMutation = useMutation({
-    mutationFn: async ({ requestId, qcValue, qcUnit }: { requestId: string; qcValue: number; qcUnit: string }) => {
+    mutationFn: async ({ requestId, qcValue, qcUnit, adjustScope, newScopeValue }: { requestId: string; qcValue: number; qcUnit: string; adjustScope?: boolean; newScopeValue?: number }) => {
       console.log('[Optimistic] ✅ Completing QC request:', requestId, 'value:', qcValue, qcUnit);
       
       const requestRef = doc(db, 'requests', requestId);
@@ -310,7 +316,7 @@ export default function QCRequestsScreen() {
           const newQcValue = currentQcValue + qcValue;
           console.log('➕ CUMULATIVE QC: Current =', currentQcValue, '+ New =', qcValue, '→ Total =', newQcValue);
           
-          await updateDoc(doc(db, 'activities', activityDocId), {
+          const updateData: any = {
             'qc.status': 'completed',
             'qc.completedAt': Timestamp.now(),
             'qc.completedBy': user?.userId,
@@ -319,7 +325,17 @@ export default function QCRequestsScreen() {
             'qc.lastRequestId': null,
             updatedAt: Timestamp.now(),
             updatedBy: user?.userId,
-          });
+          };
+          
+          if (adjustScope && newScopeValue) {
+            console.log('📝 Adjusting scope from', currentData.scopeValue, 'to', newScopeValue);
+            updateData.scopeValue = newScopeValue;
+            updateData.scopeAdjusted = true;
+            updateData.scopeAdjustedAt = Timestamp.now();
+            updateData.scopeAdjustedBy = user?.userId;
+          }
+          
+          await updateDoc(doc(db, 'activities', activityDocId), updateData);
           
           console.log('🔒 QC Complete: Locking supervisor completedToday input');
           
@@ -512,12 +528,15 @@ export default function QCRequestsScreen() {
         : (activityData.scopeValue?.value || 0);
       const scopeApproved = activityData.scopeApproved || false;
       
+      const totalQcValue = currentQcValue + newQcValue;
+      
       console.log('🔍 QC Validation:');
       console.log('   Current QC:', currentQcValue);
       console.log('   New QC Input:', newQcValue);
-      console.log('   Total QC after:', currentQcValue + newQcValue);
+      console.log('   Total QC after:', totalQcValue);
       console.log('   Approved Scope:', scopeValue);
       console.log('   Scope Approved:', scopeApproved);
+      console.log('   Will exceed scope:', totalQcValue > scopeValue);
       
       if (!scopeApproved) {
         Alert.alert(
@@ -528,13 +547,26 @@ export default function QCRequestsScreen() {
         return;
       }
       
-      const totalQcValue = currentQcValue + newQcValue;
-      
       if (totalQcValue > scopeValue) {
+        console.log('⚠️ QC exceeds scope - will auto-adjust scope to match QC');
         Alert.alert(
           'QC Value Exceeds Scope',
-          `The total QC value (${totalQcValue.toFixed(2)} ${selectedCompleteRequest.qcUnit}) cannot exceed the approved scope (${scopeValue.toFixed(2)} ${selectedCompleteRequest.qcUnit}).\n\nCurrent QC: ${currentQcValue.toFixed(2)}\nNew QC: ${newQcValue.toFixed(2)}\nTotal: ${totalQcValue.toFixed(2)}\nApproved Scope: ${scopeValue.toFixed(2)}`,
-          [{ text: 'OK' }]
+          `The total QC value (${totalQcValue.toFixed(2)} ${selectedCompleteRequest.qcUnit}) exceeds the approved scope (${scopeValue.toFixed(2)} ${selectedCompleteRequest.qcUnit}).\n\nThe scope will be automatically adjusted to ${totalQcValue.toFixed(2)} ${selectedCompleteRequest.qcUnit}.\n\nCurrent QC: ${currentQcValue.toFixed(2)}\nNew QC: ${newQcValue.toFixed(2)}\nNew Total: ${totalQcValue.toFixed(2)}\nOld Scope: ${scopeValue.toFixed(2)}\nAdjusted Scope: ${totalQcValue.toFixed(2)}`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Continue', 
+              onPress: () => {
+                completeMutation.mutate({
+                  requestId: selectedCompleteRequest.id,
+                  qcValue: newQcValue,
+                  qcUnit: selectedCompleteRequest.qcUnit || 'm',
+                  adjustScope: true,
+                  newScopeValue: totalQcValue,
+                });
+              }
+            }
+          ]
         );
         return;
       }
@@ -658,6 +690,17 @@ export default function QCRequestsScreen() {
               </View>
             </View>
 
+            <View style={styles.taskDetailsRow}>
+              <View style={styles.taskDetailItem}>
+                <Text style={styles.taskDetailLabel}>PV Area:</Text>
+                <Text style={styles.taskDetailValue}>{request.pvArea || 'N/A'}</Text>
+              </View>
+              <View style={styles.taskDetailItem}>
+                <Text style={styles.taskDetailLabel}>Block Number:</Text>
+                <Text style={styles.taskDetailValue}>{request.blockNumber || 'N/A'}</Text>
+              </View>
+            </View>
+
             <View style={styles.requestMeta}>
               <Text style={styles.metaLabel}>Supervisor:</Text>
               <Text style={styles.metaValue}>{request.requestedByName || request.requestedBy || request.supervisorId}</Text>
@@ -750,6 +793,17 @@ export default function QCRequestsScreen() {
               <View style={styles.taskDetailItem}>
                 <Text style={styles.taskDetailLabel}>Sub Menu:</Text>
                 <Text style={styles.taskDetailValue}>{request.subMenuName || 'N/A'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.taskDetailsRow}>
+              <View style={styles.taskDetailItem}>
+                <Text style={styles.taskDetailLabel}>PV Area:</Text>
+                <Text style={styles.taskDetailValue}>{request.pvArea || 'N/A'}</Text>
+              </View>
+              <View style={styles.taskDetailItem}>
+                <Text style={styles.taskDetailLabel}>Block Number:</Text>
+                <Text style={styles.taskDetailValue}>{request.blockNumber || 'N/A'}</Text>
               </View>
             </View>
 

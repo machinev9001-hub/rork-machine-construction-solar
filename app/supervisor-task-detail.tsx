@@ -2653,9 +2653,12 @@ export default function SupervisorTaskDetailScreen() {
                           {activityItem.status}
                         </Text>
                       </View>
-                      {(activityItem.completedTodayLock?.isLocked || activityItem.qcStatus === 'completed') && activityItem.completedTodayLock?.lockedValue && (
+                      {(activityItem.completedTodayLock?.isLocked || activityItem.qcStatus === 'completed') && activityItem.scopeValue > 0 && (() => {
+                        const unverifiedAmount = Math.max(activityItem.scopeValue - activityItem.qcValue, 0);
+                        return unverifiedAmount > 0;
+                      })() && (
                         <Text style={styles.inlineUnverifiedText}>
-                          {activityItem.completedTodayLock.lockedValue}{activityItem.completedTodayLock.lockedUnit ?? activityItem.completedTodayUnit ?? activityItem.unit} unverified
+                          {Math.max(activityItem.scopeValue - activityItem.qcValue, 0)}{activityItem.unit} unverified
                         </Text>
                       )}
                     </View>

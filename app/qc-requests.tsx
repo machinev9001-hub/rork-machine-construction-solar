@@ -693,11 +693,11 @@ export default function QCRequestsScreen() {
             <View style={styles.taskDetailsRow}>
               <View style={styles.taskDetailItem}>
                 <Text style={styles.taskDetailLabel}>PV Area:</Text>
-                <Text style={styles.taskDetailValue}>{request.pvArea || 'N/A'}</Text>
+                <Text style={styles.taskDetailValueBlue}>{request.pvArea || 'N/A'}</Text>
               </View>
               <View style={styles.taskDetailItem}>
                 <Text style={styles.taskDetailLabel}>Block Number:</Text>
-                <Text style={styles.taskDetailValue}>{request.blockNumber || 'N/A'}</Text>
+                <Text style={styles.taskDetailValueBlue}>{request.blockNumber || 'N/A'}</Text>
               </View>
             </View>
 
@@ -799,11 +799,11 @@ export default function QCRequestsScreen() {
             <View style={styles.taskDetailsRow}>
               <View style={styles.taskDetailItem}>
                 <Text style={styles.taskDetailLabel}>PV Area:</Text>
-                <Text style={styles.taskDetailValue}>{request.pvArea || 'N/A'}</Text>
+                <Text style={styles.taskDetailValueBlue}>{request.pvArea || 'N/A'}</Text>
               </View>
               <View style={styles.taskDetailItem}>
                 <Text style={styles.taskDetailLabel}>Block Number:</Text>
-                <Text style={styles.taskDetailValue}>{request.blockNumber || 'N/A'}</Text>
+                <Text style={styles.taskDetailValueBlue}>{request.blockNumber || 'N/A'}</Text>
               </View>
             </View>
 
@@ -1340,6 +1340,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
     color: '#1e293b',
+  },
+  taskDetailValueBlue: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#3b82f6',
   },
   compactInfo: {
     fontSize: 13,

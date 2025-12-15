@@ -18,6 +18,9 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
     },
   },
 });
@@ -417,41 +420,31 @@ export default function RootLayout() {
     }
     hasInitializedManagers.current = true;
 
-    InteractionManager.runAfterInteractions(() => {
-      console.log('[RootLayout] Starting non-blocking background initialization...');
-      
-      const isIOS = Platform.OS === 'ios';
-      const offlineTimeout = isIOS ? 600 : 1200;
-      const sitePackTimeout = isIOS ? 400 : 800;
-      
-      (async () => {
-        try {
-          console.log('[RootLayout] Initializing offlineQueue (timeout:', offlineTimeout, 'ms)...');
-          await offlineQueue.init(offlineTimeout);
-          console.log('[RootLayout] ✓ offlineQueue initialized');
-        } catch (err) {
-          console.warn('[RootLayout] offlineQueue init failed, will retry in background:', err);
-        }
-
-        try {
-          console.log('[RootLayout] Initializing sitePackManager (timeout:', sitePackTimeout, 'ms)...');
-          await sitePackManager.init(sitePackTimeout);
-          console.log('[RootLayout] ✓ sitePackManager initialized');
-        } catch (err) {
-          console.warn('[RootLayout] sitePackManager init failed (non-fatal):', err);
-        }
-
-        try {
-          console.log('[RootLayout] Initializing dataFreshnessManager...');
-          await dataFreshnessManager.init();
-          console.log('[RootLayout] ✓ dataFreshnessManager initialized');
-        } catch (err) {
-          console.warn('[RootLayout] dataFreshnessManager init failed (non-fatal):', err);
-        }
-      })().catch(err => {
-        console.warn('[RootLayout] Background initialization error (non-fatal):', err?.message || err);
+    setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        console.log('[RootLayout] Starting lazy initialization...');
+        
+        const isIOS = Platform.OS === 'ios';
+        const offlineTimeout = isIOS ? 300 : 600;
+        const sitePackTimeout = isIOS ? 200 : 400;
+        
+        Promise.all([
+          offlineQueue.init(offlineTimeout).catch(err => {
+            console.warn('[RootLayout] offlineQueue init deferred:', err?.message);
+          }),
+          sitePackManager.init(sitePackTimeout).catch(err => {
+            console.warn('[RootLayout] sitePackManager init deferred:', err?.message);
+          }),
+          dataFreshnessManager.init().catch(err => {
+            console.warn('[RootLayout] dataFreshnessManager init deferred:', err?.message);
+          })
+        ]).then(() => {
+          console.log('[RootLayout] ✓ Background services ready');
+        }).catch(err => {
+          console.warn('[RootLayout] Background init non-fatal error:', err?.message);
+        });
       });
-    });
+    }, 1000);
   }, []);
 
   console.log('[RootLayout] About to render providers...');

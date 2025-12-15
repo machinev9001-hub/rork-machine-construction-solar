@@ -1,96 +1,105 @@
 {
-"expo": {
-  "name": "machine-construction-solar",
-  "slug": "machine-construction-solar",
-  "version": "1.0.0",
-  "orientation": "portrait",
-  "icon": "./assets/images/icon.png",
-  "scheme": "projectmanagementtracker",
-  "userInterfaceStyle": "automatic",
-  "splash": {
-    "image": "./assets/images/splash-icon.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#ffffff"
-  },
-  "assetBundlePatterns": [
-    "**/*"
-  ],
-  "plugins": [
-    "expo-router",
-    [
-      "expo-camera",
-      {
-        "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-        "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
-        "recordAudioAndroid": true
-      }
-    ],
-    [
-      "expo-image-picker",
-      {
-        "photosPermission": "The app accesses your photos to let you share them with your friends."
-      }
-    ],
-    [
-      "expo-document-picker",
-      {
-        "iCloudContainerEnvironment": "Production"
-      }
-    ],
-    [
-      "expo-location",
-      {
-        "isAndroidForegroundServiceEnabled": true,
-        "isAndroidBackgroundLocationEnabled": true,
-        "isIosBackgroundLocationEnabled": true,
-        "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
-      }
-    ]
-  ],
-  "ios": {
-    "supportsTablet": true,
-    "bundleIdentifier": "app.rork.project-management-tracker-clone-clone-ok90lky",
-    "infoPlist": {
-      "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
-      "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
-      "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
-      "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-      "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-      "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-      "UIBackgroundModes": [
-        "location"
-      ]
-    },
-    "entitlements": {
-      "com.apple.developer.networking.wifi-info": true
-    },
-    "usesIcloudStorage": true
-  },
-  "android": {
-    "package": "app.rork.project_management_tracker_clone_clone_ok90lky",
-    "versionCode": 1,
-    "adaptiveIcon": {
-      "foregroundImage": "./assets/images/adaptive-icon.png",
+  "expo": {
+    "name": "machine-construction-solar",
+    "slug": "machine-construction-solar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "projectmanagementtracker",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "permissions": [
-      "CAMERA",
-      "RECORD_AUDIO",
-      "READ_EXTERNAL_STORAGE",
-      "WRITE_EXTERNAL_STORAGE",
-      "INTERNET",
-      "android.permission.VIBRATE",
-      "ACCESS_NETWORK_STATE",
-      "ACCESS_COARSE_LOCATION",
-      "ACCESS_FINE_LOCATION",
-      "FOREGROUND_SERVICE",
-      "FOREGROUND_SERVICE_LOCATION",
-      "ACCESS_BACKGROUND_LOCATION"
-    ]
-  },
-  "web": {
-    "bundler": "metro",
-    "favicon": "./assets/images/favicon.png"
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "isAndroidForegroundServiceEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.rork.project-management-tracker-clone-clone-ok90lky",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+        "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      },
+      "entitlements": {
+        "com.apple.developer.networking.wifi-info": true,
+        "com": {
+          "apple": {
+            "developer": {
+              "networking": {
+                "wifi-info": true
+              }
+            }
+          }
+        }
+      },
+      "usesIcloudStorage": true
+    },
+    "android": {
+      "package": "app.rork.project_management_tracker_clone_clone_ok90lky",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "android.permission.VIBRATE",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/favicon.png"
+    }
   }
-}
 }

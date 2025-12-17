@@ -1,7 +1,7 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fuel, Gauge, X, Save } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -34,6 +34,7 @@ type FuelLog = {
 export default function DieselClerkFuelLogScreen() {
   const { plantAssetId } = useLocalSearchParams<{ plantAssetId: string }>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [plantAsset, setPlantAsset] = useState<PlantAsset | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -352,7 +353,7 @@ export default function DieselClerkFuelLogScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 12, 12) }]}>
         <TouchableOpacity
           style={styles.cancelButton}
           onPress={() => router.back()}
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   assetCard: {
     backgroundColor: '#fff',

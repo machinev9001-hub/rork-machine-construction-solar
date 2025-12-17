@@ -1,12 +1,13 @@
 import { Stack, router } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, TextInput, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fuel, QrCode, MessageCircle, BookOpen, LogOut, Home, Settings, Keyboard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 
 export default function DieselClerkHomeScreen() {
   const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualAssetId, setManualAssetId] = useState('');
 
@@ -131,7 +132,7 @@ export default function DieselClerkHomeScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomNav}>
+      <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TouchableOpacity 
           style={[styles.navButton, styles.navButtonActive]}
           onPress={() => router.push('/diesel-clerk-home')}
@@ -234,6 +235,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   welcomeCard: {
     backgroundColor: '#fff',

@@ -8,7 +8,7 @@ import { Unit } from '@/utils/unitConversion';
 import { subMenuActivities } from '@/constants/activities';
 import type { ActivityStatus as ImportedActivityStatus, CanonicalUnit, CompletedTodayLock, ActivityModuleConfig } from '@/types';
 
-import { checkAndApplyTimeLock, checkAndUnlockNewDay } from '@/utils/completedTodayLock';
+import { checkAndApplyTimeLock, checkAndUnlockNewDay, isQCToggleLocked } from '@/utils/completedTodayLock';
 import HandoverCard from '@/components/HandoverCard';
 import { findMatchingSupervisors, MatchingSupervisor } from '@/utils/handover';
 import TaskLockingOverlay from '@/components/TaskLockingOverlay';
@@ -1517,7 +1517,6 @@ export default function SupervisorTaskDetailScreen() {
     try {
       const activity = activities.find((a) => a.id === activityId);
       
-      const { isQCToggleLocked } = await import('@/utils/completedTodayLock');
       const qcToggleLocked = await isQCToggleLocked({ taskId, activityId });
       
       if (qcToggleLocked) {

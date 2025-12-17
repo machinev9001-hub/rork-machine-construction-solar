@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Send, Check, CheckCheck } from 'lucide-react-native';
@@ -21,6 +22,7 @@ export default function ChatScreen() {
   const { userId, userName } = useLocalSearchParams<{ userId: string; userName: string }>();
   const { user } = useAuth();
   const { theme, roleAccentColor, commonStyles } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -292,7 +294,7 @@ export default function ChatScreen() {
         }
       />
 
-      <View style={[styles.inputContainer, { backgroundColor: theme.surface }]}>
+      <View style={[styles.inputContainer, { backgroundColor: theme.surface, paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
         <View style={[styles.inputWrapper, { backgroundColor: theme.background }]}>
           <TextInput
             style={[styles.input, { color: theme.text }]}
@@ -405,7 +407,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
   },
   inputWrapper: {
     flexDirection: 'row',

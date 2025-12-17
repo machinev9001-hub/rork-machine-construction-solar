@@ -302,7 +302,7 @@ export default function MessagesScreen() {
         <Text
           style={[
             styles.roleFilterText,
-            { color: isSelected ? '#fff' : '#000' },
+            { color: isSelected ? '#000' : theme.text },
           ]}
         >
           {role}

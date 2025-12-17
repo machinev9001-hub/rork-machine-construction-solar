@@ -1,14 +1,15 @@
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle2 } from 'lucide-react-native';
+import { CheckCircle2, ChevronDown } from 'lucide-react-native';
 import { db } from '@/config/firebase';
-import { collection, addDoc, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { sendRequestMessage } from '@/utils/messaging';
 import { useButtonProtection } from '@/utils/hooks/useButtonProtection';
 import NetInfo from '@react-native-community/netinfo';
 import { queueFirestoreOperation } from '@/utils/offlineQueue';
+import { useQuery } from '@tanstack/react-query';
 
 export default function SupervisorTaskRequestScreen() {
   const { activity, subActivity, index, name, currentTaskId, isAddTaskRequest, subMenuId } = useLocalSearchParams<{
@@ -34,6 +35,8 @@ export default function SupervisorTaskRequestScreen() {
   const [quantity, setQuantity] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [showPvAreaPicker, setShowPvAreaPicker] = useState<boolean>(false);
+  const [showBlockPicker, setShowBlockPicker] = useState<boolean>(false);
 
   const activityColors: Record<string, string> = {
     drilling: '#4285F4',
@@ -48,6 +51,66 @@ export default function SupervisorTaskRequestScreen() {
 
   const color = activity ? activityColors[activity] || '#3b82f6' : '#3b82f6';
   const decodedName = name ? decodeURIComponent(name) : 'Task Request';
+
+  const { data: pvAreas = [] } = useQuery({
+    queryKey: ['pvAreas', user?.siteId],
+    queryFn: async () => {
+      if (!user?.siteId) return [];
+      const q = query(
+        collection(db, 'pvAreas'),
+        where('siteId', '==', user.siteId)
+      );
+      const snapshot = await getDocs(q);
+      const areas = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+      }));
+      return areas.sort((a, b) => {
+        const numA = parseInt(a.name);
+        const numB = parseInt(b.name);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    },
+    enabled: !!user?.siteId && isAddingNewTask,
+  });
+
+  const { data: blockAreas = [] } = useQuery({
+    queryKey: ['blockAreas', user?.siteId],
+    queryFn: async () => {
+      if (!user?.siteId) return [];
+      const q = query(
+        collection(db, 'blockAreas'),
+        where('siteId', '==', user.siteId)
+      );
+      const snapshot = await getDocs(q);
+      const blocks = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || 'Unnamed Block',
+          pvAreaId: data.pvAreaId || '',
+          pvAreaName: data.pvAreaName || '',
+        };
+      });
+      return blocks.sort((a, b) => {
+        const numA = parseInt(a.name);
+        const numB = parseInt(b.name);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    },
+    enabled: !!user?.siteId && isAddingNewTask,
+  });
+
+  const filteredBlocks = pvArea ? blockAreas.filter(b => {
+    const selectedPvAreaData = pvAreas.find(p => p.name === pvArea);
+    return selectedPvAreaData ? b.pvAreaId === selectedPvAreaData.id : true;
+  }) : blockAreas;
 
   const handleSaveTaskInternal = async () => {
     console.log('=== SAVE TASK REQUEST STARTED ===');
@@ -100,6 +163,8 @@ export default function SupervisorTaskRequestScreen() {
         taskName: decodedName,
         currentTaskId: currentTaskId || null,
         notes: notes.trim() || null,
+        suggestedPvArea: pvArea.trim() || null,
+        suggestedBlockNumber: blockNumber.trim() || null,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       } : {
@@ -250,7 +315,42 @@ export default function SupervisorTaskRequestScreen() {
             <>
               <View style={styles.infoCard}>
                 <Text style={styles.infoLabel}>Note:</Text>
-                <Text style={styles.infoValue}>The Planner will fill in PV Area and Block Number details when approving this request.</Text>
+                <Text style={styles.infoValue}>You can suggest PV Area and Block Number below. The Planner will review and can adjust these details when approving.</Text>
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>PV Area (Optional - Suggestion)</Text>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowPvAreaPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pickerButtonText, !pvArea && styles.pickerPlaceholder]}>
+                    {pvArea || 'Select PV Area (Optional)'}
+                  </Text>
+                  <ChevronDown size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>Block Number (Optional - Suggestion)</Text>
+                <TouchableOpacity
+                  style={[styles.pickerButton, !pvArea && styles.pickerButtonDisabled]}
+                  onPress={() => {
+                    if (pvArea) {
+                      setShowBlockPicker(true);
+                    } else {
+                      Alert.alert('Info', 'Please select a PV Area first');
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  disabled={!pvArea}
+                >
+                  <Text style={[styles.pickerButtonText, !blockNumber && styles.pickerPlaceholder]}>
+                    {blockNumber || 'Select Block Number (Optional)'}
+                  </Text>
+                  <ChevronDown size={20} color="#64748b" />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.fieldContainer}>
@@ -346,6 +446,121 @@ export default function SupervisorTaskRequestScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showPvAreaPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPvAreaPicker(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select PV Area</Text>
+              <TouchableOpacity
+                onPress={() => setShowPvAreaPicker(false)}
+                style={styles.pickerCloseButton}
+              >
+                <Text style={styles.pickerCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerScroll}>
+              {pvAreas.length === 0 ? (
+                <View style={styles.pickerEmpty}>
+                  <Text style={styles.pickerEmptyText}>No PV Areas found</Text>
+                  <Text style={styles.pickerEmptySubtext}>Contact your administrator</Text>
+                </View>
+              ) : (
+                pvAreas.map((area) => (
+                  <TouchableOpacity
+                    key={area.id}
+                    style={[
+                      styles.pickerItem,
+                      pvArea === area.name && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => {
+                      setPvArea(area.name);
+                      setBlockNumber('');
+                      setShowPvAreaPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        pvArea === area.name && styles.pickerItemTextSelected,
+                      ]}
+                    >
+                      {area.name}
+                    </Text>
+                    {pvArea === area.name && (
+                      <CheckCircle2 size={20} color="#4285F4" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showBlockPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBlockPicker(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <View style={styles.pickerContent}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Select Block Number</Text>
+              <TouchableOpacity
+                onPress={() => setShowBlockPicker(false)}
+                style={styles.pickerCloseButton}
+              >
+                <Text style={styles.pickerCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerScroll}>
+              {filteredBlocks.length === 0 ? (
+                <View style={styles.pickerEmpty}>
+                  <Text style={styles.pickerEmptyText}>No Block Numbers found</Text>
+                  <Text style={styles.pickerEmptySubtext}>
+                    {pvArea ? `No blocks in ${pvArea}` : 'Select a PV Area first'}
+                  </Text>
+                </View>
+              ) : (
+                filteredBlocks.map((block) => (
+                  <TouchableOpacity
+                    key={block.id}
+                    style={[
+                      styles.pickerItem,
+                      blockNumber === block.name && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => {
+                      setBlockNumber(block.name);
+                      setShowBlockPicker(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        blockNumber === block.name && styles.pickerItemTextSelected,
+                      ]}
+                    >
+                      {block.name}
+                    </Text>
+                    {blockNumber === block.name && (
+                      <CheckCircle2 size={20} color="#4285F4" />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -476,5 +691,113 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: {
     opacity: 0.6,
+  },
+  pickerButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerButtonDisabled: {
+    opacity: 0.5,
+  },
+  pickerButtonText: {
+    fontSize: 14,
+    color: '#202124',
+  },
+  pickerPlaceholder: {
+    color: '#94a3b8',
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  pickerContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 12,
+    paddingBottom: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  pickerTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#1e293b',
+    letterSpacing: -0.3,
+  },
+  pickerCloseButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+  },
+  pickerCloseText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#4285F4',
+  },
+  pickerScroll: {
+    maxHeight: 400,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    minHeight: 64,
+  },
+  pickerItemSelected: {
+    backgroundColor: '#e3f2fd',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4285F4',
+    paddingLeft: 28,
+  },
+  pickerItemText: {
+    fontSize: 17,
+    color: '#334155',
+    fontWeight: '500' as const,
+    letterSpacing: -0.2,
+  },
+  pickerItemTextSelected: {
+    color: '#4285F4',
+    fontWeight: '700' as const,
+  },
+  pickerEmpty: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  pickerEmptyText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#64748b',
+  },
+  pickerEmptySubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+    textAlign: 'center' as const,
   },
 });

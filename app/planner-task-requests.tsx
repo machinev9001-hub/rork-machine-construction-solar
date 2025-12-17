@@ -44,6 +44,8 @@ type TaskRequest = {
   blockNumber?: string;
   specialArea?: string;
   notes?: string;
+  suggestedPvArea?: string;
+  suggestedBlockNumber?: string;
 };
 
 export default function PlannerTaskRequestsScreen() {
@@ -665,7 +667,18 @@ export default function PlannerTaskRequestsScreen() {
   });
 
   const handleApprove = (requestId: string) => {
+    const request = requests.find(r => r.id === requestId);
     setSelectedRequestId(requestId);
+    
+    if (request?.suggestedPvArea) {
+      setPvArea(request.suggestedPvArea);
+      console.log('🔵 [PRE-FILL] Setting suggested PV Area:', request.suggestedPvArea);
+    }
+    if (request?.suggestedBlockNumber) {
+      setBlockNumber(request.suggestedBlockNumber);
+      console.log('🔵 [PRE-FILL] Setting suggested Block Number:', request.suggestedBlockNumber);
+    }
+    
     setShowApprovalModal(true);
   };
 
@@ -1022,6 +1035,25 @@ export default function PlannerTaskRequestsScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Approve Task Request</Text>
             <Text style={styles.modalSubtitle}>Enter task area details</Text>
+            
+            {(() => {
+              const request = requests.find(r => r.id === selectedRequestId);
+              if (request?.suggestedPvArea || request?.suggestedBlockNumber) {
+                return (
+                  <View style={styles.suggestionBanner}>
+                    <Text style={styles.suggestionTitle}>Supervisor Suggestions:</Text>
+                    {request.suggestedPvArea && (
+                      <Text style={styles.suggestionText}>PV Area: {request.suggestedPvArea}</Text>
+                    )}
+                    {request.suggestedBlockNumber && (
+                      <Text style={styles.suggestionText}>Block: {request.suggestedBlockNumber}</Text>
+                    )}
+                    <Text style={styles.suggestionNote}>(Pre-filled below, you can adjust)</Text>
+                  </View>
+                );
+              }
+              return null;
+            })()}
 
             <View style={styles.modalField}>
               <Text style={styles.modalLabel}>PV Area *</Text>
@@ -1900,5 +1932,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     marginTop: 4,
+  },
+  suggestionBanner: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  suggestionTitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#1e40af',
+    marginBottom: 6,
+  },
+  suggestionText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: '#1e40af',
+    marginBottom: 2,
+  },
+  suggestionNote: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 4,
+    fontStyle: 'italic' as const,
   },
 });

@@ -137,8 +137,23 @@ export default function ChatScreen() {
     if (!inputMessage.trim() || isSending || !user?.userId || !userId || !user?.siteId) return;
 
     const messageText = inputMessage.trim();
+    const tempId = `temp-${Date.now()}`;
+    const timestamp = Timestamp.now();
+    
+    const optimisticMessage: Message = {
+      id: tempId,
+      fromUserId: user.userId,
+      toUserId: userId,
+      message: messageText,
+      timestamp: timestamp,
+      read: false,
+      siteId: user.siteId,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
     setInputMessage('');
     setIsSending(true);
+    scrollToBottom();
 
     try {
       const messagesRef = collection(db, 'messages');
@@ -148,15 +163,15 @@ export default function ChatScreen() {
         toUserId: userId,
         toUserName: userName || userId,
         message: messageText,
-        timestamp: Timestamp.now(),
+        timestamp: timestamp,
         read: false,
         siteId: user.siteId,
       });
 
       console.log('✅ Message sent successfully');
-      scrollToBottom();
     } catch (error) {
       console.error('❌ Error sending message:', error);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       setInputMessage(messageText);
     } finally {
       setIsSending(false);
@@ -246,9 +261,9 @@ export default function ChatScreen() {
               {isMyMessage && (
                 <View style={styles.messageStatus}>
                   {item.read ? (
-                    <CheckCheck size={16} color="#fff" strokeWidth={2.5} />
+                    <CheckCheck size={16} color="rgba(0, 0, 0, 0.6)" strokeWidth={2.5} />
                   ) : (
-                    <Check size={16} color="#fff" strokeWidth={2.5} />
+                    <Check size={16} color="rgba(0, 0, 0, 0.6)" strokeWidth={2.5} />
                   )}
                 </View>
               )}
@@ -370,7 +385,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   myMessageText: {
-    color: '#fff',
+    color: '#000',
   },
   messageFooter: {
     flexDirection: 'row',
@@ -383,7 +398,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   myMessageTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(0, 0, 0, 0.6)',
   },
   messageStatus: {
     marginLeft: 2,

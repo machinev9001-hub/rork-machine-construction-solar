@@ -289,6 +289,7 @@ export default function SupervisorTaskDetailScreen() {
             const moduleConfig = data.moduleConfig;
             
             console.log(`📝 Activity: ${data.name} - Fresh moduleConfig from Firestore:`, JSON.stringify(moduleConfig, null, 2));
+            console.log(`📝 Activity sortOrder: ${data.sortOrder}`);
             
             dynamicActivities.push({
               id: docSnap.id,
@@ -296,10 +297,13 @@ export default function SupervisorTaskDetailScreen() {
               unit: 'Units',
               scopePolicy: 'NORMAL',
               moduleConfig: moduleConfig,
+              sortOrder: data.sortOrder || 0,
             });
           });
           
+          console.log('🔢 Activities before sort:', dynamicActivities.map(a => `${a.name} (sortOrder: ${a.sortOrder})`).join(', '));
           dynamicActivities.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+          console.log('🔢 Activities after sort:', dynamicActivities.map(a => `${a.name} (sortOrder: ${a.sortOrder})`).join(', '));
           activitiesForSubmenu = dynamicActivities;
           console.log('📋 Loaded', dynamicActivities.length, 'dynamic activities from menuItems');
           console.log('✅ FRESH DATA: All moduleConfigs should now reflect latest changes');

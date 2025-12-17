@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Shield, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { isManagementRole } from '@/utils/roles';
+import { isManagementRole, isOperatorRole, isDieselClerkRole } from '@/utils/roles';
 
 export default function SetupEmployeePinScreen() {
   const { userId, userName, userRole, employeeIdNumber, isUserAccount } = useLocalSearchParams<{ 
@@ -153,7 +153,10 @@ export default function SetupEmployeePinScreen() {
         console.log('[SetupEmployeePin] User:', result.user.userId, 'Role:', result.user.role);
         loginSuccess = true;
         
-        const destinationScreen = isManagementRole(result.user.role) ? '/' : '/employee-timesheet';
+        const isManagement = isManagementRole(result.user.role);
+        const isOperator = isOperatorRole(result.user.role);
+        const isDieselClerk = isDieselClerkRole(result.user.role);
+        const destinationScreen = isManagement ? '/' : isOperator ? '/operator-home' : isDieselClerk ? '/diesel-clerk-home' : '/employee-timesheet';
         console.log('[SetupEmployeePin] 🎯 Routing to:', destinationScreen, '(based on role:', result.user.role, ')');
         
         // Immediate routing without delay to prevent navigation conflicts

@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogIn, UserPlus, ScanLine } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { isManagementRole, isOperatorRole } from '@/utils/roles';
+import { isManagementRole, isOperatorRole, isDieselClerkRole } from '@/utils/roles';
 
 export default function LoginScreen() {
   console.log('[Login] LoginScreen component rendering');
@@ -96,7 +96,8 @@ export default function LoginScreen() {
         
         const isManagement = isManagementRole(result.user.role);
         const isOperator = isOperatorRole(result.user.role);
-        const destination = isManagement ? '/(tabs)' : isOperator ? '/operator-home' : '/employee-timesheet';
+        const isDieselClerk = isDieselClerkRole(result.user.role);
+        const destination = isManagement ? '/(tabs)' : isOperator ? '/operator-home' : isDieselClerk ? '/diesel-clerk-home' : '/employee-timesheet';
         console.log('[Login] Scheduled navigation to:', destination, '(based on role:', result.user.role, ')');
         
         setTimeout(() => {

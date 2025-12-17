@@ -179,6 +179,10 @@ export default function SupervisorTaskDetailScreen() {
   const [tempTargetTomorrowValues, setTempTargetTomorrowValues] = useState<Record<string, string>>({});
   const [activityHistory, setActivityHistory] = useState<Record<string, DayHistory[]>>({});
   const [hasShownDailyWarning, setHasShownDailyWarning] = useState<Record<string, boolean>>({});
+  const [archiveModalVisible, setArchiveModalVisible] = useState<Record<string, boolean>>({});
+  const [archivedMonths, setArchivedMonths] = useState<Record<string, { month: string; year: string; label: string }[]>>({});
+  const [selectedArchivedMonth, setSelectedArchivedMonth] = useState<Record<string, string | null>>({});
+  const [archivedHistory, setArchivedHistory] = useState<Record<string, DayHistory[]>>({});
   
   const [handoverModalVisible, setHandoverModalVisible] = useState<boolean>(false);
   const [matchingSupervisors, setMatchingSupervisors] = useState<MatchingSupervisor[]>([]);
@@ -3083,7 +3087,74 @@ export default function SupervisorTaskDetailScreen() {
 
                     {!hasHandoff && (
                       <View style={styles.historyScrollContainer}>
-                        <Text style={styles.historyTitle}>Last 7 Days</Text>
+                        <View style={styles.historyHeaderRow}>
+                          <Text style={styles.historyTitle}>Last 7 Days</Text>
+                          <TouchableOpacity
+                            style={styles.archiveButton}
+                            onPress={async () => {
+                              console.log('📂 Opening archive for activity:', activityItem.id);
+                              setArchiveModalVisible(prev => ({ ...prev, [activityItem.id]: true }));
+                              
+                              const activitiesRef = collection(db, 'activities');
+                              const q = query(
+                                activitiesRef,
+                                where('taskId', '==', taskId),
+                                where('activityId', '==', activityItem.id)
+                              );
+                              const snapshot = await getDocs(q);
+                              
+                              if (!snapshot.empty) {
+                                const activityDocId = snapshot.docs[0].id;
+                                const historyRef = collection(db, 'activities', activityDocId, 'history');
+                                const historySnapshot = await getDocs(historyRef);
+                                
+                                const allHistory: DayHistory[] = [];
+                                historySnapshot.docs.forEach((historyDoc) => {
+                                  const data = historyDoc.data();
+                                  allHistory.push({
+                                    date: data.date || historyDoc.id,
+                                    completedValue: data.completedValue || 0,
+                                    unit: data.unit || activityItem.unit,
+                                    percentage: data.percentage || '—',
+                                    scopeValue: data.scopeValue || 0,
+                                    scopeApproved: data.scopeApproved || false,
+                                    qcStatus: data.qcStatus,
+                                    materialToggle: data.materialToggle,
+                                    plantToggle: data.plantToggle,
+                                    workersToggle: data.workersToggle,
+                                  });
+                                });
+                                
+                                allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                                
+                                const monthsMap = new Map<string, { month: string; year: string; label: string }>();
+                                allHistory.forEach((entry) => {
+                                  const date = new Date(entry.date);
+                                  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                  if (!monthsMap.has(monthKey)) {
+                                    monthsMap.set(monthKey, {
+                                      month: String(date.getMonth() + 1).padStart(2, '0'),
+                                      year: String(date.getFullYear()),
+                                      label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                                    });
+                                  }
+                                });
+                                
+                                const months = Array.from(monthsMap.values()).sort((a, b) => {
+                                  const dateA = new Date(`${a.year}-${a.month}-01`);
+                                  const dateB = new Date(`${b.year}-${b.month}-01`);
+                                  return dateB.getTime() - dateA.getTime();
+                                });
+                                
+                                console.log('📅 Found', months.length, 'archived months for activity:', activityItem.id);
+                                setArchivedMonths(prev => ({ ...prev, [activityItem.id]: months }));
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.archiveButtonText}>Archive</Text>
+                          </TouchableOpacity>
+                        </View>
                         <FlatList
                           horizontal
                           data={activityHistory[activityItem.id]}
@@ -3415,6 +3486,164 @@ export default function SupervisorTaskDetailScreen() {
         masterAccountId={user?.masterAccountId || ''}
         siteId={user?.siteId || ''}
       />
+      
+      {activities.filter(act => !act.drillingHandoff).map((activityItem) => (
+        <Modal
+          key={`archive-${activityItem.id}`}
+          visible={archiveModalVisible[activityItem.id] || false}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setArchiveModalVisible(prev => ({ ...prev, [activityItem.id]: false }));
+            setSelectedArchivedMonth(prev => ({ ...prev, [activityItem.id]: null }));
+          }}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.archiveModalCard}>
+              <View style={styles.archiveModalHeader}>
+                <Text style={styles.archiveModalTitle}>
+                  {selectedArchivedMonth[activityItem.id] 
+                    ? archivedMonths[activityItem.id]?.find(m => `${m.year}-${m.month}` === selectedArchivedMonth[activityItem.id])?.label || 'Archive'
+                    : 'Select Month'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setArchiveModalVisible(prev => ({ ...prev, [activityItem.id]: false }));
+                    setSelectedArchivedMonth(prev => ({ ...prev, [activityItem.id]: null }));
+                  }}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {!selectedArchivedMonth[activityItem.id] ? (
+                <ScrollView style={styles.monthsScrollView}>
+                  {archivedMonths[activityItem.id]?.length > 0 ? (
+                    archivedMonths[activityItem.id].map((monthData) => (
+                      <TouchableOpacity
+                        key={`${monthData.year}-${monthData.month}`}
+                        style={styles.monthButton}
+                        onPress={async () => {
+                          const monthKey = `${monthData.year}-${monthData.month}`;
+                          console.log('📅 Loading archive for month:', monthKey);
+                          setSelectedArchivedMonth(prev => ({ ...prev, [activityItem.id]: monthKey }));
+                          
+                          const activitiesRef = collection(db, 'activities');
+                          const q = query(
+                            activitiesRef,
+                            where('taskId', '==', taskId),
+                            where('activityId', '==', activityItem.id)
+                          );
+                          const snapshot = await getDocs(q);
+                          
+                          if (!snapshot.empty) {
+                            const activityDocId = snapshot.docs[0].id;
+                            const historyRef = collection(db, 'activities', activityDocId, 'history');
+                            const historySnapshot = await getDocs(historyRef);
+                            
+                            const monthHistory: DayHistory[] = [];
+                            historySnapshot.docs.forEach((historyDoc) => {
+                              const data = historyDoc.data();
+                              const entryDate = new Date(data.date || historyDoc.id);
+                              const entryMonthKey = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
+                              
+                              if (entryMonthKey === monthKey) {
+                                monthHistory.push({
+                                  date: data.date || historyDoc.id,
+                                  completedValue: data.completedValue || 0,
+                                  unit: data.unit || activityItem.unit,
+                                  percentage: data.percentage || '—',
+                                  scopeValue: data.scopeValue || 0,
+                                  scopeApproved: data.scopeApproved || false,
+                                  qcStatus: data.qcStatus,
+                                  materialToggle: data.materialToggle,
+                                  plantToggle: data.plantToggle,
+                                  workersToggle: data.workersToggle,
+                                });
+                              }
+                            });
+                            
+                            monthHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            console.log('📊 Loaded', monthHistory.length, 'entries for month:', monthKey);
+                            setArchivedHistory(prev => ({ ...prev, [activityItem.id]: monthHistory }));
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.monthButtonText}>{monthData.label}</Text>
+                        <ChevronRight size={20} color="#4285F4" />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={styles.noArchiveText}>No archived history available</Text>
+                  )}
+                </ScrollView>
+              ) : (
+                <View>
+                  <TouchableOpacity
+                    style={styles.backToMonthsButton}
+                    onPress={() => setSelectedArchivedMonth(prev => ({ ...prev, [activityItem.id]: null }))}
+                    activeOpacity={0.7}
+                  >
+                    <ChevronLeft size={18} color="#4285F4" />
+                    <Text style={styles.backToMonthsText}>Back to Months</Text>
+                  </TouchableOpacity>
+                  
+                  <FlatList
+                    data={archivedHistory[activityItem.id] || []}
+                    keyExtractor={(item) => item.date}
+                    showsVerticalScrollIndicator={true}
+                    style={styles.archivedHistoryList}
+                    renderItem={({ item }) => (
+                      <View style={styles.archivedHistoryCard}>
+                        <Text style={styles.archivedHistoryDate}>
+                          {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </Text>
+                        <View style={styles.archivedHistoryRow}>
+                          <View style={styles.archivedHistoryValueRow}>
+                            <Text style={styles.historyLabel}>Completed:</Text>
+                            <Text style={styles.historyValue}>{item.completedValue} {item.unit}</Text>
+                          </View>
+                          <View style={styles.archivedHistoryValueRow}>
+                            <Text style={styles.historyLabel}>% Done:</Text>
+                            <Text style={styles.historyPercentage}>{item.percentage}%</Text>
+                          </View>
+                        </View>
+                        {(item.qcStatus || item.materialToggle !== undefined || item.plantToggle !== undefined || item.workersToggle !== undefined) && (
+                          <View style={styles.historyTogglesSection}>
+                            <Text style={styles.historyTogglesTitle}>Status:</Text>
+                            {item.qcStatus && (
+                              <View style={styles.historyToggleRow}>
+                                <Text style={styles.historyToggleLabel}>QC: {item.qcStatus === 'completed' ? '✅' : '⏳'}</Text>
+                              </View>
+                            )}
+                            {item.materialToggle !== undefined && (
+                              <View style={styles.historyToggleRow}>
+                                <Text style={styles.historyToggleLabel}>Material: {item.materialToggle ? '✅' : '❌'}</Text>
+                              </View>
+                            )}
+                            {item.plantToggle !== undefined && (
+                              <View style={styles.historyToggleRow}>
+                                <Text style={styles.historyToggleLabel}>Plant: {item.plantToggle ? '✅' : '❌'}</Text>
+                              </View>
+                            )}
+                            {item.workersToggle !== undefined && (
+                              <View style={styles.historyToggleRow}>
+                                <Text style={styles.historyToggleLabel}>Workers: {item.workersToggle ? '✅' : '❌'}</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+      ))}
       
       <MaterialsRequestModal
         visible={materialsModalVisible}
@@ -4518,12 +4747,30 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },
+  historyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
   historyTitle: {
     fontSize: 13,
     fontWeight: '700' as const,
     color: '#202124',
-    marginBottom: 12,
-    paddingHorizontal: 4,
+  },
+  archiveButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#4285F4',
+  },
+  archiveButtonText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#4285F4',
   },
   historyScrollContent: {
     paddingRight: 16,
@@ -4923,5 +5170,118 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#fff',
+  },
+  archiveModalCard: {
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  archiveModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#4285F4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  archiveModalTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: '#fff',
+  },
+  monthsScrollView: {
+    maxHeight: 400,
+    padding: 16,
+  },
+  monthButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  monthButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#202124',
+  },
+  noArchiveText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingVertical: 32,
+    fontStyle: 'italic' as const,
+  },
+  backToMonthsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  backToMonthsText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#4285F4',
+  },
+  archivedHistoryList: {
+    maxHeight: 450,
+    padding: 16,
+  },
+  archivedHistoryCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  archivedHistoryDate: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#4285F4',
+    marginBottom: 10,
+  },
+  archivedHistoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  archivedHistoryValueRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });

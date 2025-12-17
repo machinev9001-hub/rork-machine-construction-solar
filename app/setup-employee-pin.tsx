@@ -156,7 +156,7 @@ export default function SetupEmployeePinScreen() {
         const isManagement = isManagementRole(result.user.role);
         const isOperator = isOperatorRole(result.user.role);
         const isDieselClerk = isDieselClerkRole(result.user.role);
-        const destinationScreen = isManagement ? '/' : isOperator ? '/operator-home' : isDieselClerk ? '/diesel-clerk-home' : '/employee-timesheet';
+        const destinationScreen = isManagement ? '/(tabs)' : isOperator ? '/operator-home' : isDieselClerk ? '/diesel-clerk-home' : '/employee-timesheet';
         console.log('[SetupEmployeePin] 🎯 Routing to:', destinationScreen, '(based on role:', result.user.role, ')');
         
         // Immediate routing without delay to prevent navigation conflicts

@@ -79,6 +79,11 @@ type VerifiedTimesheet = {
   agreedAt?: string;
   agreedNotes?: string;
   hasAgreedEntry?: boolean;
+  
+  fuelAmount?: number;
+  fuelMeterReading?: number;
+  fuelMeterType?: 'HOUR_METER' | 'ODOMETER';
+  fuelConsumption?: number;
 };
 
 type DateGroup = {
@@ -290,9 +295,49 @@ export default function PlantAssetsTimesheetsTab({
 
       console.log('[PlantAssetsTimesheetsTab] Query returned', agreedTimesheets.length, 'agreed timesheets');
       
+      const fuelLogsMap = new Map<string, any>();
+      if (agreedTimesheets.length > 0) {
+        const assetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
+        const dates = [...new Set(agreedTimesheets.map(at => at.date))];
+        
+        if (assetIds.length > 0) {
+          console.log('[PlantAssetsTimesheetsTab] Fetching fuel logs for', assetIds.length, 'assets');
+          const fuelLogsRef = collection(db, 'fuelLogs');
+          const fuelLogsQuery = query(
+            fuelLogsRef,
+            where('masterAccountId', '==', user.masterAccountId),
+            where('assetId', 'in', assetIds.slice(0, 10)),
+            where('date', '>=', fromDateStr),
+            where('date', '<=', toDateStr)
+          );
+          const fuelSnapshot = await getDocs(fuelLogsQuery);
+          
+          fuelSnapshot.forEach(doc => {
+            const data = doc.data();
+            const key = `${data.assetId}-${data.date}`;
+            if (!fuelLogsMap.has(key)) {
+              fuelLogsMap.set(key, data);
+            }
+          });
+          console.log('[PlantAssetsTimesheetsTab] Loaded', fuelLogsMap.size, 'fuel logs');
+        }
+      }
+      
       let loadedTimesheets: VerifiedTimesheet[] = agreedTimesheets.map(at => {
         const isPlant = at.timesheetType === 'plant_asset';
         const hasAdjustment = at.originalHours !== at.agreedHours;
+        
+        const fuelLogKey = `${at.assetId}-${at.date}`;
+        const fuelLog = fuelLogsMap.get(fuelLogKey);
+        
+        let fuelConsumption: number | undefined;
+        if (fuelLog && isPlant && at.agreedHours > 0) {
+          if (fuelLog.meterType === 'HOUR_METER') {
+            fuelConsumption = fuelLog.fuelAmount / at.agreedHours;
+          } else {
+            fuelConsumption = fuelLog.fuelAmount / (fuelLog.meterReading || 1);
+          }
+        }
         
         const baseEntry: VerifiedTimesheet = {
           id: at.id,
@@ -333,6 +378,11 @@ export default function PlantAssetsTimesheetsTab({
           agreedAt: at.agreedAt ? (at.agreedAt as Timestamp).toDate().toISOString() : undefined,
           agreedNotes: at.adminNotes,
           hasAgreedEntry: true,
+          
+          fuelAmount: fuelLog?.fuelAmount,
+          fuelMeterReading: fuelLog?.meterReading,
+          fuelMeterType: fuelLog?.meterType,
+          fuelConsumption,
         };
         
         if (hasAdjustment) {
@@ -581,6 +631,15 @@ export default function PlantAssetsTimesheetsTab({
           <Text style={[styles.hoursCell, styles.cellText, styles.boldText]}>
             {timesheet.totalHours?.toFixed(1)}h
           </Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>
+            {timesheet.fuelAmount ? timesheet.fuelAmount.toFixed(1) : '-'}
+          </Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>
+            {timesheet.fuelMeterReading ? `${timesheet.fuelMeterReading.toFixed(0)}${timesheet.fuelMeterType === 'HOUR_METER' ? 'h' : 'km'}` : '-'}
+          </Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>
+            {timesheet.fuelConsumption ? timesheet.fuelConsumption.toFixed(2) : '-'}
+          </Text>
           <Text style={[styles.verifiedCell, styles.cellText, styles.smallText]}>
             {new Date(timesheet.verifiedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
           </Text>
@@ -708,6 +767,9 @@ export default function PlantAssetsTimesheetsTab({
                       <Text style={styles.hoursHeaderCell}>Open</Text>
                       <Text style={styles.hoursHeaderCell}>Close</Text>
                       <Text style={styles.hoursHeaderCell}>Total</Text>
+                      <Text style={styles.hoursHeaderCell}>Fuel (L)</Text>
+                      <Text style={styles.hoursHeaderCell}>Meter</Text>
+                      <Text style={styles.hoursHeaderCell}>L/h</Text>
                     </>
                   ) : (
                     <>

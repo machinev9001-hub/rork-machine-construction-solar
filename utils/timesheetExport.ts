@@ -54,6 +54,10 @@ interface PlantAssetHours {
   pvArea?: string;
   blockNumber?: string;
   notes?: string;
+  fuelAmount?: number;
+  fuelMeterReading?: number;
+  fuelMeterType?: 'HOUR_METER' | 'ODOMETER';
+  fuelConsumption?: number;
 }
 
 /**
@@ -166,8 +170,11 @@ export async function exportPlantAssetHours(filters: ExportFilters): Promise<str
     const snapshot = await getDocs(timesheetsQuery);
 
     const plantHours: PlantAssetHours[] = [];
+    const assetDateKeys = new Set<string>();
+    
     snapshot.forEach((doc) => {
       const data = doc.data();
+      assetDateKeys.add(`${data.assetId}-${data.date}`);
       plantHours.push({
         assetId: data.assetId,
         assetType: data.assetType,
@@ -185,6 +192,49 @@ export async function exportPlantAssetHours(filters: ExportFilters): Promise<str
         notes: data.notes
       });
     });
+    
+    const fuelLogsMap = new Map<string, any>();
+    if (assetDateKeys.size > 0) {
+      const assetIds = [...new Set(plantHours.map(ph => ph.assetId))];
+      if (assetIds.length > 0) {
+        const fuelLogsRef = collection(db, 'fuelLogs');
+        const fuelLogsQuery = query(
+          fuelLogsRef,
+          where('masterAccountId', '==', filters.masterAccountId),
+          where('assetId', 'in', assetIds.slice(0, 10)),
+          where('date', '>=', filters.startDate),
+          where('date', '<=', filters.endDate)
+        );
+        const fuelSnapshot = await getDocs(fuelLogsQuery);
+        
+        fuelSnapshot.forEach(doc => {
+          const data = doc.data();
+          const key = `${data.assetId}-${data.date}`;
+          if (!fuelLogsMap.has(key)) {
+            fuelLogsMap.set(key, data);
+          }
+        });
+      }
+    }
+    
+    plantHours.forEach(ph => {
+      const fuelLogKey = `${ph.assetId}-${ph.date}`;
+      const fuelLog = fuelLogsMap.get(fuelLogKey);
+      
+      if (fuelLog) {
+        ph.fuelAmount = fuelLog.fuelAmount;
+        ph.fuelMeterReading = fuelLog.meterReading;
+        ph.fuelMeterType = fuelLog.meterType;
+        
+        if (ph.totalHours > 0) {
+          if (fuelLog.meterType === 'HOUR_METER') {
+            ph.fuelConsumption = fuelLog.fuelAmount / ph.totalHours;
+          } else {
+            ph.fuelConsumption = fuelLog.fuelAmount / (fuelLog.meterReading || 1);
+          }
+        }
+      }
+    });
 
     if (plantHours.length === 0) {
       console.log('[TimesheetExport] No plant hours data found');
@@ -192,7 +242,7 @@ export async function exportPlantAssetHours(filters: ExportFilters): Promise<str
     }
 
     // Generate CSV
-    const csvHeader = 'Date,Asset ID,Opening Hours,Closing Hours,Total Hours,Operator Name,Productive,Maintenance,Idle,Breakdown,Refueling,Weather Impact,PV Area,Block,Notes\n';
+    const csvHeader = 'Date,Asset ID,Opening Hours,Closing Hours,Total Hours,Operator Name,Productive,Maintenance,Idle,Breakdown,Refueling,Weather Impact,PV Area,Block,Fuel Amount (L),Meter Reading,Consumption (L/h or L/km),Notes\n';
     const csvRows = plantHours.map(row => {
       const fields = [
         row.date,
@@ -209,6 +259,9 @@ export async function exportPlantAssetHours(filters: ExportFilters): Promise<str
         row.inclementWeather ? `"${row.weatherNotes || 'Yes'}"` : 'No',
         `"${row.pvArea || ''}"`,
         `"${row.blockNumber || ''}"`,
+        row.fuelAmount ? row.fuelAmount.toFixed(1) : '-',
+        row.fuelMeterReading ? `${row.fuelMeterReading.toFixed(0)}${row.fuelMeterType === 'HOUR_METER' ? 'h' : 'km'}` : '-',
+        row.fuelConsumption ? row.fuelConsumption.toFixed(2) : '-',
         `"${row.notes?.replace(/"/g, '""') || ''}"`
       ];
       return fields.join(',');

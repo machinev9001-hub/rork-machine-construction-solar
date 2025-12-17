@@ -15,6 +15,8 @@ type FuelLog = {
   plantNumber?: string;
   registrationNumber?: string;
   fuelAmount: number;
+  bowserOpeningReading: number;
+  bowserClosingReading: number;
   meterReading: number;
   meterType: 'HOUR_METER' | 'ODOMETER';
   date: string;
@@ -36,10 +38,15 @@ export default function DieselClerkFuelLogScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [fuelAmount, setFuelAmount] = useState('');
+  const [bowserOpeningReading, setBowserOpeningReading] = useState('');
+  const [bowserClosingReading, setBowserClosingReading] = useState('');
   const [meterReading, setMeterReading] = useState('');
   const [meterType, setMeterType] = useState<'HOUR_METER' | 'ODOMETER'>('HOUR_METER');
   const [notes, setNotes] = useState('');
+
+  const litresDecanted = bowserOpeningReading && bowserClosingReading 
+    ? Math.max(0, parseFloat(bowserClosingReading) - parseFloat(bowserOpeningReading))
+    : 0;
 
   useEffect(() => {
     fetchPlantAsset();
@@ -93,8 +100,18 @@ export default function DieselClerkFuelLogScreen() {
       return;
     }
 
-    if (!fuelAmount.trim() || parseFloat(fuelAmount) <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid fuel amount');
+    if (!bowserOpeningReading.trim() || parseFloat(bowserOpeningReading) < 0) {
+      Alert.alert('Validation Error', 'Please enter a valid bowser opening reading');
+      return;
+    }
+
+    if (!bowserClosingReading.trim() || parseFloat(bowserClosingReading) < 0) {
+      Alert.alert('Validation Error', 'Please enter a valid bowser closing reading');
+      return;
+    }
+
+    if (parseFloat(bowserClosingReading) < parseFloat(bowserOpeningReading)) {
+      Alert.alert('Validation Error', 'Bowser closing reading must be greater than or equal to opening reading');
       return;
     }
 
@@ -114,7 +131,9 @@ export default function DieselClerkFuelLogScreen() {
         assetType: plantAsset.type,
         plantNumber: plantAsset.plantNumber,
         registrationNumber: plantAsset.registrationNumber,
-        fuelAmount: parseFloat(fuelAmount),
+        fuelAmount: litresDecanted,
+        bowserOpeningReading: parseFloat(bowserOpeningReading),
+        bowserClosingReading: parseFloat(bowserClosingReading),
         meterReading: parseFloat(meterReading),
         meterType,
         date: dateStr,
@@ -140,7 +159,8 @@ export default function DieselClerkFuelLogScreen() {
           {
             text: 'Log Another',
             onPress: () => {
-              setFuelAmount('');
+              setBowserOpeningReading('');
+              setBowserClosingReading('');
               setMeterReading('');
               setNotes('');
             }
@@ -218,18 +238,38 @@ export default function DieselClerkFuelLogScreen() {
         </View>
 
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Fuel Details</Text>
+          <Text style={styles.sectionTitle}>Bowser Meter Readings</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Fuel Amount (Liters) *</Text>
+            <Text style={styles.label}>Bowser Opening Reading (Liters) *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter fuel amount"
-              value={fuelAmount}
-              onChangeText={setFuelAmount}
+              placeholder="Enter opening reading"
+              value={bowserOpeningReading}
+              onChangeText={setBowserOpeningReading}
               keyboardType="decimal-pad"
             />
           </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Bowser Closing Reading (Liters) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter closing reading"
+              value={bowserClosingReading}
+              onChangeText={setBowserClosingReading}
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          <View style={styles.calculatedField}>
+            <Text style={styles.calculatedLabel}>Litres Decanted</Text>
+            <Text style={styles.calculatedValue}>{litresDecanted.toFixed(2)} L</Text>
+          </View>
+        </View>
+
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Machine Meter Reading</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Meter Type *</Text>
@@ -487,6 +527,27 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     paddingTop: 14,
+  },
+  calculatedField: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+  },
+  calculatedLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#1e40af',
+  },
+  calculatedValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#1e40af',
   },
   meterTypeContainer: {
     flexDirection: 'row',

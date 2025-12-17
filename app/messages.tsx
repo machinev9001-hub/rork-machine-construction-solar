@@ -238,7 +238,7 @@ export default function MessagesScreen() {
     
     return (
       <TouchableOpacity
-        style={[styles.conversationCard, { backgroundColor: theme.cardBg }]}
+        style={[styles.conversationCard, { backgroundColor: theme.surface }]}
         onPress={() => handleItemPress(item)}
         activeOpacity={0.7}
       >

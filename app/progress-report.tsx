@@ -514,8 +514,7 @@ export default function ProgressReportScreen() {
                 onPress={handlePrint}
                 disabled={!selectedBlock}
               >
-                <Printer size={18} color="#fff" strokeWidth={2} />
-                <Text style={styles.headerButtonText}>Print</Text>
+                <Printer size={16} color="#fff" strokeWidth={2} />
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -526,10 +525,7 @@ export default function ProgressReportScreen() {
                 {isPrinting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <>
-                    <FileDown size={18} color="#fff" strokeWidth={2} />
-                    <Text style={styles.headerButtonText}>Export PDF</Text>
-                  </>
+                  <FileDown size={16} color="#fff" strokeWidth={2} />
                 )}
               </TouchableOpacity>
             </View>
@@ -544,10 +540,10 @@ export default function ProgressReportScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.filtersSection, { backgroundColor: theme.cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Report Filters</Text>
+          <Text style={[styles.filterSectionTitle, { color: '#000' }]}>Report Filters</Text>
           
           <View style={styles.filterRow}>
-            <Text style={[styles.filterLabel, { color: theme.text }]}>PV Area:</Text>
+            <Text style={[styles.filterLabel, { color: '#000' }]}>PV Area:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
               {pvAreas.map(area => (
                 <TouchableOpacity
@@ -565,7 +561,7 @@ export default function ProgressReportScreen() {
                 >
                   <Text style={[
                     styles.filterChipText,
-                    { color: selectedPVArea === area.id ? '#fff' : theme.text },
+                    { color: selectedPVArea === area.id ? '#fff' : '#000' },
                     selectedPVArea === area.id && styles.filterChipTextActive,
                   ]}>
                     {area.name}
@@ -577,7 +573,7 @@ export default function ProgressReportScreen() {
 
           {selectedPVArea && (
             <View style={styles.filterRow}>
-              <Text style={[styles.filterLabel, { color: theme.text }]}>Block:</Text>
+              <Text style={[styles.filterLabel, { color: '#000' }]}>Block:</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
                 {blocks.map(block => (
                   <TouchableOpacity
@@ -594,7 +590,7 @@ export default function ProgressReportScreen() {
                   >
                     <Text style={[
                       styles.filterChipText,
-                      { color: selectedBlock === block.id ? '#fff' : theme.text },
+                      { color: selectedBlock === block.id ? '#fff' : '#000' },
                       selectedBlock === block.id && styles.filterChipTextActive,
                     ]}>
                       {block.name}
@@ -608,7 +604,7 @@ export default function ProgressReportScreen() {
           {selectedBlock && selectedBlockData && (
             <>
               <View style={styles.filterRow}>
-                <Text style={[styles.filterLabel, { color: theme.text }]}>Row:</Text>
+                <Text style={[styles.filterLabel, { color: '#000' }]}>Row:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
                   {selectedBlockData.rowValues.map((row: string) => (
                     <TouchableOpacity
@@ -621,7 +617,7 @@ export default function ProgressReportScreen() {
                     >
                       <Text style={[
                         styles.filterChipText,
-                        { color: selectedRow === row ? '#fff' : theme.text },
+                        { color: selectedRow === row ? '#fff' : '#000' },
                         selectedRow === row && styles.filterChipTextActive,
                       ]}>
                         {row}
@@ -632,7 +628,7 @@ export default function ProgressReportScreen() {
               </View>
 
               <View style={styles.filterRow}>
-                <Text style={[styles.filterLabel, { color: theme.text }]}>Column:</Text>
+                <Text style={[styles.filterLabel, { color: '#000' }]}>Column:</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
                   {selectedBlockData.columnValues.map((column: string) => (
                     <TouchableOpacity
@@ -645,7 +641,7 @@ export default function ProgressReportScreen() {
                     >
                       <Text style={[
                         styles.filterChipText,
-                        { color: selectedColumn === column ? '#fff' : theme.text },
+                        { color: selectedColumn === column ? '#fff' : '#000' },
                         selectedColumn === column && styles.filterChipTextActive,
                       ]}>
                         {column}
@@ -919,26 +915,24 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginRight: 16,
+    gap: 8,
+    marginRight: 8,
   },
   printButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    width: 36,
+    height: 36,
     backgroundColor: '#34A853',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    width: 36,
+    height: 36,
     backgroundColor: '#4285F4',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerButtonText: {
     color: '#fff',
@@ -961,24 +955,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  filterSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 16,
+  },
   filterRow: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   filterLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    marginBottom: 10,
   },
   filterScroll: {
     flexDirection: 'row',
   },
   filterChip: {
     backgroundColor: '#f1f3f4',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    marginRight: 10,
+    borderWidth: 2,
     borderColor: '#dadce0',
   },
   filterChipActive: {
@@ -986,8 +985,8 @@ const styles = StyleSheet.create({
     borderColor: '#4285F4',
   },
   filterChipText: {
-    fontSize: 13,
-    fontWeight: '500' as const,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   filterChipTextActive: {
     color: '#fff',

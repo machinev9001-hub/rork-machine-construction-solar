@@ -262,6 +262,20 @@ export default function SupervisorTaskDetailScreen() {
     const activitiesRef = collection(db, 'activities');
     const q = query(activitiesRef, where('taskId', '==', taskId));
     
+    const effectiveSubMenuId = subMenuId || subActivity;
+    
+    const menusRef = collection(db, 'menuItems');
+    const menuQuery = query(
+      menusRef,
+      where('level', '==', 'activity'),
+      where('parentSubMenuId', '==', effectiveSubMenuId),
+      where('siteId', '==', user?.siteId)
+    );
+    
+    const unsubscribeMenu = onSnapshot(menuQuery, () => {
+      console.log('📋 MenuItems changed - will refresh activities on next activity update');
+    });
+    
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       console.log('📊 ACTIVITIES REALTIME UPDATE - Received', snapshot.docs.length, 'activities');
       
@@ -450,10 +464,11 @@ export default function SupervisorTaskDetailScreen() {
     });
 
     return () => {
-      console.log('🔴 Cleaning up activities listener');
+      console.log('🔴 Cleaning up activities and menu listeners');
       unsubscribe();
+      unsubscribeMenu();
     };
-  }, [taskId, subActivity]);
+  }, [taskId, subActivity, subMenuId, user?.siteId]);
 
   const loadAllTasksForSubActivity = async () => {
     if (!subActivity || !activity || !user?.userId || !user?.siteId) {

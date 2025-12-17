@@ -4,12 +4,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Fuel, QrCode, MessageCircle, BookOpen, LogOut, Home, Settings, Keyboard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { AppTheme, getRoleAccentColor } from '@/constants/colors';
 
 export default function DieselClerkHomeScreen() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualAssetId, setManualAssetId] = useState('');
+  const accentColor = getRoleAccentColor(user?.role);
 
   const handleLogout = () => {
     Alert.alert(
@@ -48,32 +50,24 @@ export default function DieselClerkHomeScreen() {
       title: 'Scan QR Code',
       subtitle: 'Scan plant asset QR to log fuel',
       icon: QrCode,
-      color: '#10b981',
-      bgColor: '#f0fdf4',
       onPress: () => router.push({ pathname: '/qr-scanner', params: { context: 'diesel-clerk' } })
     },
     {
       title: 'Manual Entry',
       subtitle: 'Enter asset ID manually',
       icon: Keyboard,
-      color: '#f59e0b',
-      bgColor: '#fef3c7',
       onPress: () => setShowManualEntry(true)
     },
     {
       title: 'Messages',
       subtitle: 'Chat with your team',
       icon: MessageCircle,
-      color: '#3b82f6',
-      bgColor: '#eff6ff',
       onPress: () => router.push('/messages')
     },
     {
       title: 'Daily Diary',
       subtitle: 'View site diary entries',
       icon: BookOpen,
-      color: '#8b5cf6',
-      bgColor: '#f5f3ff',
       onPress: () => router.push('/daily-diary')
     },
   ];
@@ -117,12 +111,12 @@ export default function DieselClerkHomeScreen() {
             return (
               <TouchableOpacity
                 key={index}
-                style={[styles.navCard, { backgroundColor: item.bgColor }]}
+                style={styles.navCard}
                 onPress={item.onPress}
                 activeOpacity={0.7}
               >
-                <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
-                  <Icon size={28} color="#fff" strokeWidth={2.5} />
+                <View style={[styles.iconContainer, { backgroundColor: accentColor }]}>
+                  <Icon size={28} color={AppTheme.background} strokeWidth={2.5} />
                 </View>
                 <Text style={styles.navTitle}>{item.title}</Text>
                 <Text style={styles.navSubtitle}>{item.subtitle}</Text>
@@ -137,7 +131,7 @@ export default function DieselClerkHomeScreen() {
           style={[styles.navButton, styles.navButtonActive]}
           onPress={() => router.push('/diesel-clerk-home')}
         >
-          <Home size={24} color="#3b82f6" strokeWidth={2.5} />
+          <Home size={24} color={accentColor} strokeWidth={2.5} />
           <Text style={[styles.navButtonText, styles.navButtonTextActive]}>Home</Text>
         </TouchableOpacity>
         
@@ -145,7 +139,7 @@ export default function DieselClerkHomeScreen() {
           style={styles.navButton}
           onPress={() => Alert.alert('Settings', 'Settings screen coming soon')}
         >
-          <Settings size={24} color="#64748b" strokeWidth={2} />
+          <Settings size={24} color={AppTheme.textSecondary} strokeWidth={2} />
           <Text style={styles.navButtonText}>Settings</Text>
         </TouchableOpacity>
       </View>
@@ -200,17 +194,17 @@ export default function DieselClerkHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: AppTheme.background,
   },
   headerLeft: {
     flex: 1,
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: AppTheme.headerBg,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 2,
+    borderBottomColor: AppTheme.accent,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -218,17 +212,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: '#0f172a',
+    color: AppTheme.text,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
     marginTop: 2,
   },
   logoutButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#fee2e2',
+    backgroundColor: AppTheme.errorBg,
   },
   content: {
     flex: 1,
@@ -238,22 +232,19 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   welcomeCard: {
-    backgroundColor: '#fff',
+    backgroundColor: AppTheme.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: AppTheme.border,
   },
   avatarCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f59e0b',
+    backgroundColor: AppTheme.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -261,12 +252,12 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 22,
     fontWeight: '700' as const,
-    color: '#0f172a',
+    color: AppTheme.text,
     marginBottom: 4,
   },
   welcomeSubtext: {
     fontSize: 14,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -275,15 +266,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   navCard: {
-    width: '48%',
+    width: '47%',
+    backgroundColor: AppTheme.surface,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: AppTheme.border,
   },
   iconContainer: {
     width: 64,
@@ -296,20 +285,20 @@ const styles = StyleSheet.create({
   navTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
-    color: '#0f172a',
+    color: AppTheme.text,
     marginBottom: 4,
     textAlign: 'center',
   },
   navSubtitle: {
     fontSize: 12,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
     textAlign: 'center',
   },
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    backgroundColor: AppTheme.headerBg,
+    borderTopWidth: 2,
+    borderTopColor: AppTheme.accent,
     paddingVertical: 8,
     paddingHorizontal: 16,
     gap: 12,
@@ -322,53 +311,55 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   navButtonActive: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: AppTheme.surface,
   },
   navButtonText: {
     fontSize: 12,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
     marginTop: 4,
     fontWeight: '500' as const,
   },
   navButtonTextActive: {
-    color: '#3b82f6',
+    color: AppTheme.text,
     fontWeight: '600' as const,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: AppTheme.surface,
     borderRadius: 16,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     gap: 16,
+    borderWidth: 1,
+    borderColor: AppTheme.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '600' as const,
-    color: '#1e293b',
+    color: AppTheme.text,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: AppTheme.background,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#1e293b',
+    color: AppTheme.text,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: AppTheme.border,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -382,19 +373,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonCancel: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: AppTheme.background,
+    borderWidth: 1,
+    borderColor: AppTheme.border,
   },
   modalButtonConfirm: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: AppTheme.accent,
   },
   modalButtonTextCancel: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: '#64748b',
+    color: AppTheme.textSecondary,
   },
   modalButtonTextConfirm: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: '#fff',
+    color: AppTheme.background,
   },
 });

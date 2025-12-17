@@ -18,6 +18,7 @@ export type UserRole =
   | "Plumber"
   | "Carpenter"
   | "Welder"
+  | "Diesel Clerk"
   | "master";
 
 export type CompanySettings = {

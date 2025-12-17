@@ -27,6 +27,7 @@ const ROLE_OPTIONS: RoleOption[] = [
   { label: 'HSE', targets: ['employee', 'user'] },
   { label: 'HR', targets: ['employee', 'user'] },
   { label: 'Accounts', targets: ['employee', 'user'] },
+  { label: 'Diesel Clerk', targets: ['employee', 'user'] },
 ];
 
 export const getRoleOptions = (target: RoleTarget): string[] =>

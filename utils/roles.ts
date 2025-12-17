@@ -32,3 +32,8 @@ export function isOperatorRole(role: string | undefined | null): boolean {
   const normalized = normalizeRole(role);
   return normalized === 'operator';
 }
+
+export function isDieselClerkRole(role: string | undefined | null): boolean {
+  const normalized = normalizeRole(role);
+  return normalized === 'diesel clerk';
+}

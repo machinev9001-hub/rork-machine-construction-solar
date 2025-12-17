@@ -10,9 +10,9 @@ import { db } from '@/config/firebase';
 import { getCachedEmployeeWithUser, handleOfflineEmployeeAccess } from '@/utils/employeeCache';
 import { getCachedUserById } from '@/utils/userCache';
 import NetInfo from '@react-native-community/netinfo';
-import { isManagementRole, isOperatorRole } from '@/utils/roles';
+import { isManagementRole, isOperatorRole, isDieselClerkRole } from '@/utils/roles';
 
-type ScanContext = 'login' | 'hse' | 'admin' | 'plant';
+type ScanContext = 'login' | 'hse' | 'admin' | 'plant' | 'diesel-clerk';
 
 export default function QRScannerScreen() {
   const { context } = useLocalSearchParams<{ context?: ScanContext }>();
@@ -68,8 +68,8 @@ export default function QRScannerScreen() {
     setIsProcessing(true);
 
     try {
-      if (context === 'plant') {
-        console.log('[QRScanner] Plant context - raw QR data:', data);
+      if (context === 'plant' || context === 'diesel-clerk') {
+        console.log('[QRScanner] Plant/Diesel context - raw QR data:', data);
         let plantAssetId = data;
         
         if (data.includes('/')) {
@@ -86,6 +86,16 @@ export default function QRScannerScreen() {
           Alert.alert('Error', 'Invalid plant asset QR code', [
             { text: 'OK', onPress: () => { setScanned(false); setIsProcessing(false); } }
           ]);
+          return;
+        }
+        
+        if (context === 'diesel-clerk') {
+          console.log('[QRScanner] Navigating to diesel-clerk-fuel-log with ID:', plantAssetId);
+          setIsProcessing(false);
+          router.replace({
+            pathname: '/diesel-clerk-fuel-log',
+            params: { plantAssetId }
+          });
           return;
         }
         
@@ -267,7 +277,8 @@ export default function QRScannerScreen() {
         
         const isManagement = isManagementRole(result.user.role);
         const isOperator = isOperatorRole(result.user.role);
-        const destination = isManagement ? '/(tabs)' : isOperator ? '/operator-home' : '/employee-timesheet';
+        const isDieselClerk = isDieselClerkRole(result.user.role);
+        const destination = isManagement ? '/(tabs)' : isOperator ? '/operator-home' : isDieselClerk ? '/diesel-clerk-home' : '/employee-timesheet';
         router.replace(destination as any);
         return;
       } else if (result.isFirstTime) {
@@ -289,7 +300,8 @@ export default function QRScannerScreen() {
         setPin('');
         setIsProcessing(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[QRScanner] PIN submit error:', error);
       Alert.alert('Error', 'Failed to login');
       setIsProcessing(false);
     }
@@ -337,6 +349,7 @@ export default function QRScannerScreen() {
               {context === 'hse' && 'Scan employee QR code to view profile'}
               {context === 'admin' && 'Scan user QR code to manage account'}
               {context === 'plant' && 'Scan plant asset QR code'}
+              {context === 'diesel-clerk' && 'Scan plant asset to log fuel'}
               {!context && 'Position the QR code within the frame'}
             </Text>
           </View>

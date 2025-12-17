@@ -72,7 +72,7 @@ export default function EmployeeProfileScreen() {
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString();
-    } catch (error) {
+    } catch {
       return 'Invalid date';
     }
   };
@@ -83,7 +83,7 @@ export default function EmployeeProfileScreen() {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       const daysUntilExpiry = Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       return daysUntilExpiry <= 25 && daysUntilExpiry >= 0;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
@@ -93,7 +93,7 @@ export default function EmployeeProfileScreen() {
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.getTime() < Date.now();
-    } catch (error) {
+    } catch {
       return false;
     }
   };

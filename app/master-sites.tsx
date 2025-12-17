@@ -110,7 +110,7 @@ export default function MasterSitesScreen() {
   });
 
   const sitesQuery = useQuery({
-    queryKey: ['master-sites', derivedMaster?.currentCompanyId, derivedMaster?.masterIdentifier],
+    queryKey: ['master-sites', derivedMaster],
     queryFn: async () => {
       if (!derivedMaster) {
         console.log('[MasterSites] No master account/user logged in');

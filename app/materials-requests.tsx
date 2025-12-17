@@ -55,7 +55,6 @@ export default function MaterialRequestsScreen() {
   const [activeTab, setActiveTab] = useState<'incoming' | 'scheduled' | 'archived'>('incoming');
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
   const [optimisticallyHiddenCards, setOptimisticallyHiddenCards] = useState<Set<string>>(() => new Set<string>());
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -168,11 +167,9 @@ export default function MaterialRequestsScreen() {
         
         setRequests(results);
         setIsLoading(false);
-        setError(null);
       },
       (err) => {
         console.error('❌ MATERIALS REQUEST REALTIME - Error:', err);
-        setError(err as Error);
         setIsLoading(false);
       }
     );

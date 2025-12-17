@@ -41,7 +41,7 @@ export default function OperatorPlantHoursScreen() {
           } else {
             Alert.alert('Error', 'Plant asset not found');
           }
-        } catch (error) {
+        } catch {
           Alert.alert('Error', 'Failed to load plant asset');
         } finally {
           setIsLoading(false);

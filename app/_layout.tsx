@@ -391,6 +391,70 @@ function RootLayoutNav({ onReady }: RootLayoutNavProps) {
         <Stack.Screen name="operator-man-hours" options={{ headerShown: false }} />
         <Stack.Screen name="operator-plant-hours" options={{ headerShown: false }} />
         <Stack.Screen name="operator-checklist" options={{ headerShown: false }} />
+        <Stack.Screen name="operator-checklist-plant" options={{ headerShown: false }} />
+        <Stack.Screen name="operator-hours-dashboard" options={{ headerShown: false }} />
+        <Stack.Screen name="qr-scanner" options={{ headerShown: false }} />
+        <Stack.Screen name="generate-qr" />
+        <Stack.Screen name="generate-plant-qr" />
+        <Stack.Screen name="print-qr-codes" />
+        <Stack.Screen name="face-clock" options={{ headerShown: false }} />
+        <Stack.Screen name="face-enrollment" />
+        <Stack.Screen name="site-face-settings" />
+        <Stack.Screen name="add-employee" />
+        <Stack.Screen name="add-asset" />
+        <Stack.Screen name="add-subcontractor" />
+        <Stack.Screen name="edit-subcontractor" />
+        <Stack.Screen name="company-selector" options={{ headerShown: false }} />
+        <Stack.Screen name="company-setup" options={{ headerShown: false }} />
+        <Stack.Screen name="master-signup" options={{ headerShown: false }} />
+        <Stack.Screen name="master-menu-manager" />
+        <Stack.Screen name="sub-menu-detail" />
+        <Stack.Screen name="seed-menus" />
+        <Stack.Screen name="plant-allocation-overview" />
+        <Stack.Screen name="staff-allocation-overview" />
+        <Stack.Screen name="plant-manager-assets" />
+        <Stack.Screen name="plant-manager-diary" />
+        <Stack.Screen name="plant-manager-timesheets" />
+        <Stack.Screen name="staff-manager-employees" />
+        <Stack.Screen name="staff-requests" />
+        <Stack.Screen name="resource-requests" />
+        <Stack.Screen name="plant-asset-actions" />
+        <Stack.Screen name="plant-asset-marketplace" />
+        <Stack.Screen name="plant-asset-operator-change" />
+        <Stack.Screen name="plant-asset-types" />
+        <Stack.Screen name="materials-requests" />
+        <Stack.Screen name="qc-requests" />
+        <Stack.Screen name="qc-scheduled" />
+        <Stack.Screen name="qc-completed" />
+        <Stack.Screen name="planner-commissioning-requests" />
+        <Stack.Screen name="progress-report" />
+        <Stack.Screen name="master-pv-blocks" />
+        <Stack.Screen name="master-subcontractors" />
+        <Stack.Screen name="task-activities" />
+        <Stack.Screen name="activity-detail" />
+        <Stack.Screen name="daily-diary" />
+        <Stack.Screen name="supervisor-messages" />
+        <Stack.Screen name="messages" />
+        <Stack.Screen name="onboarding-dashboard" />
+        <Stack.Screen name="onboarding-employees" />
+        <Stack.Screen name="onboarding-employee-detail" />
+        <Stack.Screen name="onboarding-assets" />
+        <Stack.Screen name="onboarding-asset-detail" />
+        <Stack.Screen name="onboarding-messages" />
+        <Stack.Screen name="chat" />
+        <Stack.Screen name="archived-checklist-detail" />
+        <Stack.Screen name="billing-config" />
+        <Stack.Screen name="accounts/index" />
+        <Stack.Screen name="accounts/settings" />
+        <Stack.Screen name="account-info" />
+        <Stack.Screen name="debug-info" />
+        <Stack.Screen name="debug-progress" />
+        <Stack.Screen name="diagnose-site-data" />
+        <Stack.Screen name="log-breakdown" />
+        <Stack.Screen name="per-user-progress" />
+        <Stack.Screen name="user-progress-detail" />
+        <Stack.Screen name="diesel-clerk-home" options={{ headerShown: false }} />
+        <Stack.Screen name="diesel-clerk-fuel-log" />
       </Stack>
     </View>
   );

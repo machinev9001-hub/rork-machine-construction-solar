@@ -448,7 +448,7 @@ export default function PlantAssetTypesScreen() {
             Organize your plant assets into groups (categories) and types for better filtering and management.
           </Text>
           <Text style={styles.infoText}>
-            Example: Group "Excavation" can contain types like "Excavator", "Backhoe", "Trencher"
+            Example: Group &quot;Excavation&quot; can contain types like &quot;Excavator&quot;, &quot;Backhoe&quot;, &quot;Trencher&quot;
           </Text>
         </View>
       </ScrollView>

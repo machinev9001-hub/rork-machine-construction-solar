@@ -268,7 +268,7 @@ export default function ChatScreen() {
           title: userName || 'Chat',
           headerStyle: { backgroundColor: theme.headerBg },
           headerTintColor: theme.text,
-          headerTitleStyle: { fontWeight: '600' as const },
+          headerTitleStyle: { fontWeight: '600' as const, color: theme.text },
         }}
       />
       <View style={[commonStyles.headerBorder, { backgroundColor: roleAccentColor }]} />

@@ -11,7 +11,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { ArrowLeft, Users, Package, Plus, Search, X, CheckCircle, Clock, Briefcase } from 'lucide-react-native';
+import { ArrowLeft, Users, Package, Plus, Search, X, CheckCircle, Clock, Briefcase, MessageCircle, BookOpen } from 'lucide-react-native';
 import BottomTabBar from '@/components/BottomTabBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -347,6 +347,25 @@ export default function OnboardingDashboardScreen() {
       </View>
       <StandardSiteIndicator />
       <View style={commonStyles.headerBorder} />
+
+      <View style={styles.quickActionsBar}>
+        <TouchableOpacity
+          style={styles.quickActionButton}
+          onPress={() => router.push('/onboarding-messages' as any)}
+          activeOpacity={0.7}
+        >
+          <MessageCircle size={20} color="#3b82f6" />
+          <Text style={styles.quickActionText}>Messages</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickActionButton}
+          onPress={() => router.push('/daily-diary' as any)}
+          activeOpacity={0.7}
+        >
+          <BookOpen size={20} color="#10b981" />
+          <Text style={styles.quickActionText}>Daily Diary</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -1022,6 +1041,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: '#fff',
+  },
+  quickActionsBar: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  quickActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#262626',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#404040',
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
   },
 
 });

@@ -1,7 +1,7 @@
 import { Stack, router } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Clock, Truck, MessageCircle, User, LogOut, Home, Settings } from 'lucide-react-native';
+import { Clock, Truck, MessageCircle, User, LogOut, Home, Settings, BookOpen } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function OperatorHomeScreen() {
@@ -49,6 +49,14 @@ export default function OperatorHomeScreen() {
       color: '#3b82f6',
       bgColor: '#eff6ff',
       onPress: () => router.push('/messages')
+    },
+    {
+      title: 'Daily Diary',
+      subtitle: 'View site diary entries',
+      icon: BookOpen,
+      color: '#8b5cf6',
+      bgColor: '#f5f3ff',
+      onPress: () => router.push('/daily-diary')
     },
   ];
 
@@ -205,7 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   navCard: {
-    width: '47%',
+    width: '48%',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',

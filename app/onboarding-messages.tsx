@@ -236,7 +236,7 @@ export default function OnboardingMessagesScreen() {
                   {getMessageIcon(message.type)}
                 </View>
                 <View style={styles.messageHeaderContent}>
-                  <Text style={[styles.messageType, { color: theme.textSecondary }]}>
+                  <Text style={[styles.messageType, { color: theme.text }]}>
                     {getMessageTypeLabel(message.type)}
                   </Text>
                   <Text style={[styles.messageTime, { color: theme.textSecondary }]}>
@@ -247,7 +247,7 @@ export default function OnboardingMessagesScreen() {
                 </View>
                 {!message.read && <View style={styles.unreadDot} />}
               </View>
-              <Text style={[styles.messageSubject, { color: theme.text }]}>{message.subject}</Text>
+              <Text style={[styles.messageSubject, { color: theme.text }]} numberOfLines={1}>{message.subject}</Text>
               <Text style={[styles.messageContent, { color: theme.textSecondary }]} numberOfLines={2}>
                 {message.content}
               </Text>

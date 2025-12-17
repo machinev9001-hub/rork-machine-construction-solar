@@ -301,16 +301,51 @@ export default function ProgressReportScreen() {
     }));
   };
 
-  const handleExportPDF = async () => {
-    setIsPrinting(true);
-    
+  const handlePrint = async () => {
     try {
       if (Platform.OS === 'web') {
-        window.print();
+        const htmlContent = generateHTMLReport();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          setTimeout(() => {
+            printWindow.print();
+          }, 250);
+        }
       } else {
         const htmlContent = generateHTMLReport();
         const fileName = `progress_report_${Date.now()}.html`;
         
+        const exportModule = await import('@/utils/exportData');
+        const saveAndShareFile = (exportModule as any).default || (exportModule as any).saveAndShareFile;
+        if (saveAndShareFile) {
+          await saveAndShareFile(htmlContent, fileName, 'text/html');
+        }
+      }
+    } catch (error) {
+      console.error('Print failed:', error);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    setIsPrinting(true);
+    
+    try {
+      const htmlContent = generateHTMLReport();
+      
+      if (Platform.OS === 'web') {
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `progress_report_${Date.now()}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        const fileName = `progress_report_${Date.now()}.html`;
         const exportModule = await import('@/utils/exportData');
         const saveAndShareFile = (exportModule as any).default || (exportModule as any).saveAndShareFile;
         if (saveAndShareFile) {
@@ -335,9 +370,13 @@ export default function ProgressReportScreen() {
         <meta charset="UTF-8">
         <title>Progress Report - ${pvAreaName} / ${blockName}</title>
         <style>
+          @media print {
+            body { margin: 0; }
+            @page { margin: 1cm; }
+          }
           body { font-family: Arial, sans-serif; padding: 20px; background: #fff; }
           h1 { color: #202124; border-bottom: 2px solid #4285F4; padding-bottom: 10px; }
-          h2 { color: #4285F4; margin-top: 30px; }
+          h2 { color: #000000; margin-top: 30px; font-weight: 700; }
           table { width: 100%; border-collapse: collapse; margin: 20px 0; }
           th, td { border: 1px solid #dadce0; padding: 12px; text-align: left; }
           th { background: #4285F4; color: #fff; font-weight: 600; }
@@ -471,6 +510,15 @@ export default function ProgressReportScreen() {
           headerRight: () => (
             <View style={styles.headerActions}>
               <TouchableOpacity
+                style={styles.printButton}
+                onPress={handlePrint}
+                disabled={!selectedBlock}
+              >
+                <Printer size={18} color="#fff" strokeWidth={2} />
+                <Text style={styles.headerButtonText}>Print</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
                 style={styles.exportButton}
                 onPress={handleExportPDF}
                 disabled={isPrinting || !selectedBlock}
@@ -479,14 +527,8 @@ export default function ProgressReportScreen() {
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
-                    {Platform.OS === 'web' ? (
-                      <Printer size={18} color="#fff" strokeWidth={2} />
-                    ) : (
-                      <FileDown size={18} color="#fff" strokeWidth={2} />
-                    )}
-                    <Text style={styles.exportButtonText}>
-                      {Platform.OS === 'web' ? 'Print' : 'Export'}
-                    </Text>
+                    <FileDown size={18} color="#fff" strokeWidth={2} />
+                    <Text style={styles.headerButtonText}>Export PDF</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -696,7 +738,7 @@ export default function ProgressReportScreen() {
 
                   {expandedSections.visualGrid && (
                     <View style={styles.sectionContent}>
-                      <Text style={styles.subsectionTitle}>
+                      <Text style={[styles.subsectionTitle, { fontWeight: '700' as const }]}>
                         Block: {blockProgress.blockName} in PV Area: {pvAreas.find(p => p.id === selectedPVArea)?.name}
                       </Text>
 
@@ -876,6 +918,15 @@ const styles = StyleSheet.create({
     gap: 12,
     marginRight: 16,
   },
+  printButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#34A853',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
   exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -885,7 +936,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  exportButtonText: {
+  headerButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600' as const,
@@ -988,7 +1039,7 @@ const styles = StyleSheet.create({
   subsectionTitle: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: '#5f6368',
+    color: '#000000',
     marginBottom: 16,
   },
   table: {

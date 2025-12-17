@@ -565,6 +565,7 @@ export default function ProgressReportScreen() {
                 >
                   <Text style={[
                     styles.filterChipText,
+                    { color: selectedPVArea === area.id ? '#fff' : theme.text },
                     selectedPVArea === area.id && styles.filterChipTextActive,
                   ]}>
                     {area.name}
@@ -593,6 +594,7 @@ export default function ProgressReportScreen() {
                   >
                     <Text style={[
                       styles.filterChipText,
+                      { color: selectedBlock === block.id ? '#fff' : theme.text },
                       selectedBlock === block.id && styles.filterChipTextActive,
                     ]}>
                       {block.name}
@@ -619,6 +621,7 @@ export default function ProgressReportScreen() {
                     >
                       <Text style={[
                         styles.filterChipText,
+                        { color: selectedRow === row ? '#fff' : theme.text },
                         selectedRow === row && styles.filterChipTextActive,
                       ]}>
                         {row}
@@ -642,6 +645,7 @@ export default function ProgressReportScreen() {
                     >
                       <Text style={[
                         styles.filterChipText,
+                        { color: selectedColumn === column ? '#fff' : theme.text },
                         selectedColumn === column && styles.filterChipTextActive,
                       ]}>
                         {column}
@@ -675,13 +679,13 @@ export default function ProgressReportScreen() {
                   style={styles.sectionHeader}
                   onPress={() => toggleSection('cellActivities')}
                 >
-                  <Text style={styles.sectionTitle}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>
                     Activities at {cellActivities.pvArea} / {cellActivities.blockNumber} / ROW {cellActivities.row} / COLUMN {cellActivities.column}
                   </Text>
                   {expandedSections.cellActivities ? (
-                    <ChevronUp size={20} color="#5f6368" />
+                    <ChevronUp size={20} color={theme.textSecondary} />
                   ) : (
-                    <ChevronDown size={20} color="#5f6368" />
+                    <ChevronDown size={20} color={theme.textSecondary} />
                   )}
                 </TouchableOpacity>
 
@@ -698,21 +702,21 @@ export default function ProgressReportScreen() {
                       
                       {cellActivities.activities.map((activity, index) => (
                         <View key={index} style={styles.tableRow}>
-                          <Text style={[styles.tableCell, { flex: 2 }]}>{activity.activityName}</Text>
-                          <Text style={[styles.tableCell, { flex: 1 }]}>{activity.type}</Text>
+                          <Text style={[styles.tableCell, { flex: 2, color: theme.text }]}>{activity.activityName}</Text>
+                          <Text style={[styles.tableCell, { flex: 1, color: theme.text }]}>{activity.type}</Text>
                           <View style={[styles.tableCell, { flex: 1 }]}>
                             <Text style={[styles.statusBadge, { backgroundColor: getStatusColor(activity.status) }]}>
                               {getStatusIcon(activity.status)} {activity.status}
                             </Text>
                           </View>
-                          <Text style={[styles.tableCell, { flex: 1 }]}>{activity.progress}%</Text>
-                          <Text style={[styles.tableCell, { flex: 1.5 }]}>{activity.assignedTo}</Text>
+                          <Text style={[styles.tableCell, { flex: 1, color: theme.text }]}>{activity.progress}%</Text>
+                          <Text style={[styles.tableCell, { flex: 1.5, color: theme.text }]}>{activity.assignedTo}</Text>
                         </View>
                       ))}
                     </View>
 
                     <View style={styles.cellProgressSummary}>
-                      <Text style={styles.summaryText}>
+                      <Text style={[styles.summaryText, { color: theme.text }]}>
                         Cell Progress: {cellActivities.cellProgress.toFixed(0)}% ({cellActivities.activities.filter(a => a.status === 'Done').length} / {cellActivities.activities.length} activities = {((cellActivities.activities.filter(a => a.status === 'Done').length / cellActivities.activities.length) * 100).toFixed(0)}%)
                       </Text>
                     </View>
@@ -728,17 +732,17 @@ export default function ProgressReportScreen() {
                     style={styles.sectionHeader}
                     onPress={() => toggleSection('visualGrid')}
                   >
-                    <Text style={styles.sectionTitle}>Visual Progress Grid</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Visual Progress Grid</Text>
                     {expandedSections.visualGrid ? (
-                      <ChevronUp size={20} color="#5f6368" />
+                      <ChevronUp size={20} color={theme.textSecondary} />
                     ) : (
-                      <ChevronDown size={20} color="#5f6368" />
+                      <ChevronDown size={20} color={theme.textSecondary} />
                     )}
                   </TouchableOpacity>
 
                   {expandedSections.visualGrid && (
                     <View style={styles.sectionContent}>
-                      <Text style={[styles.subsectionTitle, { fontWeight: '700' as const }]}>
+                      <Text style={[styles.subsectionTitle, { fontWeight: '700' as const, color: theme.text }]}>
                         Block: {blockProgress.blockName} in PV Area: {pvAreas.find(p => p.id === selectedPVArea)?.name}
                       </Text>
 
@@ -775,19 +779,19 @@ export default function ProgressReportScreen() {
                       </ScrollView>
 
                       <View style={styles.legend}>
-                        <Text style={styles.legendTitle}>Color Legend:</Text>
+                        <Text style={[styles.legendTitle, { color: theme.text }]}>Color Legend:</Text>
                         <View style={styles.legendItems}>
                           <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#34A853' }]} />
-                            <Text style={styles.legendText}>Green (100%): Cell is complete</Text>
+                            <Text style={[styles.legendText, { color: theme.textSecondary }]}>Green (100%): Cell is complete</Text>
                           </View>
                           <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#FBBC04' }]} />
-                            <Text style={styles.legendText}>Yellow (1-99%): Cell is in progress</Text>
+                            <Text style={[styles.legendText, { color: theme.textSecondary }]}>Yellow (1-99%): Cell is in progress</Text>
                           </View>
                           <View style={styles.legendItem}>
                             <View style={[styles.legendColor, { backgroundColor: '#EA4335' }]} />
-                            <Text style={styles.legendText}>Red (0%): Cell not started</Text>
+                            <Text style={[styles.legendText, { color: theme.textSecondary }]}>Red (0%): Cell not started</Text>
                           </View>
                         </View>
                       </View>
@@ -800,11 +804,11 @@ export default function ProgressReportScreen() {
                     style={styles.sectionHeader}
                     onPress={() => toggleSection('rowProgress')}
                   >
-                    <Text style={styles.sectionTitle}>By Row</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>By Row</Text>
                     {expandedSections.rowProgress ? (
-                      <ChevronUp size={20} color="#5f6368" />
+                      <ChevronUp size={20} color={theme.textSecondary} />
                     ) : (
-                      <ChevronDown size={20} color="#5f6368" />
+                      <ChevronDown size={20} color={theme.textSecondary} />
                     )}
                   </TouchableOpacity>
 
@@ -813,8 +817,8 @@ export default function ProgressReportScreen() {
                       {rowProgress.map(row => (
                         <View key={row.rowLabel} style={styles.progressRow}>
                           <View style={styles.progressRowHeader}>
-                            <Text style={styles.progressRowLabel}>Row {row.rowLabel}:</Text>
-                            <Text style={styles.progressRowPercentage}>{row.percentage.toFixed(0)}%</Text>
+                            <Text style={[styles.progressRowLabel, { color: theme.text }]}>Row {row.rowLabel}:</Text>
+                            <Text style={[styles.progressRowPercentage, { color: '#4285F4' }]}>{row.percentage.toFixed(0)}%</Text>
                             <Text style={[styles.statusBadge, { backgroundColor: getStatusColor(row.status), marginLeft: 8 }]}>
                               {getStatusIcon(row.status)} {row.status}
                             </Text>
@@ -833,11 +837,11 @@ export default function ProgressReportScreen() {
                     style={styles.sectionHeader}
                     onPress={() => toggleSection('columnProgress')}
                   >
-                    <Text style={styles.sectionTitle}>By Column</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>By Column</Text>
                     {expandedSections.columnProgress ? (
-                      <ChevronUp size={20} color="#5f6368" />
+                      <ChevronUp size={20} color={theme.textSecondary} />
                     ) : (
-                      <ChevronDown size={20} color="#5f6368" />
+                      <ChevronDown size={20} color={theme.textSecondary} />
                     )}
                   </TouchableOpacity>
 
@@ -846,8 +850,8 @@ export default function ProgressReportScreen() {
                       {columnProgress.slice(0, 10).map(col => (
                         <View key={col.columnLabel} style={styles.progressRow}>
                           <View style={styles.progressRowHeader}>
-                            <Text style={styles.progressRowLabel}>Col {col.columnLabel}:</Text>
-                            <Text style={styles.progressRowPercentage}>{col.percentage.toFixed(0)}%</Text>
+                            <Text style={[styles.progressRowLabel, { color: theme.text }]}>Col {col.columnLabel}:</Text>
+                            <Text style={[styles.progressRowPercentage, { color: '#4285F4' }]}>{col.percentage.toFixed(0)}%</Text>
                             <Text style={[styles.statusBadge, { backgroundColor: getStatusColor(col.status), marginLeft: 8 }]}>
                               {getStatusIcon(col.status)} {col.status}
                             </Text>
@@ -858,7 +862,7 @@ export default function ProgressReportScreen() {
                         </View>
                       ))}
                       {columnProgress.length > 10 && (
-                        <Text style={styles.moreText}>... ({columnProgress.length - 10} more columns)</Text>
+                        <Text style={[styles.moreText, { color: theme.textSecondary }]}>... ({columnProgress.length - 10} more columns)</Text>
                       )}
                     </View>
                   )}
@@ -869,19 +873,19 @@ export default function ProgressReportScreen() {
                     style={styles.sectionHeader}
                     onPress={() => toggleSection('blockProgress')}
                   >
-                    <Text style={styles.sectionTitle}>Overall Block Progress</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Overall Block Progress</Text>
                     {expandedSections.blockProgress ? (
-                      <ChevronUp size={20} color="#5f6368" />
+                      <ChevronUp size={20} color={theme.textSecondary} />
                     ) : (
-                      <ChevronDown size={20} color="#5f6368" />
+                      <ChevronDown size={20} color={theme.textSecondary} />
                     )}
                   </TouchableOpacity>
 
                   {expandedSections.blockProgress && (
                     <View style={styles.sectionContent}>
                       <View style={styles.overallProgress}>
-                        <Text style={styles.overallProgressLabel}>{blockProgress.blockName}:</Text>
-                        <Text style={styles.overallProgressValue}>{blockProgress.percentage.toFixed(0)}% In Progress</Text>
+                        <Text style={[styles.overallProgressLabel, { color: theme.text }]}>{blockProgress.blockName}:</Text>
+                        <Text style={[styles.overallProgressValue, { color: '#4285F4' }]}>{blockProgress.percentage.toFixed(0)}% In Progress</Text>
                       </View>
 
                       <View style={styles.progressBar}>
@@ -889,12 +893,12 @@ export default function ProgressReportScreen() {
                       </View>
 
                       <View style={styles.blockStats}>
-                        <Text style={styles.blockStat}>
+                        <Text style={[styles.blockStat, { color: theme.textSecondary }]}>
                           - Total Cells: {blockProgress.totalCells} ({selectedBlockData?.rowValues.length || 0} rows × {selectedBlockData?.columnValues.length || 0} columns)
                         </Text>
-                        <Text style={styles.blockStat}>- Completed: {blockProgress.completedCells} cells</Text>
-                        <Text style={styles.blockStat}>- In Progress: {blockProgress.inProgressCells} cells</Text>
-                        <Text style={styles.blockStat}>- Not Started: {blockProgress.notStartedCells} cells</Text>
+                        <Text style={[styles.blockStat, { color: theme.textSecondary }]}>- Completed: {blockProgress.completedCells} cells</Text>
+                        <Text style={[styles.blockStat, { color: theme.textSecondary }]}>- In Progress: {blockProgress.inProgressCells} cells</Text>
+                        <Text style={[styles.blockStat, { color: theme.textSecondary }]}>- Not Started: {blockProgress.notStartedCells} cells</Text>
                       </View>
                     </View>
                   )}
@@ -963,7 +967,6 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: '#202124',
     marginBottom: 8,
   },
   filterScroll: {
@@ -985,7 +988,6 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: '500' as const,
-    color: '#5f6368',
   },
   filterChipTextActive: {
     color: '#fff',
@@ -998,7 +1000,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#5f6368',
   },
   emptyState: {
     padding: 40,
@@ -1007,7 +1008,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
     textAlign: 'center',
   },
   section: {
@@ -1030,7 +1030,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
-    color: '#202124',
     flex: 1,
   },
   sectionContent: {
@@ -1039,7 +1038,6 @@ const styles = StyleSheet.create({
   subsectionTitle: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: '#000000',
     marginBottom: 16,
   },
   table: {
@@ -1068,7 +1066,6 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     fontSize: 12,
-    color: '#202124',
   },
   statusBadge: {
     fontSize: 10,
@@ -1088,7 +1085,6 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: '#202124',
   },
   gridHeaderRow: {
     flexDirection: 'row',
@@ -1157,7 +1153,6 @@ const styles = StyleSheet.create({
   legendTitle: {
     fontSize: 12,
     fontWeight: '700' as const,
-    color: '#202124',
     marginBottom: 8,
   },
   legendItems: {
@@ -1175,7 +1170,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11,
-    color: '#5f6368',
   },
   progressRow: {
     marginBottom: 16,
@@ -1188,13 +1182,11 @@ const styles = StyleSheet.create({
   progressRowLabel: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: '#202124',
     flex: 1,
   },
   progressRowPercentage: {
     fontSize: 14,
     fontWeight: '700' as const,
-    color: '#4285F4',
   },
   progressBar: {
     height: 24,
@@ -1208,7 +1200,6 @@ const styles = StyleSheet.create({
   },
   moreText: {
     fontSize: 12,
-    color: '#5f6368',
     fontStyle: 'italic',
     marginTop: 8,
     textAlign: 'center',
@@ -1222,12 +1213,10 @@ const styles = StyleSheet.create({
   overallProgressLabel: {
     fontSize: 16,
     fontWeight: '700' as const,
-    color: '#202124',
   },
   overallProgressValue: {
     fontSize: 16,
     fontWeight: '700' as const,
-    color: '#4285F4',
   },
   blockStats: {
     marginTop: 16,
@@ -1235,7 +1224,6 @@ const styles = StyleSheet.create({
   },
   blockStat: {
     fontSize: 13,
-    color: '#5f6368',
     lineHeight: 20,
   },
 });

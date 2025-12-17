@@ -109,64 +109,102 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     return icons.length > 0 ? icons.join(' ') : '-';
   };
 
-  const rows = filteredGroups.map(group => {
-    const assetRows = group.dateGroups.map(dateGroup => {
-      const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-      if (!entry) return '';
+  const groupsByAssetType = new Map<string, TimesheetGroup[]>();
+  filteredGroups.forEach(group => {
+    const assetType = group.title || 'Unknown';
+    if (!groupsByAssetType.has(assetType)) {
+      groupsByAssetType.set(assetType, []);
+    }
+    groupsByAssetType.get(assetType)!.push(group);
+  });
 
-      const hasAdjustment = dateGroup.originalEntry && dateGroup.adjustmentEntry;
-      const originalEntry = dateGroup.originalEntry;
-      const adjustedEntry = dateGroup.adjustmentEntry;
+  const assetTypeSubtotals = new Map<string, number>();
+  groupsByAssetType.forEach((groups, assetType) => {
+    const subtotal = groups.reduce((sum, group) => {
+      return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
+        const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
+        return groupSum + (entry?.totalHours || 0);
+      }, 0);
+    }, 0);
+    assetTypeSubtotals.set(assetType, subtotal);
+  });
 
-      return `
-        ${hasAdjustment ? `
-          <tr style="background-color: #fff3cd;">
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(originalEntry!.date)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${originalEntry!.operatorName}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${originalEntry!.totalHours?.toFixed(1) || '0.0'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(originalEntry)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${originalEntry!.notes || '-'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
-              <span style="background-color: #6c757d; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">ORIG</span>
-            </td>
-          </tr>
-          <tr style="background-color: #d1ecf1;">
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(adjustedEntry!.date)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${adjustedEntry!.operatorName}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${adjustedEntry!.totalHours?.toFixed(1) || '0.0'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(adjustedEntry)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${adjustedEntry!.notes || '-'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
-              <span style="background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">PM</span>
-            </td>
-          </tr>
-        ` : `
-          <tr>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(entry.date)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6;">${entry.operatorName}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours || 0}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${entry.totalHours?.toFixed(1) || '0.0'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(entry)}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${entry.notes || '-'}</td>
-            <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">-</td>
-          </tr>
-        `}
-      `;
-    }).join('');
+  const rows: string[] = [];
+  
+  groupsByAssetType.forEach((groups, assetType) => {
+    groups.forEach(group => {
+      const assetRows = group.dateGroups.map(dateGroup => {
+        const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
+        if (!entry) return '';
 
-    return assetRows;
-  }).join('');
+        const hasAdjustment = dateGroup.originalEntry && dateGroup.adjustmentEntry;
+        const originalEntry = dateGroup.originalEntry;
+        const adjustedEntry = dateGroup.adjustmentEntry;
+
+        return `
+          ${hasAdjustment ? `
+            <tr style="background-color: #fff3cd;">
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(originalEntry!.date)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${originalEntry!.operatorName}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${originalEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(originalEntry)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${originalEntry!.notes || '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
+                <span style="background-color: #6c757d; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">ORIG</span>
+              </td>
+            </tr>
+            <tr style="background-color: #d1ecf1;">
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(adjustedEntry!.date)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${adjustedEntry!.operatorName}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${adjustedEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(adjustedEntry)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${adjustedEntry!.notes || '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">
+                <span style="background-color: #0d6efd; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">PM</span>
+              </td>
+            </tr>
+          ` : `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${formatDate(entry.date)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6;">${entry.operatorName}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours || 0}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${entry.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">${formatStatusIcons(entry)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px;">${entry.notes || '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center;">-</td>
+            </tr>
+          `}
+        `;
+      }).join('');
+
+      rows.push(assetRows);
+    });
+
+    const subtotal = assetTypeSubtotals.get(assetType) || 0;
+    const assetCount = groups.length;
+    rows.push(`
+      <tr style="background-color: #e0f2fe; border-top: 2px solid #0ea5e9;">
+        <td colspan="6" style="padding: 10px 8px; border: 1px solid #dee2e6; font-weight: 700; color: #0c4a6e; font-size: 12px;">
+          ${assetType} Subtotal (${assetCount} asset${assetCount > 1 ? 's' : ''})
+        </td>
+        <td style="padding: 10px 8px; border: 1px solid #dee2e6; text-align: right; font-weight: 700; color: #0c4a6e; font-size: 13px;">
+          ${subtotal.toFixed(1)}h
+        </td>
+        <td colspan="3" style="padding: 10px 8px; border: 1px solid #dee2e6;"></td>
+      </tr>
+    `);
+  });
 
   const totalHours = filteredGroups.reduce((sum, group) => {
     return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
@@ -266,7 +304,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
             </tr>
           </thead>
           <tbody>
-            ${rows}
+            ${rows.join('')}
           </tbody>
         </table>
 

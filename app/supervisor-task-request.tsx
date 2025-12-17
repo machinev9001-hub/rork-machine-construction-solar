@@ -11,13 +11,14 @@ import NetInfo from '@react-native-community/netinfo';
 import { queueFirestoreOperation } from '@/utils/offlineQueue';
 
 export default function SupervisorTaskRequestScreen() {
-  const { activity, subActivity, index, name, currentTaskId, isAddTaskRequest } = useLocalSearchParams<{
+  const { activity, subActivity, index, name, currentTaskId, isAddTaskRequest, subMenuId } = useLocalSearchParams<{
     activity: string;
     subActivity: string;
     index: string;
     name: string;
     currentTaskId?: string;
     isAddTaskRequest?: string;
+    subMenuId?: string;
   }>();
   const { user } = useAuth();
   const router = useRouter();
@@ -91,8 +92,10 @@ export default function SupervisorTaskRequestScreen() {
         status: 'PENDING',
         requestedBy: user.userId,
         siteId: user.siteId,
+        masterAccountId: user.masterAccountId,
         activity: activity || 'unknown',
         subActivity: subActivity || 'unknown',
+        subMenuId: subMenuId || subActivity || 'unknown',
         subMenuName: decodedName,
         taskName: decodedName,
         currentTaskId: currentTaskId || null,

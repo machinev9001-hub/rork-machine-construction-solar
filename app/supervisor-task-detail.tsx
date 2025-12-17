@@ -2331,7 +2331,25 @@ export default function SupervisorTaskDetailScreen() {
                   <Text style={styles.savingText}>Saving...</Text>
                 </View>
               )}
-
+              <TouchableOpacity
+                style={styles.addTaskButton}
+                onPress={() => {
+                  router.push({
+                    pathname: '/supervisor-task-request',
+                    params: {
+                      activity: activity || '',
+                      subActivity: subActivity || '',
+                      name: name || '',
+                      currentTaskId: taskId,
+                      isAddTaskRequest: 'true',
+                      subMenuId: subMenuId || subActivity || '',
+                    },
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Plus size={24} color="#fff" />
+              </TouchableOpacity>
             </View>
           ),
         }}

@@ -103,7 +103,12 @@ export async function getPaginatedDocs<T = DocumentData>(
   
   try {
     const snapshot = await getDocs(limitedQuery);
-    const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+    // Safely combine doc.id with doc.data()
+    // Type T should include id: string for proper typing
+    const docs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as T[];
     
     const hasMore = docs.length > pageSize;
     const resultDocs = hasMore ? docs.slice(0, pageSize) : docs;

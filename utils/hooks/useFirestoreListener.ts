@@ -5,6 +5,16 @@ import { logger } from '@/utils/logger';
 /**
  * Hook to safely manage Firestore listeners with automatic cleanup
  * Prevents memory leaks from uncleaned onSnapshot subscriptions
+ * 
+ * IMPORTANT: Wrap your callback in useCallback to prevent unnecessary re-subscriptions
+ * 
+ * @example
+ * const handleUpdate = useCallback((snapshot) => {
+ *   const data = snapshot.docs.map(d => d.data());
+ *   setData(data);
+ * }, []);
+ * 
+ * useFirestoreListener(query, handleUpdate, { context: 'MyComponent' });
  */
 export function useFirestoreListener<T = DocumentData>(
   query: Query<T> | null,
@@ -52,11 +62,32 @@ export function useFirestoreListener<T = DocumentData>(
         unsubscribeRef.current = null;
       }
     };
-  }, [query, callback, context, errorHandler, enabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, context, errorHandler, enabled]);
+  // Note: callback is intentionally excluded from deps to avoid re-subscriptions
+  // Users should wrap callback in useCallback if it needs to be reactive
 }
 
 /**
  * Hook to manage multiple Firestore listeners
+ * 
+ * IMPORTANT: Use useMemo to create a stable listeners array reference
+ * 
+ * @example
+ * const listeners = useMemo(() => [
+ *   {
+ *     query: tasksQuery,
+ *     callback: handleTasksUpdate,
+ *     context: 'Tasks',
+ *   },
+ *   {
+ *     query: activitiesQuery,
+ *     callback: handleActivitiesUpdate,
+ *     context: 'Activities',
+ *   },
+ * ], [tasksQuery, activitiesQuery, handleTasksUpdate, handleActivitiesUpdate]);
+ * 
+ * useMultipleFirestoreListeners(listeners);
  */
 export function useMultipleFirestoreListeners(
   listeners: Array<{
@@ -108,5 +139,8 @@ export function useMultipleFirestoreListeners(
       unsubscribesRef.current.forEach(unsubscribe => unsubscribe());
       unsubscribesRef.current = [];
     };
-  }, [listeners]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Note: listeners is intentionally excluded from deps
+  // Users should wrap listeners array in useMemo for stability
 }

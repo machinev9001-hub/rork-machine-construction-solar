@@ -3,7 +3,8 @@
  * Automatically gates console logs based on environment
  */
 
-const isDevelopment = __DEV__;
+// Check if __DEV__ is available, fallback to NODE_ENV check
+const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
 
 type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
@@ -73,5 +74,5 @@ export const logger = new Logger();
 export { Logger };
 
 // Convenience exports for common use cases
-export const createLogger = (prefix: string, enabled?: boolean) => 
+export const createLogger = (prefix: string, enabled?: boolean): Logger => 
   new Logger({ prefix, enabled });

@@ -1,5 +1,9 @@
 # Company System Firebase Indexes
 
+> **⚠️ NOTICE: This information has been consolidated into [FIREBASE-INDEXES.md](./FIREBASE-INDEXES.md)**  
+> Please refer to the consolidated Firebase indexes documentation for the most up-to-date information.  
+> This file is kept for reference but may not be maintained going forward.
+
 This document lists all required Firebase indexes for the multi-tenant company system.
 
 ## Required Indexes

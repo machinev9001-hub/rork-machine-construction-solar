@@ -1,5 +1,9 @@
 # User Manual - Project Tracker System
 
+> **⚠️ NOTICE: This file has been consolidated into [USER-GUIDE.md](./USER-GUIDE.md)**  
+> Please refer to the new consolidated documentation for the most up-to-date information.  
+> This file is kept for reference but may not be maintained going forward.
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)

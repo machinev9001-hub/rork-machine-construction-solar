@@ -1,5 +1,9 @@
 # User Roles & Permissions
 
+> **⚠️ NOTICE: This file has been consolidated into [USER-GUIDE.md](./USER-GUIDE.md)**  
+> Please refer to the new consolidated documentation for the most up-to-date information.  
+> This file is kept for reference but may not be maintained going forward.
+
 ## Overview
 
 The Project Tracker system implements role-based access control (RBAC) with nine distinct user roles. Each role has specific permissions and capabilities within the system.

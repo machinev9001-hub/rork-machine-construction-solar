@@ -5,19 +5,19 @@ Welcome to the Project Tracker system documentation.
 ## Documentation Structure
 
 ### Core Documentation
-- [User Manual](./USER-MANUAL.md) - Complete guide for end users including surveyor workflows
-- [System Overview](./SYSTEM-OVERVIEW.md) - Technical architecture and recent feature updates
-- [Database Structure](./DATABASE-STRUCTURE.md) - Collections, indexes, and data models
-- [User Roles & Permissions](./USER-ROLES.md) - Role definitions and access levels
-- [Login System Implementation](./LOGIN-SYSTEM-IMPLEMENTATION.md) - Authentication methods and flows (ID Number + PIN)
+- [User Guide](./USER-GUIDE.md) - Complete guide for end users including all roles and workflows (consolidates User Manual and User Roles)
+- [Technical Guide](./TECHNICAL-GUIDE.md) - System architecture, theme system, and technical details (consolidates System Overview and Theme System)
+- [Firebase Indexes](./FIREBASE-INDEXES.md) - All Firebase indexes including company and onboarding indexes
+- [Testing Guide](./TESTING.md) - Complete testing documentation and procedures
+- [Offline System](./OFFLINE-SYSTEM.md) - Offline functionality and sync system
 - [Setup Guide](./SETUP-GUIDE.md) - Installation and configuration instructions
 - [API Reference](./API-REFERENCE.md) - Backend endpoints and data structures
 
 ### Workflow-Specific Documentation
-- [Surveyor Workflow](./USER-MANUAL.md#surveyor-workflow) - Complete surveyor task management guide
-- [Request Workflows](./USER-MANUAL.md#request-workflows) - Task, Scope, QC, Cabling, Termination requests
-- [Completed Today Workflow](./USER-MANUAL.md#supervisor-completed-today-workflow) - Daily submission and locking mechanism
-- [QC Workflow](./USER-MANUAL.md#qc-workflow) - Quality control inspection process
+- [Surveyor Workflow](./USER-GUIDE.md#surveyor-functions) - Complete surveyor task management guide
+- [Request Workflows](./USER-GUIDE.md#request-workflows) - Task, Scope, QC, Cabling, Termination requests
+- [Activities & Tasks](./USER-GUIDE.md#activities--tasks) - Complete task workflow from start to finish
+- [Daily Progress Submission](./USER-GUIDE.md#submitting-daily-progress) - Three-layer locking mechanism
 
 ## Quick Start
 
@@ -25,14 +25,15 @@ Welcome to the Project Tracker system documentation.
 1. Create company profile in Company Settings
 2. Add users through Manage Users (auto-generated User IDs)
 3. Assign appropriate roles to each user
-4. Share QR codes or credentials with users
+4. Configure theme settings (global or per-UI)
+5. Share QR codes or credentials with users
 
 ### For Supervisors
 1. Log in with your credentials
 2. Access your assigned tasks and activities
-3. Submit daily "Completed Today" values with toast warning acknowledgment
+3. Submit daily "Completed Today" values with three-layer locking
 4. Request scope, QC, or surveyor support as needed
-5. Track request status in your dashboard
+5. Track request status and progress in your dashboard
 
 ### For Planners
 1. Monitor incoming requests across all tabs
@@ -55,38 +56,42 @@ Welcome to the Project Tracker system documentation.
 2. **Enhanced "Completed Today"** - Three-layer locking with toast warnings
 3. **Automatic Request Archiving** - Smart inbox management with auto-archiving
 4. **Task Details Progress** - Total work progress calculation and display
+5. **Theme System** - Customizable themes with global and per-UI modes
+6. **Documentation Consolidation** - Streamlined documentation structure
 
 ### System Capabilities
 - **6 Request Types**: Task, Scope, QC, Cabling, Termination, Surveyor
-- **9 User Roles**: Full role-based access control
+- **10 User Roles**: Full role-based access control
 - **7 Workflow States**: Complete request lifecycle tracking
 - **3 Lock Types**: Comprehensive daily submission control
+- **5 Built-in Themes**: Default, Dark Mode, High Contrast, Field Mode, Blueprint Mode
 - **48+ Firebase Indexes**: Optimized query performance
 
 ## Common Tasks by Role
 
 ### Master User
-- [Creating Company Profile](./USER-MANUAL.md#company-settings)
-- [Managing Users](./USER-MANUAL.md#manage-users)
-- [Generating QR Codes](./USER-MANUAL.md#viewing-user-information)
+- [Creating Company Profile](./USER-GUIDE.md#company-settings)
+- [Managing Users](./USER-GUIDE.md#manage-users)
+- [Configuring Theme Settings](./USER-GUIDE.md#theme-settings-master-only)
+- [Generating QR Codes](./USER-GUIDE.md#viewing-user-information)
 
 ### Supervisor
-- [Requesting Task Access](./USER-MANUAL.md#supervisor-requesting-task-access)
-- [Submitting Completed Today](./USER-MANUAL.md#understanding-completed-today)
-- [Requesting Surveyor Tasks](./USER-MANUAL.md#supervisor-creating-surveyor-task-requests)
-- [Requesting QC Inspection](./USER-MANUAL.md#supervisor-requesting-qc-inspection)
+- [Requesting Task Access](./USER-GUIDE.md#requesting-task-access)
+- [Submitting Daily Progress](./USER-GUIDE.md#submitting-daily-progress)
+- [Creating Surveyor Requests](./USER-GUIDE.md#creating-surveyor-task-requests)
+- [Requesting QC Inspection](./USER-GUIDE.md#requesting-qc-inspection)
+- [Requesting Handovers](./USER-GUIDE.md#requesting-handovers)
 
 ### Planner
-- [Approving Task Requests](./USER-MANUAL.md#planner-approving-task-access-requests)
-- [Setting Activity Scope](./USER-MANUAL.md#planner-setting-activity-scope)
-- [Scheduling QC Inspections](./USER-MANUAL.md#planner-scheduling-qc-inspections)
-- [Managing Surveyor Requests](./USER-MANUAL.md#planner-reviewing-surveyor-requests)
-- [Managing Handovers](./USER-MANUAL.md#handover-requests)
+- [Approving Task Requests](./USER-GUIDE.md#approving-task-access-requests)
+- [Setting Activity Scope](./USER-GUIDE.md#setting-activity-scope)
+- [Scheduling QC Inspections](./USER-GUIDE.md#scheduling-qc-inspections)
+- [Managing Handover Requests](./USER-GUIDE.md#managing-handover-requests)
 
 ### Surveyor
-- [Viewing Assigned Tasks](./USER-MANUAL.md#surveyor-executing-assigned-tasks)
-- [Using Image Library](./USER-MANUAL.md#surveyor-image-library)
-- [Sharing Survey Results](./USER-MANUAL.md#step-3-share-survey-results)
+- [Viewing Assigned Tasks](./USER-GUIDE.md#viewing-assigned-tasks)
+- [Using Image Library](./USER-GUIDE.md#using-image-library)
+- [Executing Tasks](./USER-GUIDE.md#executing-tasks)
 
 ## Support
 
@@ -98,6 +103,30 @@ For technical support or questions, contact the system administrator.
 - Request workflow questions
 - Technical difficulties
 - Feature enhancement requests
+
+---
+
+## Documentation Changes
+
+### Consolidated Files (January 2025)
+The following documentation has been consolidated for better organization:
+
+**USER-GUIDE.md** (New) - Consolidates:
+- USER-MANUAL.md (archived)
+- USER-ROLES.md (archived)
+
+**TECHNICAL-GUIDE.md** (New) - Consolidates:
+- SYSTEM-OVERVIEW.md (archived)
+- THEME-SYSTEM.md (archived)
+
+**FIREBASE-INDEXES.md** (Enhanced) - Already includes:
+- COMPANY-INDEXES.md (can be archived)
+- ONBOARDING-INDEXES.md (can be archived)
+
+**Standalone Documentation** (Retained):
+- TESTING.md - Testing and quality assurance
+- OFFLINE-SYSTEM.md - Offline functionality and sync
+- ROW-COLUMN-NAMING-CHANGE.md - Specific naming convention changes
 
 ---
 Last Updated: January 2025

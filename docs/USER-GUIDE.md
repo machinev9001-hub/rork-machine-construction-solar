@@ -69,7 +69,7 @@ If you are setting up the system for the first time, you need to create a Master
 
 ## User Roles & Permissions
 
-The system implements role-based access control (RBAC) with nine distinct user roles.
+The system implements role-based access control (RBAC) with ten distinct user roles.
 
 ### Role Hierarchy
 

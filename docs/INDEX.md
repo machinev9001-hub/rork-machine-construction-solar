@@ -25,8 +25,8 @@ Welcome to the Project Tracker system documentation.
 1. Create company profile in Company Settings
 2. Add users through Manage Users (auto-generated User IDs)
 3. Assign appropriate roles to each user
-4. Configure theme settings (global or per-UI)
-5. Share QR codes or credentials with users
+4. Share QR codes or credentials with users
+5. (Optional) Configure theme settings for global or per-UI customization
 
 ### For Supervisors
 1. Log in with your credentials

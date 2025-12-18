@@ -1,5 +1,9 @@
 # System Overview - Project Tracker
 
+> **⚠️ NOTICE: This file has been consolidated into [TECHNICAL-GUIDE.md](./TECHNICAL-GUIDE.md)**  
+> Please refer to the new consolidated documentation for the most up-to-date information.  
+> This file is kept for reference but may not be maintained going forward.
+
 ## Architecture
 
 ### Technology Stack

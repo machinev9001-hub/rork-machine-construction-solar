@@ -1,5 +1,9 @@
 # Theme System Implementation
 
+> **⚠️ NOTICE: This file has been consolidated into [TECHNICAL-GUIDE.md](./TECHNICAL-GUIDE.md)**  
+> Please refer to the new consolidated documentation for the most up-to-date information.  
+> This file is kept for reference but may not be maintained going forward.
+
 ## Overview
 All screens in the app now use a centralized theme system defined in `constants/colors.ts`. The theme provides a consistent dark appearance with black background across all screens.
 

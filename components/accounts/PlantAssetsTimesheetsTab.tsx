@@ -776,8 +776,9 @@ export default function PlantAssetsTimesheetsTab({
     const hasAdjustments = item.dateGroups.some(dg => dg.originalEntry);
     const isSelected = selectedGroups.has(item.key);
     
-    const totals = item.entries.reduce((acc, entry) => {
-      if (viewMode === 'plant') {
+    const totals = item.dateGroups.reduce((acc, dateGroup) => {
+      const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
+      if (entry && viewMode === 'plant') {
         return {
           actualHours: acc.actualHours + (entry.actualHours || 0),
           billableHours: acc.billableHours + (entry.billableHours || 0),

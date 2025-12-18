@@ -503,67 +503,53 @@ export default function BillingConfigScreen() {
   const [expandedDayCards, setExpandedDayCards] = useState<Set<string>>(new Set());
 
   const totalTimesheetHours = useMemo(() => {
-    // Calculate total hours using hierarchy:
+    // Calculate total hours using hierarchy based on timesheetGroups:
     // 1. If admin edit exists -> use admin's hours (highest priority for billing)
-    // 2. If plant manager edited -> use plant manager's hours
-    // 3. If only operator entry -> use operator's hours
-    // Note: After deduplication, we have BOTH operator and PM entries in the array
-    // We must only count ONE per date-operator pair (the PM entry if it exists)
+    // 2. If plant manager edited -> use plant manager's hours (adjustmentEntry)
+    // 3. If only operator entry -> use operator's hours (originalEntry)
+    // Each group represents a unique date, and we only count once per date
     
-    console.log('[TotalHours] Starting calculation with', timesheets.length, 'entries');
+    console.log('[TotalHours] Starting calculation with', timesheetGroups.length, 'date groups');
     
-    // Group entries by date-operator to find pairs
-    const dateOperatorMap = new Map<string, { operator?: TimesheetEntry; plantManager?: TimesheetEntry }>();
+    const assetPendingEdits = selectedAssetForTimesheets 
+      ? pendingEdits.get(selectedAssetForTimesheets.assetId) || []
+      : [];
     
-    for (const entry of timesheets) {
-      const dateKey = `${entry.date}-${entry.operatorName}`;
-      
-      if (!dateOperatorMap.has(dateKey)) {
-        dateOperatorMap.set(dateKey, {});
-      }
-      
-      const pair = dateOperatorMap.get(dateKey)!;
-      const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
-      
-      if (isPMEntry) {
-        pair.plantManager = entry;
-      } else {
-        pair.operator = entry;
-      }
-    }
-    
-    // Now calculate total, using PM entry if available, otherwise operator entry
     let total = 0;
     
-    dateOperatorMap.forEach((pair, dateKey) => {
-      // Check for admin edit in pendingEdits (highest priority for calculation)
-      const assetPendingEdits = selectedAssetForTimesheets 
-        ? pendingEdits.get(selectedAssetForTimesheets.assetId) || []
-        : [];
-      
-      const date = dateKey.split('-')[0];
+    timesheetGroups.forEach(group => {
+      // Check for admin edit (highest priority)
       const adminEdit = assetPendingEdits.find(
-        edit => edit.date === date && edit.editedBy === 'admin' && edit.status === 'pending_review'
+        edit => edit.date === group.date && edit.editedBy === 'admin' && edit.status === 'pending_review'
       );
       
       if (adminEdit) {
         // Use admin's hours (highest priority)
         total += adminEdit.totalHours;
-        console.log(`[TotalHours] Date ${date}: Using ADMIN edit hours: ${adminEdit.totalHours}`);
-      } else if (pair.plantManager) {
-        // Use Plant Manager's hours if they edited
-        total += pair.plantManager.totalHours;
-        console.log(`[TotalHours] Date ${date}: Using PM edit hours: ${pair.plantManager.totalHours}`);
-      } else if (pair.operator) {
-        // Use Operator's original hours
-        total += pair.operator.totalHours;
-        console.log(`[TotalHours] Date ${date}: Using OPERATOR hours: ${pair.operator.totalHours}`);
+        console.log(`[TotalHours] Date ${group.date}: Using ADMIN edit hours: ${adminEdit.totalHours}`);
+      } else {
+        // Use PM entry if it exists (from adjustmentEntry), otherwise use operator entry
+        // Find the PM row or ORIG row in the visible rows
+        const pmRow = group.rows.find(row => row.badgeLabel === 'PM');
+        const origRow = group.rows.find(row => row.badgeLabel === 'ORIG');
+        
+        if (pmRow) {
+          total += pmRow.totalHours;
+          console.log(`[TotalHours] Date ${group.date}: Using PM hours: ${pmRow.totalHours}`);
+        } else if (origRow) {
+          total += origRow.totalHours;
+          console.log(`[TotalHours] Date ${group.date}: Using OPERATOR hours: ${origRow.totalHours}`);
+        } else if (group.rows.length > 0) {
+          // Fallback to first row if no PM or ORIG badge found
+          total += group.rows[0].totalHours;
+          console.log(`[TotalHours] Date ${group.date}: Using fallback hours: ${group.rows[0].totalHours}`);
+        }
       }
     });
     
-    console.log(`[TotalHours] Final calculated total: ${total}h from ${dateOperatorMap.size} unique date-operator pairs`);
+    console.log(`[TotalHours] Final calculated total: ${total}h from ${timesheetGroups.length} date groups`);
     return total;
-  }, [timesheets, pendingEdits, selectedAssetForTimesheets]);
+  }, [timesheetGroups, pendingEdits, selectedAssetForTimesheets]);
 
   const hasAnyAdjustments = useMemo(() => {
     return timesheetGroups.some(group => group.hasAdjustments);
@@ -1909,9 +1895,9 @@ export default function BillingConfigScreen() {
                         groupHours = pmRow.totalHours;
                       } else if (origRow) {
                         groupHours = origRow.totalHours;
-                      } else {
+                      } else if (visibleRows.length > 0) {
                         // Fallback: use first visible row
-                        groupHours = visibleRows.length > 0 ? visibleRows[0].totalHours : 0;
+                        groupHours = visibleRows[0].totalHours;
                       }
                     }
                     

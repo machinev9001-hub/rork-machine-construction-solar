@@ -38,6 +38,8 @@ type VerifiedTimesheet = {
   actualHours?: number;
   billableHours?: number;
   billingRule?: string;
+  assetRate?: number;
+  totalCost?: number;
   
   openHours?: number;
   closeHours?: number;
@@ -294,6 +296,32 @@ export default function PlantAssetsTimesheetsTab({
 
       console.log('[PlantAssetsTimesheetsTab] Query returned', agreedTimesheets.length, 'agreed timesheets');
       
+      const uniqueAssetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
+      const ratesMap = new Map<string, { dryRate?: number; wetRate?: number; dailyRate?: number }>();
+      
+      if (uniqueAssetIds.length > 0) {
+        console.log('[PlantAssetsTimesheetsTab] Fetching rates for', uniqueAssetIds.length, 'assets');
+        const plantAssetsRef = collection(db, 'plantAssets');
+        const plantAssetsQuery = query(
+          plantAssetsRef,
+          where('masterAccountId', '==', user.masterAccountId),
+          where('assetId', 'in', uniqueAssetIds.slice(0, 10))
+        );
+        const plantAssetsSnapshot = await getDocs(plantAssetsQuery);
+        
+        plantAssetsSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.assetId) {
+            ratesMap.set(data.assetId, {
+              dryRate: data.dryRate,
+              wetRate: data.wetRate,
+              dailyRate: data.dailyRate,
+            });
+          }
+        });
+        console.log('[PlantAssetsTimesheetsTab] Loaded rates for', ratesMap.size, 'assets');
+      }
+      
       const fuelLogsMap = new Map<string, any>();
       if (agreedTimesheets.length > 0) {
         const assetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
@@ -339,6 +367,9 @@ export default function PlantAssetsTimesheetsTab({
         
         let billableHours: number | undefined;
         let billingRule: string | undefined;
+        let assetRate: number | undefined;
+        let totalCost: number | undefined;
+        
         if (isPlant && billingConfig && at.agreedHours > 0) {
           const timesheetForBilling: TimesheetForBilling = {
             startTime: 0,
@@ -351,6 +382,16 @@ export default function PlantAssetsTimesheetsTab({
           const result = calculateBillableHours(timesheetForBilling, billingConfig);
           billableHours = result.billableHours;
           billingRule = result.appliedRule;
+          
+          if (at.assetId) {
+            const rates = ratesMap.get(at.assetId);
+            if (rates) {
+              assetRate = rates.dryRate || rates.wetRate || rates.dailyRate;
+              if (assetRate && billableHours) {
+                totalCost = billableHours * assetRate;
+              }
+            }
+          }
         }
         
         const baseEntry: VerifiedTimesheet = {
@@ -368,6 +409,8 @@ export default function PlantAssetsTimesheetsTab({
           actualHours: at.agreedHours,
           billableHours,
           billingRule,
+          assetRate,
+          totalCost,
           
           totalHours: isPlant ? at.agreedHours : undefined,
           openHours: isPlant ? 0 : undefined,
@@ -653,6 +696,12 @@ export default function PlantAssetsTimesheetsTab({
             {timesheet.billableHours?.toFixed(1)}h
           </Text>
           <Text style={[styles.hoursCell, styles.cellText]}>
+            {timesheet.assetRate ? `R${timesheet.assetRate.toFixed(2)}` : '-'}
+          </Text>
+          <Text style={[styles.hoursCell, styles.cellText, styles.boldText, { color: '#1e3a8a' }]}>
+            {timesheet.totalCost ? `R${timesheet.totalCost.toFixed(2)}` : '-'}
+          </Text>
+          <Text style={[styles.hoursCell, styles.cellText]}>
             {timesheet.fuelAmount ? timesheet.fuelAmount.toFixed(1) : '-'}
           </Text>
           <Text style={[styles.hoursCell, styles.cellText]}>
@@ -711,6 +760,17 @@ export default function PlantAssetsTimesheetsTab({
     const showOriginals = showOriginalTimesheets.has(item.key);
     const hasAdjustments = item.dateGroups.some(dg => dg.originalEntry);
     const isSelected = selectedGroups.has(item.key);
+    
+    const totals = item.entries.reduce((acc, entry) => {
+      if (viewMode === 'plant') {
+        return {
+          actualHours: acc.actualHours + (entry.actualHours || 0),
+          billableHours: acc.billableHours + (entry.billableHours || 0),
+          totalCost: acc.totalCost + (entry.totalCost || 0),
+        };
+      }
+      return acc;
+    }, { actualHours: 0, billableHours: 0, totalCost: 0 });
 
     return (
       <View style={styles.groupCard}>
@@ -789,6 +849,8 @@ export default function PlantAssetsTimesheetsTab({
                       <Text style={styles.hoursHeaderCell}>Close</Text>
                       <Text style={styles.hoursHeaderCell}>Actual</Text>
                       <Text style={styles.hoursHeaderCell}>Billable</Text>
+                      <Text style={styles.hoursHeaderCell}>Rate</Text>
+                      <Text style={styles.hoursHeaderCell}>Cost</Text>
                       <Text style={styles.hoursHeaderCell}>Fuel (L)</Text>
                       <Text style={styles.hoursHeaderCell}>Meter</Text>
                       <Text style={styles.hoursHeaderCell}>L/h</Text>
@@ -820,6 +882,31 @@ export default function PlantAssetsTimesheetsTab({
                     </View>
                   );
                 })}
+                
+                {viewMode === 'plant' && (
+                  <View style={[styles.timesheetRow, styles.summaryRow]}>
+                    <View style={styles.dateCell}>
+                      <Text style={[styles.cellText, styles.boldText]}>TOTALS</Text>
+                    </View>
+                    <Text style={[styles.operatorCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText, styles.boldText]}>
+                      {totals.actualHours.toFixed(1)}h
+                    </Text>
+                    <Text style={[styles.hoursCell, styles.cellText, styles.boldText, { color: '#10b981' }]}>
+                      {totals.billableHours.toFixed(1)}h
+                    </Text>
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText, styles.boldText, { color: '#1e3a8a' }]}>
+                      {totals.totalCost > 0 ? `R${totals.totalCost.toFixed(2)}` : '-'}
+                    </Text>
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.hoursCell, styles.cellText]} />
+                    <Text style={[styles.verifiedCell, styles.cellText]} />
+                  </View>
+                )}
               </View>
             </ScrollView>
           </View>
@@ -1404,6 +1491,12 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700' as const,
     color: '#ffffff',
+  },
+  summaryRow: {
+    backgroundColor: '#f1f5f9',
+    borderTopWidth: 2,
+    borderTopColor: '#1e3a8a',
+    borderBottomWidth: 0,
   },
   emptyState: {
     flex: 1,

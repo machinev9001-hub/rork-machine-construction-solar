@@ -222,7 +222,6 @@ export default function PlantAssetsTimesheetsTab({
           },
           breakdown: {
             enabled: true,
-            minHours: configData.machineHours?.breakdownHours ?? 0,
           },
         };
         console.log('[PlantAssetsTimesheetsTab] Loaded billing config:', config);

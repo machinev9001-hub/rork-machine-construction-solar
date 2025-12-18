@@ -49,6 +49,9 @@ type BillingConfig = {
     minHours: number;
     thresholdHours: number;
   };
+  breakdown: {
+    enabled: boolean;
+  };
 };
 
 type TabType = 'config' | 'eph' | 'timesheets';
@@ -474,6 +477,9 @@ export default function BillingConfigScreen() {
       enabled: true,
       minHours: 4.5,
       thresholdHours: 1,
+    },
+    breakdown: {
+      enabled: true,
     },
   });
   const [timesheetGroups, setTimesheetGroups] = useState<TimesheetDisplayGroup[]>([]);
@@ -1314,6 +1320,16 @@ export default function BillingConfigScreen() {
     );
   };
 
+  const updateBreakdownConfig = (field: keyof BillingConfig['breakdown'], value: any) => {
+    setConfig(prev => ({
+      ...prev,
+      breakdown: {
+        ...prev.breakdown,
+        [field]: value,
+      },
+    }));
+  };
+
   const renderBreakdownConfig = () => {
     const isExpanded = expandedDayCards.has('breakdown');
     
@@ -1340,40 +1356,13 @@ export default function BillingConfigScreen() {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Enabled</Text>
               <Switch
-                value={config.rainDays.enabled}
-                onValueChange={(value) => updateRainDayConfig('enabled', value)}
+                value={config.breakdown.enabled}
+                onValueChange={(value) => updateBreakdownConfig('enabled', value)}
                 trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-                thumbColor={config.rainDays.enabled ? '#ffffff' : '#f3f4f6'}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Minimum Billing Hours (Breakdown)</Text>
-              <TextInput
-                style={styles.input}
-                value={config.rainDays.minHours.toString()}
-                onChangeText={(text) => updateRainDayConfig('minHours', parseFloat(text) || 0)}
-                keyboardType="decimal-pad"
-                placeholder="4.5"
-                placeholderTextColor="#9ca3af"
+                thumbColor={config.breakdown.enabled ? '#ffffff' : '#f3f4f6'}
               />
               <Text style={styles.helperText}>
-                Minimum hours paid for breakdown days
-              </Text>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Threshold Hours</Text>
-              <TextInput
-                style={styles.input}
-                value={config.rainDays.thresholdHours.toString()}
-                onChangeText={(text) => updateRainDayConfig('thresholdHours', parseFloat(text) || 0)}
-                keyboardType="decimal-pad"
-                placeholder="1"
-                placeholderTextColor="#9ca3af"
-              />
-              <Text style={styles.helperText}>
-                If meter reading exceeds this, minimum billing applies. If meter reading exceeds minimum hours, actual hours × rate is paid.
+                When enabled, breakdown days are billed using actual hours (end time - start time) with no minimum billing rules applied.
               </Text>
             </View>
           </View>

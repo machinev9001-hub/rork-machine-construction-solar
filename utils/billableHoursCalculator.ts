@@ -31,7 +31,6 @@ export type BillingConfigForCalculation = {
   };
   breakdown: {
     enabled: boolean;
-    minHours?: number;
   };
 };
 
@@ -200,16 +199,19 @@ export function calculateBillableHours(
   console.log('[BillableHoursCalculator] Day type:', dayType);
 
   // Priority 1: Breakdown (overrides everything)
+  // When breakdown toggle is enabled, use actual hours (end - start) with no minimums
   if (timesheet.isBreakdown && config.breakdown.enabled) {
     console.log('[BillableHoursCalculator] ✅ Priority 1: BREAKDOWN condition detected');
-    console.log('[BillableHoursCalculator] Billable Hours = Raw Hours (no minimums apply)');
+    console.log('[BillableHoursCalculator] Breakdown toggle is ENABLED');
+    console.log('[BillableHoursCalculator] Billable Hours = Actual Hours (end - start) =', rawHours);
+    console.log('[BillableHoursCalculator] No minimum billing or threshold rules applied');
     
     return {
       actualHours: rawHours,
       billableHours: rawHours,
       appliedRule: 'breakdown',
       minimumApplied: 0,
-      notes: 'Breakdown - charged for actual time spent',
+      notes: 'Breakdown - billed at actual hours (end time - start time)',
     };
   }
 

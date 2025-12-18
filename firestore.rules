@@ -1,0 +1,536 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================================
+    // HELPER FUNCTIONS
+    // ============================================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+    
+    function getUserSiteId() {
+      return request.auth.token.siteId;
+    }
+    
+    function getUserCompanyId() {
+      return request.auth.token.companyId;
+    }
+    
+    // ============================================================================
+    // ROLE CHECKS
+    // ============================================================================
+    
+    function isMaster() {
+      return isAuthenticated() && getUserRole() == 'Master';
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'Admin';
+    }
+    
+    function isPlanner() {
+      return isAuthenticated() && getUserRole() == 'Planner';
+    }
+    
+    function isSupervisor() {
+      return isAuthenticated() && getUserRole() == 'Supervisor';
+    }
+    
+    function isQC() {
+      return isAuthenticated() && getUserRole() == 'QC';
+    }
+    
+    function isOperator() {
+      return isAuthenticated() && getUserRole() == 'Operator';
+    }
+    
+    function isSurveyor() {
+      return isAuthenticated() && getUserRole() == 'Surveyor';
+    }
+    
+    function isPlantManager() {
+      return isAuthenticated() && getUserRole() == 'Plant Manager';
+    }
+    
+    function isStaffManager() {
+      return isAuthenticated() && getUserRole() == 'Staff Manager';
+    }
+    
+    function isLogisticsManager() {
+      return isAuthenticated() && getUserRole() == 'Logistics Manager';
+    }
+    
+    function isDieselClerk() {
+      return isAuthenticated() && getUserRole() == 'Diesel Clerk';
+    }
+    
+    function isAccountant() {
+      return isAuthenticated() && getUserRole() == 'Accountant';
+    }
+    
+    // ============================================================================
+    // PERMISSION GROUPS
+    // ============================================================================
+    
+    function isManagementRole() {
+      return isAuthenticated() && getUserRole() in [
+        'Master', 
+        'Admin', 
+        'Planner', 
+        'Supervisor', 
+        'Plant Manager', 
+        'Staff Manager', 
+        'Logistics Manager'
+      ];
+    }
+    
+    function canManageSite() {
+      return isMaster() || isAdmin() || isPlanner();
+    }
+    
+    function canManageUsers() {
+      return isMaster() || isAdmin() || isStaffManager();
+    }
+    
+    function canManagePlant() {
+      return isMaster() || isAdmin() || isPlantManager();
+    }
+    
+    // ============================================================================
+    // SCOPE CHECKS
+    // ============================================================================
+    
+    function belongsToSite(siteId) {
+      return isAuthenticated() && getUserSiteId() == siteId;
+    }
+    
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && getUserCompanyId() == companyId;
+    }
+    
+    function isSameSiteAsResource() {
+      return isAuthenticated() && resource.data.siteId == getUserSiteId();
+    }
+    
+    function isSameSiteAsIncoming() {
+      return isAuthenticated() && request.resource.data.siteId == getUserSiteId();
+    }
+    
+    function isSameCompanyAsResource() {
+      return isAuthenticated() && resource.data.companyId == getUserCompanyId();
+    }
+    
+    // ============================================================================
+    // MASTER & COMPANY COLLECTIONS
+    // ============================================================================
+    
+    match /masterAccounts/{accountId} {
+      allow read: if isAuthenticated() && (isOwner(accountId) || isMaster() || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isMaster() || isOwner(accountId);
+      allow delete: if isMaster();
+    }
+    
+    match /companies/{companyId} {
+      allow read: if isAuthenticated() && belongsToCompany(companyId);
+      allow create: if isMaster();
+      allow update: if isMaster() || (isAdmin() && isSameCompanyAsResource());
+      allow delete: if isMaster();
+    }
+    
+    match /companyUsers/{docId} {
+      allow read: if isAuthenticated() && isSameCompanyAsResource();
+      allow write: if isMaster() || (isAdmin() && isSameCompanyAsIncoming());
+    }
+    
+    // ============================================================================
+    // USERS & AUTHENTICATION
+    // ============================================================================
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isManagementRole() || isSameSiteAsResource());
+      allow create: if canManageUsers();
+      allow update: if canManageUsers() || isOwner(userId);
+      allow delete: if isMaster() || isAdmin();
+    }
+    
+    match /qrCodes/{codeId} {
+      allow read: if isAuthenticated();
+      allow create: if canManageSite();
+      allow update: if isMaster() || isAdmin();
+      allow delete: if isMaster();
+    }
+    
+    // ============================================================================
+    // SITES COLLECTION
+    // ============================================================================
+    
+    match /sites/{siteId} {
+      allow read: if isAuthenticated() && belongsToSite(siteId);
+      allow create: if isMaster();
+      allow update: if isMaster() || (isAdmin() && belongsToSite(siteId));
+      allow delete: if isMaster();
+      
+      match /sitePacks/{packId} {
+        allow read: if isAuthenticated() && belongsToSite(siteId);
+        allow write: if canManageSite() && belongsToSite(siteId);
+      }
+    }
+    
+    // ============================================================================
+    // TASKS & ACTIVITIES
+    // ============================================================================
+    
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if canManageSite() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+      
+      match /taskHistory/{historyId} {
+        allow read: if isAuthenticated() && isSameSiteAsResource();
+        allow create: if isAuthenticated() && isSameSiteAsIncoming();
+        allow update, delete: if false;
+      }
+    }
+    
+    match /activities/{activityId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if canManageSite() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() || isQC() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /activityHistory/{historyId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update, delete: if false;
+    }
+    
+    match /gridCellLocks/{lockId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if isAuthenticated() && isSameSiteAsResource();
+      allow delete: if isAuthenticated() && isSameSiteAsResource();
+    }
+    
+    match /taskLocks/{lockId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if isAuthenticated() && isSameSiteAsResource();
+      allow delete: if isAuthenticated() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // REQUESTS & HANDOVERS
+    // ============================================================================
+    
+    match /requests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() || isOwner(resource.data.createdBy) && isSameSiteAsResource();
+      allow delete: if canManageSite() || isOwner(resource.data.createdBy) && isSameSiteAsResource();
+    }
+    
+    match /handoverRequests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if (isSupervisor() || isPlanner()) && isSameSiteAsIncoming();
+      allow update: if (isPlanner() || isOwner(resource.data.createdBy)) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /materialsRequests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if (isLogisticsManager() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /staffRequests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if (isStaffManager() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /plantRequests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if (isPlantManager() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /allocationRequests/{requestId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if (isPlantManager() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // EMPLOYEES & SUBCONTRACTORS
+    // ============================================================================
+    
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManageUsers() && isSameSiteAsIncoming();
+    }
+    
+    match /subcontractors/{subcontractorId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManageUsers() && isSameSiteAsIncoming();
+    }
+    
+    match /faceData/{faceId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManageUsers() && isSameSiteAsIncoming();
+    }
+    
+    match /clockRecords/{recordId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // PLANT ASSETS & EQUIPMENT
+    // ============================================================================
+    
+    match /plantAssets/{assetId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManagePlant() && isSameSiteAsIncoming();
+    }
+    
+    match /assets/{assetId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManagePlant() && isSameSiteAsIncoming();
+    }
+    
+    match /assetChecklists/{checklistId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if (isOperator() || isManagementRole()) && isSameSiteAsIncoming();
+      allow update: if (isOperator() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManagePlant() && isSameSiteAsResource();
+    }
+    
+    match /archivedChecklists/{checklistId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update, delete: if false;
+    }
+    
+    match /assetTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow write: if isMaster() || isAdmin();
+    }
+    
+    match /plantAllocations/{allocationId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if canManagePlant() && isSameSiteAsIncoming();
+      allow update: if canManagePlant() && isSameSiteAsResource();
+      allow delete: if canManagePlant() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // TIMESHEETS & HOURS
+    // ============================================================================
+    
+    match /plantAssetHours/{hourId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if (isOperator() || canManagePlant()) && isSameSiteAsIncoming();
+      allow update: if (isOperator() || canManagePlant() || isOwner(resource.data.operatorId)) && isSameSiteAsResource();
+      allow delete: if canManagePlant() && isSameSiteAsResource();
+    }
+    
+    match /operatorHours/{hourId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.operatorId) || isManagementRole()) && isSameSiteAsResource();
+      allow create: if (isOperator() || isManagementRole()) && isSameSiteAsIncoming();
+      allow update: if (isOwner(resource.data.operatorId) || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManagePlant() && isSameSiteAsResource();
+    }
+    
+    match /timesheets/{timesheetId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isManagementRole() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /agreedTimesheets/{timesheetId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if (isAccountant() || isMaster() || isAdmin()) && isSameSiteAsIncoming();
+    }
+    
+    match /pendingTimesheetEdits/{editId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isManagementRole() && isSameSiteAsIncoming();
+      allow update: if (isAccountant() || isMaster() || isAdmin()) && isSameSiteAsResource();
+      allow delete: if (isAccountant() || isMaster() || isAdmin()) && isSameSiteAsResource();
+    }
+    
+    match /ephAgreements/{agreementId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if (isAccountant() || isMaster() || isAdmin()) && isSameSiteAsIncoming();
+    }
+    
+    match /exportJobs/{jobId} {
+      allow read: if isAuthenticated() && isSameCompanyAsResource();
+      allow create: if (isAccountant() || isManagementRole()) && isSameCompanyAsIncoming();
+      allow update: if (isAccountant() || isManagementRole()) && isSameCompanyAsResource();
+      allow delete: if (isAccountant() || isMaster() || isAdmin()) && isSameCompanyAsResource();
+    }
+    
+    // ============================================================================
+    // DAILY OPERATIONS
+    // ============================================================================
+    
+    match /dailyDiaries/{diaryId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isManagementRole() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /fuelLogs/{logId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if (isDieselClerk() || isManagementRole()) && isSameSiteAsIncoming();
+      allow update: if (isDieselClerk() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /breakdowns/{breakdownId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if (isPlantManager() || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManagePlant() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // MESSAGES & NOTIFICATIONS
+    // ============================================================================
+    
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && 
+                     (isOwner(resource.data.fromUserId) || 
+                      isOwner(resource.data.toUserId) || 
+                      isManagementRole()) &&
+                     isSameSiteAsResource();
+      allow create: if isAuthenticated() && isSameSiteAsIncoming();
+      allow update: if isOwner(resource.data.toUserId) && isSameSiteAsResource();
+      allow delete: if isOwner(resource.data.fromUserId) || canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /onboardingMessages/{messageId} {
+      allow read: if isAuthenticated() && 
+                     (isOwner(resource.data.toUserId) || isManagementRole()) &&
+                     isSameSiteAsResource();
+      allow create: if isManagementRole() && isSameSiteAsIncoming();
+      allow update: if (isOwner(resource.data.toUserId) || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isMaster();
+    }
+    
+    // ============================================================================
+    // SURVEYOR & IMAGES
+    // ============================================================================
+    
+    match /surveyorImages/{imageId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if (isSurveyor() || isManagementRole()) && isSameSiteAsIncoming();
+      allow update: if (isOwner(resource.data.uploadedBy) || isManagementRole()) && isSameSiteAsResource();
+      allow delete: if (isOwner(resource.data.uploadedBy) || canManageSite()) && isSameSiteAsResource();
+    }
+    
+    match /imageLibrary/{imageId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow create: if isManagementRole() && isSameSiteAsIncoming();
+      allow update: if isManagementRole() && isSameSiteAsResource();
+      allow delete: if canManageSite() && isSameSiteAsResource();
+    }
+    
+    // ============================================================================
+    // PV BLOCKS & PROGRESS
+    // ============================================================================
+    
+    match /pvBlocks/{blockId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManageSite() && isSameSiteAsIncoming();
+    }
+    
+    match /pvBlockProgress/{progressId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if isManagementRole() && isSameSiteAsIncoming();
+    }
+    
+    match /menuStructure/{menuId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if canManageSite() && isSameSiteAsIncoming();
+    }
+    
+    match /billingConfig/{configId} {
+      allow read: if isAuthenticated() && isSameCompanyAsResource();
+      allow write: if (isAccountant() || isMaster() || isAdmin()) && isSameCompanyAsIncoming();
+    }
+    
+    // ============================================================================
+    // PROGRESS REPORTS
+    // ============================================================================
+    
+    match /progressReports/{reportId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if isManagementRole() && isSameSiteAsIncoming();
+    }
+    
+    match /boqProgress/{progressId} {
+      allow read: if isAuthenticated() && isSameSiteAsResource();
+      allow write: if isManagementRole() && isSameSiteAsIncoming();
+    }
+    
+    // ============================================================================
+    // SYSTEM & CONFIGURATION
+    // ============================================================================
+    
+    match /systemConfig/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isMaster();
+    }
+    
+    match /auditLogs/{logId} {
+      allow read: if isMaster() || isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    match /offlineQueue/{queueId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isMaster();
+    }
+    
+    // ============================================================================
+    // DEFAULT DENY
+    // ============================================================================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

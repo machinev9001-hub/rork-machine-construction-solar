@@ -20,7 +20,7 @@ import ExportRequestModal, { ExportRequest, ExportType } from './ExportRequestMo
 import ReportGenerationModal from './ReportGenerationModal';
 import { getAgreedTimesheetsByDateRange } from '@/utils/agreedTimesheetManager';
 import { generateTimesheetPDF, emailTimesheetPDF, downloadTimesheetPDF } from '@/utils/timesheetPdfGenerator';
-import { calculateBillableHours, BillingConfigForCalculation, TimesheetForBilling, BillableHoursResult } from '@/utils/billableHoursCalculator';
+import { calculateBillableHours, BillingConfigForCalculation, TimesheetForBilling } from '@/utils/billableHoursCalculator';
 
 type ViewMode = 'plant' | 'man';
 
@@ -297,7 +297,6 @@ export default function PlantAssetsTimesheetsTab({
       const fuelLogsMap = new Map<string, any>();
       if (agreedTimesheets.length > 0) {
         const assetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
-        const dates = [...new Set(agreedTimesheets.map(at => at.date))];
         
         if (assetIds.length > 0) {
           console.log('[PlantAssetsTimesheetsTab] Fetching fuel logs for', assetIds.length, 'assets');
@@ -338,6 +337,22 @@ export default function PlantAssetsTimesheetsTab({
           }
         }
         
+        let billableHours: number | undefined;
+        let billingRule: string | undefined;
+        if (isPlant && billingConfig && at.agreedHours > 0) {
+          const timesheetForBilling: TimesheetForBilling = {
+            startTime: 0,
+            endTime: at.agreedHours,
+            date: at.date,
+            openHours: 0,
+            closeHours: at.agreedHours,
+            totalHours: at.agreedHours,
+          };
+          const result = calculateBillableHours(timesheetForBilling, billingConfig);
+          billableHours = result.billableHours;
+          billingRule = result.appliedRule;
+        }
+        
         const baseEntry: VerifiedTimesheet = {
           id: at.id,
           date: at.date,
@@ -349,6 +364,10 @@ export default function PlantAssetsTimesheetsTab({
           masterAccountId: at.masterAccountId,
           siteId: at.siteId || '',
           type: isPlant ? 'plant_hours' : 'man_hours',
+          
+          actualHours: at.agreedHours,
+          billableHours,
+          billingRule,
           
           totalHours: isPlant ? at.agreedHours : undefined,
           openHours: isPlant ? 0 : undefined,
@@ -627,8 +646,11 @@ export default function PlantAssetsTimesheetsTab({
           <Text style={[styles.operatorCell, styles.cellText]} numberOfLines={2}>{timesheet.operatorName}</Text>
           <Text style={[styles.hoursCell, styles.cellText]}>{timesheet.openHours}</Text>
           <Text style={[styles.hoursCell, styles.cellText]}>{timesheet.closeHours}</Text>
-          <Text style={[styles.hoursCell, styles.cellText, styles.boldText]}>
-            {timesheet.totalHours?.toFixed(1)}h
+          <Text style={[styles.hoursCell, styles.cellText]}>
+            {timesheet.actualHours?.toFixed(1)}h
+          </Text>
+          <Text style={[styles.hoursCell, styles.cellText, styles.boldText, { color: '#10b981' }]}>
+            {timesheet.billableHours?.toFixed(1)}h
           </Text>
           <Text style={[styles.hoursCell, styles.cellText]}>
             {timesheet.fuelAmount ? timesheet.fuelAmount.toFixed(1) : '-'}
@@ -765,7 +787,8 @@ export default function PlantAssetsTimesheetsTab({
                       <Text style={styles.operatorHeaderCell}>Operator</Text>
                       <Text style={styles.hoursHeaderCell}>Open</Text>
                       <Text style={styles.hoursHeaderCell}>Close</Text>
-                      <Text style={styles.hoursHeaderCell}>Total</Text>
+                      <Text style={styles.hoursHeaderCell}>Actual</Text>
+                      <Text style={styles.hoursHeaderCell}>Billable</Text>
                       <Text style={styles.hoursHeaderCell}>Fuel (L)</Text>
                       <Text style={styles.hoursHeaderCell}>Meter</Text>
                       <Text style={styles.hoursHeaderCell}>L/h</Text>

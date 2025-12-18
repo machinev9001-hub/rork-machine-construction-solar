@@ -49,6 +49,8 @@ export default function MessagesScreen() {
     }
 
     const messagesRef = collection(db, 'messages');
+    const conversationMap = new Map<string, Conversation>();
+    let allMessageDocs: any[] = [];
     
     const q1 = query(
       messagesRef,
@@ -64,23 +66,19 @@ export default function MessagesScreen() {
       orderBy('timestamp', 'desc')
     );
 
-    const unsubscribe1 = onSnapshot(q1, (snapshot) => {
-      processMessages(snapshot);
-    });
-    
-    const unsubscribe2 = onSnapshot(q2, (snapshot) => {
-      processMessages(snapshot);
-    });
-    
-    const processMessages = (snapshot: any) => {
-      const conversationMap = new Map<string, Conversation>();
+    const processAllMessages = () => {
+      conversationMap.clear();
 
-      snapshot.docs.forEach((doc: any) => {
+      allMessageDocs.forEach((doc: any) => {
         const data = doc.data();
         const otherUserId = data.fromUserId === user.userId ? data.toUserId : data.fromUserId;
         const otherUserName = data.fromUserId === user.userId ? data.toUserName : data.fromUserName;
 
-        if (!conversationMap.has(otherUserId)) {
+        const existing = conversationMap.get(otherUserId);
+        const msgTime = data.timestamp?.toMillis ? data.timestamp.toMillis() : 0;
+        const existingTime = existing?.lastMessageTime?.toMillis ? existing.lastMessageTime.toMillis() : 0;
+
+        if (!existing || msgTime > existingTime) {
           conversationMap.set(otherUserId, {
             id: otherUserId,
             userId: otherUserId,
@@ -90,15 +88,23 @@ export default function MessagesScreen() {
             unreadCount: 0,
           });
         }
+      });
 
+      allMessageDocs.forEach((doc: any) => {
+        const data = doc.data();
         if (data.toUserId === user.userId && !data.read) {
-          const conv = conversationMap.get(otherUserId)!;
-          conv.unreadCount += 1;
+          const otherUserId = data.fromUserId;
+          const conv = conversationMap.get(otherUserId);
+          if (conv) {
+            conv.unreadCount += 1;
+          }
         }
       });
 
       const conversationsList = Array.from(conversationMap.values());
       conversationsList.sort((a, b) => {
+        if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+        if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
         const timeA = a.lastMessageTime?.toMillis ? a.lastMessageTime.toMillis() : 0;
         const timeB = b.lastMessageTime?.toMillis ? b.lastMessageTime.toMillis() : 0;
         return timeB - timeA;
@@ -107,6 +113,18 @@ export default function MessagesScreen() {
       setConversations(conversationsList);
       setIsLoading(false);
     };
+
+    const unsubscribe1 = onSnapshot(q1, (snapshot) => {
+      const sentDocs = snapshot.docs.map(d => ({ id: d.id, data: () => d.data() }));
+      allMessageDocs = [...sentDocs, ...allMessageDocs.filter(d => !sentDocs.find(s => s.id === d.id))];
+      processAllMessages();
+    });
+    
+    const unsubscribe2 = onSnapshot(q2, (snapshot) => {
+      const receivedDocs = snapshot.docs.map(d => ({ id: d.id, data: () => d.data() }));
+      allMessageDocs = [...allMessageDocs.filter(d => !receivedDocs.find(r => r.id === d.id)), ...receivedDocs];
+      processAllMessages();
+    });
 
     return () => {
       unsubscribe1();
@@ -235,10 +253,15 @@ export default function MessagesScreen() {
 
   const renderItem = ({ item }: { item: Conversation & { isNewChat?: boolean } }) => {
     const isNew = 'isNewChat' in item && item.isNewChat;
+    const hasUnread = item.unreadCount > 0;
     
     return (
       <TouchableOpacity
-        style={[styles.conversationCard, { backgroundColor: theme.surface }]}
+        style={[
+          styles.conversationCard,
+          { backgroundColor: hasUnread ? '#FFF9E6' : theme.surface },
+          hasUnread && styles.conversationCardUnread,
+        ]}
         onPress={() => handleItemPress(item)}
         activeOpacity={0.7}
       >
@@ -248,7 +271,14 @@ export default function MessagesScreen() {
         
         <View style={styles.conversationContent}>
           <View style={styles.conversationHeader}>
-            <Text style={[styles.conversationName, { color: theme.text }]} numberOfLines={1}>
+            <Text 
+              style={[
+                styles.conversationName, 
+                { color: theme.text },
+                hasUnread && styles.conversationNameUnread,
+              ]} 
+              numberOfLines={1}
+            >
               {item.userName}
             </Text>
             {!isNew && (
@@ -262,14 +292,14 @@ export default function MessagesScreen() {
             <Text 
               style={[
                 styles.lastMessage, 
-                { color: item.unreadCount > 0 ? theme.text : theme.textSecondary },
-                item.unreadCount > 0 && styles.lastMessageUnread,
+                { color: hasUnread ? theme.text : theme.textSecondary },
+                hasUnread && styles.lastMessageUnread,
               ]} 
               numberOfLines={1}
             >
               {item.lastMessage}
             </Text>
-            {item.unreadCount > 0 && (
+            {hasUnread && (
               <View style={[styles.unreadBadge, { backgroundColor: '#FFD600' }]}>
                 <Text style={styles.unreadBadgeText}>
                   {item.unreadCount > 99 ? '99+' : item.unreadCount}
@@ -449,6 +479,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  conversationCardUnread: {
+    borderWidth: 2,
+    borderColor: '#FFD600',
+  },
   avatar: {
     width: 50,
     height: 50,
@@ -470,6 +504,9 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     flex: 1,
     marginRight: 8,
+  },
+  conversationNameUnread: {
+    fontWeight: '700' as const,
   },
   conversationTime: {
     fontSize: 12,

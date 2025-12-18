@@ -35,3 +35,30 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 .vercel
+
+# test coverage
+coverage/
+*.lcov
+
+# build artifacts
+build/
+.build/
+*.log
+
+# environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# temporary files
+tmp/
+temp/
+*.tmp

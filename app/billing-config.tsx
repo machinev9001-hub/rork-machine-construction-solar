@@ -507,50 +507,61 @@ export default function BillingConfigScreen() {
     // 1. If admin edit exists -> use admin's hours (highest priority for billing)
     // 2. If plant manager edited -> use plant manager's hours
     // 3. If only operator entry -> use operator's hours
-    // Note: Subcontractor edits are display only, not used for calculation
+    // Note: After deduplication, we have BOTH operator and PM entries in the array
+    // We must only count ONE per date-operator pair (the PM entry if it exists)
     
-    let total = 0;
-    const processedDates = new Set<string>();
+    console.log('[TotalHours] Starting calculation with', timesheets.length, 'entries');
+    
+    // Group entries by date-operator to find pairs
+    const dateOperatorMap = new Map<string, { operator?: TimesheetEntry; plantManager?: TimesheetEntry }>();
     
     for (const entry of timesheets) {
       const dateKey = `${entry.date}-${entry.operatorName}`;
       
-      if (processedDates.has(dateKey)) {
-        continue;
+      if (!dateOperatorMap.has(dateKey)) {
+        dateOperatorMap.set(dateKey, {});
       }
       
+      const pair = dateOperatorMap.get(dateKey)!;
+      const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
+      
+      if (isPMEntry) {
+        pair.plantManager = entry;
+      } else {
+        pair.operator = entry;
+      }
+    }
+    
+    // Now calculate total, using PM entry if available, otherwise operator entry
+    let total = 0;
+    
+    dateOperatorMap.forEach((pair, dateKey) => {
       // Check for admin edit in pendingEdits (highest priority for calculation)
       const assetPendingEdits = selectedAssetForTimesheets 
         ? pendingEdits.get(selectedAssetForTimesheets.assetId) || []
         : [];
       
+      const date = dateKey.split('-')[0];
       const adminEdit = assetPendingEdits.find(
-        edit => edit.date === entry.date && edit.editedBy === 'admin' && edit.status === 'pending_review'
+        edit => edit.date === date && edit.editedBy === 'admin' && edit.status === 'pending_review'
       );
       
       if (adminEdit) {
         // Use admin's hours (highest priority)
         total += adminEdit.totalHours;
-        console.log(`[TotalHours] Date ${entry.date}: Using ADMIN edit hours: ${adminEdit.totalHours}`);
-      } else {
-        // Check if this is a Plant Manager entry (has adjustment)
-        const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
-        
-        if (isPMEntry) {
-          // Use Plant Manager's hours (they edited the operator's entry)
-          total += entry.totalHours;
-          console.log(`[TotalHours] Date ${entry.date}: Using PM edit hours: ${entry.totalHours}`);
-        } else {
-          // Use Operator's original hours
-          total += entry.totalHours;
-          console.log(`[TotalHours] Date ${entry.date}: Using OPERATOR hours: ${entry.totalHours}`);
-        }
+        console.log(`[TotalHours] Date ${date}: Using ADMIN edit hours: ${adminEdit.totalHours}`);
+      } else if (pair.plantManager) {
+        // Use Plant Manager's hours if they edited
+        total += pair.plantManager.totalHours;
+        console.log(`[TotalHours] Date ${date}: Using PM edit hours: ${pair.plantManager.totalHours}`);
+      } else if (pair.operator) {
+        // Use Operator's original hours
+        total += pair.operator.totalHours;
+        console.log(`[TotalHours] Date ${date}: Using OPERATOR hours: ${pair.operator.totalHours}`);
       }
-      
-      processedDates.add(dateKey);
-    }
+    });
     
-    console.log(`[TotalHours] Final calculated total: ${total}`);
+    console.log(`[TotalHours] Final calculated total: ${total}h from ${dateOperatorMap.size} unique date-operator pairs`);
     return total;
   }, [timesheets, pendingEdits, selectedAssetForTimesheets]);
 

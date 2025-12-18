@@ -7,11 +7,21 @@ Welcome to the Project Tracker system documentation.
 ### Core Documentation
 - [User Guide](./USER-GUIDE.md) - Complete guide for end users including all roles and workflows (consolidates User Manual and User Roles)
 - [Technical Guide](./TECHNICAL-GUIDE.md) - System architecture, theme system, and technical details (consolidates System Overview and Theme System)
-- [Firebase Indexes](./FIREBASE-INDEXES.md) - All Firebase indexes including company and onboarding indexes
+- [Quick Reference](./QUICK-REFERENCE.md) - Essential info, code patterns, and common commands for developers
 - [Testing Guide](./TESTING.md) - Complete testing documentation and procedures
 - [Offline System](./OFFLINE-SYSTEM.md) - Offline functionality and sync system
 - [Setup Guide](./SETUP-GUIDE.md) - Installation and configuration instructions
 - [API Reference](./API-REFERENCE.md) - Backend endpoints and data structures
+
+### Firebase Documentation
+- [Firebase Indexes](./FIREBASE-INDEXES.md) - All 48+ Firebase indexes including company and onboarding indexes
+- [Firebase Security Rules](./FIREBASE-SECURITY-RULES.md) - Complete security rules with role-based access control
+- [Firebase Setup Checklist](./FIREBASE-SETUP-CHECKLIST.md) - Pre-launch checklist and configuration guide
+
+### Optimization & Performance
+- [Optimization Improvements](./OPTIMIZATION-IMPROVEMENTS.md) - New utilities for logging, error handling, and query optimization
+- [Migration Examples](./MIGRATION-EXAMPLE.md) - Before/after code examples for adopting new utilities
+- [Implementation Summary](./IMPLEMENTATION-SUMMARY.md) - Complete overview of all optimization changes
 
 ### Workflow-Specific Documentation
 - [Surveyor Workflow](./USER-GUIDE.md#surveyor-functions) - Complete surveyor task management guide

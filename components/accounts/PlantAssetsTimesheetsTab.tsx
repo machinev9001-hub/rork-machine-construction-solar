@@ -349,6 +349,19 @@ export default function PlantAssetsTimesheetsTab({
         }
       }
       
+      const getActualHoursBasedOnPriority = (agreedTimesheet: any): number => {
+        if (agreedTimesheet.agreedByRole === 'Admin' || agreedTimesheet.agreedByRole === 'admin') {
+          return agreedTimesheet.agreedHours;
+        }
+        if (agreedTimesheet.agreedByRole === 'Plant Manager' && agreedTimesheet.originalHours !== undefined) {
+          return agreedTimesheet.agreedHours;
+        }
+        if (agreedTimesheet.originalHours !== undefined) {
+          return agreedTimesheet.originalHours;
+        }
+        return agreedTimesheet.agreedHours;
+      };
+      
       let loadedTimesheets: VerifiedTimesheet[] = agreedTimesheets.map(at => {
         const isPlant = at.timesheetType === 'plant_asset';
         const hasAdjustment = at.originalHours !== at.agreedHours;
@@ -370,14 +383,16 @@ export default function PlantAssetsTimesheetsTab({
         let assetRate: number | undefined;
         let totalCost: number | undefined;
         
-        if (isPlant && billingConfig && at.agreedHours > 0) {
+        const actualHours = getActualHoursBasedOnPriority(at);
+        
+        if (isPlant && billingConfig && actualHours > 0) {
           const timesheetForBilling: TimesheetForBilling = {
             startTime: 0,
-            endTime: at.agreedHours,
+            endTime: actualHours,
             date: at.date,
             openHours: 0,
-            closeHours: at.agreedHours,
-            totalHours: at.agreedHours,
+            closeHours: actualHours,
+            totalHours: actualHours,
           };
           const result = calculateBillableHours(timesheetForBilling, billingConfig);
           billableHours = result.billableHours;
@@ -406,15 +421,15 @@ export default function PlantAssetsTimesheetsTab({
           siteId: at.siteId || '',
           type: isPlant ? 'plant_hours' : 'man_hours',
           
-          actualHours: at.agreedHours,
+          actualHours: getActualHoursBasedOnPriority(at),
           billableHours,
           billingRule,
           assetRate,
           totalCost,
           
-          totalHours: isPlant ? at.agreedHours : undefined,
+          totalHours: isPlant ? getActualHoursBasedOnPriority(at) : undefined,
           openHours: isPlant ? 0 : undefined,
-          closeHours: isPlant ? at.agreedHours : undefined,
+          closeHours: isPlant ? getActualHoursBasedOnPriority(at) : undefined,
           
           assetId: at.assetId,
           assetType: at.assetType,
@@ -424,7 +439,7 @@ export default function PlantAssetsTimesheetsTab({
           ownerType: 'subcontractor',
           ownerName: at.subcontractorName,
           
-          totalManHours: !isPlant ? at.agreedHours : undefined,
+          totalManHours: !isPlant ? getActualHoursBasedOnPriority(at) : undefined,
           normalHours: at.agreedNormalHours,
           overtimeHours: at.agreedOvertimeHours,
           sundayHours: at.agreedSundayHours,

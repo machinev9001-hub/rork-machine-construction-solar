@@ -298,6 +298,7 @@ export default function PlantManagerTimesheetsScreen() {
         isAdjustment: true,
         originalEntryId: plantEntry.id,
         adjustedBy: user?.name || user?.userId,
+        adjustedByRole: user?.role,
         adjustedAt: new Date().toISOString(),
         verified: false,
       };
@@ -326,6 +327,7 @@ export default function PlantManagerTimesheetsScreen() {
         isAdjustment: true,
         originalEntryId: manEntry.id,
         adjustedBy: user?.name || user?.userId,
+        adjustedByRole: user?.role,
         adjustedAt: new Date().toISOString(),
         verified: false,
       };

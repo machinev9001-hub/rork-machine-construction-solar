@@ -397,7 +397,11 @@ export default function PlantAssetsTimesheetsTab({
       }
       
       const getActualHoursBasedOnPriority = (agreedTimesheet: any): number => {
-        return agreedTimesheet.agreedHours;
+        // ALWAYS use agreedHours - this is the approved value for billing
+        // Do NOT recalculate from meter readings
+        const hours = agreedTimesheet.agreedHours;
+        console.log('[PlantAssetsTimesheetsTab] Using agreed hours for billing:', hours, 'for asset:', agreedTimesheet.assetId, 'date:', agreedTimesheet.date);
+        return hours ?? 0;
       };
       
       let loadedTimesheets: VerifiedTimesheet[] = deduplicatedTimesheets.map(at => {
@@ -465,9 +469,10 @@ export default function PlantAssetsTimesheetsTab({
           assetRate,
           totalCost,
           
+          // Use agreed hours directly - NOT calculated from meter readings
           totalHours: isPlant ? getActualHoursBasedOnPriority(at) : undefined,
-          openHours: isPlant ? 0 : undefined,
-          closeHours: isPlant ? getActualHoursBasedOnPriority(at) : undefined,
+          openHours: isPlant ? (at.originalOpenHours ?? 0) : undefined,
+          closeHours: isPlant ? (at.originalCloseHours ?? getActualHoursBasedOnPriority(at)) : undefined,
           
           assetId: at.assetId,
           assetType: at.assetType,
@@ -503,13 +508,17 @@ export default function PlantAssetsTimesheetsTab({
           const originalEntry: VerifiedTimesheet = {
             ...baseEntry,
             id: `${at.id}-original`,
+            // For original entry, show original hours (before adjustment)
+            actualHours: at.originalHours,
             totalHours: isPlant ? at.originalHours : undefined,
-            closeHours: isPlant ? at.originalHours : undefined,
+            closeHours: isPlant ? (at.originalCloseHours ?? at.originalHours) : undefined,
+            openHours: isPlant ? (at.originalOpenHours ?? 0) : undefined,
             totalManHours: !isPlant ? at.originalHours : undefined,
             normalHours: at.originalNormalHours,
             overtimeHours: at.originalOvertimeHours,
             sundayHours: at.originalSundayHours,
             publicHolidayHours: at.originalPublicHolidayHours,
+            billableHours: undefined, // Original entry doesn't have billing calc
             agreedHours: undefined,
             agreedNormalHours: undefined,
             agreedOvertimeHours: undefined,
@@ -521,6 +530,8 @@ export default function PlantAssetsTimesheetsTab({
           
           baseEntry.hasOriginalEntry = true;
           baseEntry.originalEntryData = originalEntry;
+          
+          console.log('[PlantAssetsTimesheetsTab] Adjustment entry - Original hours:', at.originalHours, 'Agreed hours:', at.agreedHours);
         }
         
         return baseEntry;

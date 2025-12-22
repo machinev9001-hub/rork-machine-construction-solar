@@ -119,6 +119,13 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     return `R${value.toFixed(2)}`;
   };
 
+  // Helper to get agreed hours - use actualHours directly (which is agreedHours)
+  // Do NOT recalculate from open/close meter readings
+  const getDisplayHours = (entry: any): number => {
+    // actualHours contains the agreed hours for billing
+    return entry?.actualHours ?? entry?.agreedHours ?? entry?.totalHours ?? 0;
+  };
+
   const groupsByAssetType = new Map<string, TimesheetGroup[]>();
   filteredGroups.forEach(group => {
     const assetType = group.title || 'Unknown';
@@ -133,7 +140,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     const subtotal = groups.reduce((sum, group) => {
       return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
         const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-        return groupSum + (entry?.actualHours || entry?.totalHours || 0);
+        // Use agreed hours directly - don't recalculate
+        return groupSum + getDisplayHours(entry);
       }, 0);
     }, 0);
     assetTypeSubtotals.set(assetType, subtotal);
@@ -158,9 +166,9 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${originalEntry!.operatorName}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${originalEntry!.actualHours?.toFixed(1) || originalEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(originalEntry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${originalEntry!.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(originalEntry!.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(originalEntry!.totalCost)}</td>
@@ -175,9 +183,9 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${adjustedEntry!.operatorName}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${adjustedEntry!.actualHours?.toFixed(1) || adjustedEntry!.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(adjustedEntry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${adjustedEntry!.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(adjustedEntry!.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(adjustedEntry!.totalCost)}</td>
@@ -193,9 +201,9 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.title}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${group.subtitle}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6;">${entry.operatorName}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours || 0}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${entry.actualHours?.toFixed(1) || entry.totalHours?.toFixed(1) || '0.0'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours ?? '-'}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(entry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${entry.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(entry.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(entry.totalCost)}</td>
@@ -228,7 +236,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
   const totalHours = filteredGroups.reduce((sum, group) => {
     return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
       const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-      return groupSum + (entry?.actualHours || entry?.totalHours || 0);
+      // Use agreed hours directly - don't recalculate from meter readings
+      return groupSum + getDisplayHours(entry);
     }, 0);
   }, 0);
 

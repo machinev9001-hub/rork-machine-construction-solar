@@ -304,6 +304,13 @@ For mobile apps, you'll configure your app's deep linking scheme in `app.json`.
 2. Delete `node_modules` and reinstall: `rm -rf node_modules && bun install`
 3. Check [Expo's troubleshooting guide](https://docs.expo.dev/troubleshooting/build-errors/)
 
+### **Web build restarting repeatedly?**
+
+If you experience web bundler restart loops:
+1. See [Web Bundling Fix Documentation](docs/WEB-BUNDLING-FIX.md) for detailed explanation
+2. The app is configured for SPA (single-page app) mode to handle 100+ routes efficiently
+3. Metro is optimized with 2 max workers to prevent memory issues
+
 ### **Need help with native features?**
 
 - Check [Expo's documentation](https://docs.expo.dev/) for native APIs

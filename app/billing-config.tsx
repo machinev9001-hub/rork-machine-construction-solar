@@ -437,6 +437,60 @@ const deduplicateTimesheetEntries = (entries: TimesheetEntry[]): TimesheetEntry[
   return result;
 };
 
+// Returns only the effective entry per date (PM entry takes priority over operator entry)
+// This is used for billing calculations where we should only count one value per date
+const getEffectiveEntriesForBilling = (entries: TimesheetEntry[]): TimesheetEntry[] => {
+  const pairingMap = new Map<string, { plantManager?: TimesheetEntry; operator?: TimesheetEntry }>();
+  const processedIds = new Set<string>();
+
+  entries.forEach((entry) => {
+    if (processedIds.has(entry.id)) {
+      return;
+    }
+
+    const isPMEntry = entry.hasOriginalEntry || entry.isAdjustment || Boolean(entry.adjustedBy);
+    const dateOperatorKey = `${entry.date}-${entry.operatorName}`;
+
+    if (!pairingMap.has(dateOperatorKey)) {
+      pairingMap.set(dateOperatorKey, {});
+    }
+
+    const pair = pairingMap.get(dateOperatorKey)!;
+
+    if (isPMEntry) {
+      if (!pair.plantManager || getEntryTimestamp(entry) > getEntryTimestamp(pair.plantManager)) {
+        if (pair.plantManager) {
+          processedIds.delete(pair.plantManager.id);
+        }
+        pair.plantManager = entry;
+        processedIds.add(entry.id);
+      }
+    } else {
+      if (!pair.operator || getEntryTimestamp(entry) > getEntryTimestamp(pair.operator)) {
+        if (pair.operator) {
+          processedIds.delete(pair.operator.id);
+        }
+        pair.operator = entry;
+        processedIds.add(entry.id);
+      }
+    }
+  });
+
+  // Return only the effective entry per date: PM entry if exists, otherwise operator entry
+  const result: TimesheetEntry[] = [];
+  pairingMap.forEach((pair) => {
+    if (pair.plantManager) {
+      // PM entry takes priority - only include this one
+      result.push(pair.plantManager);
+    } else if (pair.operator) {
+      // Only include operator entry if no PM entry exists
+      result.push(pair.operator);
+    }
+  });
+
+  return result;
+};
+
 export default function BillingConfigScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -649,7 +703,9 @@ export default function BillingConfigScreen() {
             });
             
             const dedupedEntries = deduplicateTimesheetEntries(rawEntries);
-            console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries');
+            // For billing calculations, use only the effective entry per date (PM > operator hierarchy)
+            const effectiveEntries = getEffectiveEntriesForBilling(rawEntries);
+            console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries, effective for billing:', effectiveEntries.length, 'entries');
 
             let actualNormalHours = 0;
             let actualSaturdayHours = 0;
@@ -669,7 +725,8 @@ export default function BillingConfigScreen() {
 
             const billingResults: BillableHoursResult[] = [];
 
-            dedupedEntries.forEach((entry) => {
+            // Use effective entries for billing calculations (only one per date based on hierarchy)
+            effectiveEntries.forEach((entry) => {
               const actualHours = entry.totalHours || 0;
               const date = new Date(entry.date);
               const dayOfWeek = date.getDay();

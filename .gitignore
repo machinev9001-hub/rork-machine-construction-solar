@@ -62,3 +62,8 @@ build/
 tmp/
 temp/
 *.tmp
+
+ios/
+android/
+.rork
+rork-eslint.config.js

@@ -849,7 +849,16 @@ export default function BillingConfigScreen() {
       
       if (configDoc.exists()) {
         const data = configDoc.data();
-        setConfig(data as BillingConfig);
+        const loadedConfig = data as BillingConfig;
+        
+        // Ensure breakdown config exists (for backward compatibility)
+        if (!loadedConfig.breakdown) {
+          loadedConfig.breakdown = {
+            enabled: true,
+          };
+        }
+        
+        setConfig(loadedConfig);
         console.log('Loaded billing config from Firestore');
       } else {
         console.log('No saved billing config found, using defaults');
@@ -1330,6 +1339,11 @@ export default function BillingConfigScreen() {
   const renderBreakdownConfig = () => {
     const isExpanded = expandedDayCards.has('breakdown');
     
+    if (!config.breakdown) {
+      console.error('[Breakdown Config] config.breakdown is undefined');
+      return null;
+    }
+    
     return (
       <View style={styles.card}>
         <TouchableOpacity 
@@ -1359,7 +1373,7 @@ export default function BillingConfigScreen() {
                 thumbColor={config.breakdown.enabled ? '#ffffff' : '#f3f4f6'}
               />
               <Text style={styles.helperText}>
-                When enabled, breakdown days are billed using actual hours (end time - start time) with no minimum billing rules applied.
+                When ENABLED: Breakdown days are billed at actual hours (end time - start time).{"\n"}When DISABLED: Breakdown days are billed at R0 (no charge).
               </Text>
             </View>
           </View>

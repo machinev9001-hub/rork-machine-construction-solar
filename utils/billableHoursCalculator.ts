@@ -199,20 +199,35 @@ export function calculateBillableHours(
   console.log('[BillableHoursCalculator] Day type:', dayType);
 
   // Priority 1: Breakdown (overrides everything)
-  // When breakdown toggle is enabled, use actual hours (end - start) with no minimums
-  if (timesheet.isBreakdown && config.breakdown.enabled) {
+  // When breakdown is marked on a timesheet:
+  // - If toggle is ENABLED: bill actual hours (end - start)
+  // - If toggle is DISABLED: bill 0 (no charge)
+  if (timesheet.isBreakdown) {
     console.log('[BillableHoursCalculator] ✅ Priority 1: BREAKDOWN condition detected');
-    console.log('[BillableHoursCalculator] Breakdown toggle is ENABLED');
-    console.log('[BillableHoursCalculator] Billable Hours = Actual Hours (end - start) =', rawHours);
-    console.log('[BillableHoursCalculator] No minimum billing or threshold rules applied');
+    console.log('[BillableHoursCalculator] Breakdown toggle is', config.breakdown.enabled ? 'ENABLED' : 'DISABLED');
     
-    return {
-      actualHours: rawHours,
-      billableHours: rawHours,
-      appliedRule: 'breakdown',
-      minimumApplied: 0,
-      notes: 'Breakdown - billed at actual hours (end time - start time)',
-    };
+    if (config.breakdown.enabled) {
+      console.log('[BillableHoursCalculator] Billable Hours = Actual Hours (end - start) =', rawHours);
+      console.log('[BillableHoursCalculator] No minimum billing or threshold rules applied');
+      
+      return {
+        actualHours: rawHours,
+        billableHours: rawHours,
+        appliedRule: 'breakdown',
+        minimumApplied: 0,
+        notes: 'Breakdown (enabled) - billed at actual hours (end time - start time)',
+      };
+    } else {
+      console.log('[BillableHoursCalculator] Billable Hours = 0 (breakdown toggle disabled)');
+      
+      return {
+        actualHours: rawHours,
+        billableHours: 0,
+        appliedRule: 'breakdown',
+        minimumApplied: 0,
+        notes: 'Breakdown (disabled) - no charge (R0)',
+      };
+    }
   }
 
   // Priority 2: Inclement Weather

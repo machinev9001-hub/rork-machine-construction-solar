@@ -473,8 +473,10 @@ export default function PlantAssetsTimesheetsTab({
           totalHours: isPlant ? getActualHoursBasedOnPriority(at) : undefined,
           // Convert meter readings to numbers - Firestore may store as strings
           // Use originalOpenHours/originalCloseHours from agreedTimesheet (stored when approved)
-          openHours: isPlant ? (at.originalOpenHours != null ? Number(at.originalOpenHours) : undefined) : undefined,
-          closeHours: isPlant ? (at.originalCloseHours != null ? Number(at.originalCloseHours) : undefined) : undefined,
+          // CRITICAL: Add fallbacks so PDF can calculate Actual from meters (close - open)
+          // If no meter data stored, use 0 for open and originalHours for close
+          openHours: isPlant ? (at.originalOpenHours != null ? Number(at.originalOpenHours) : 0) : undefined,
+          closeHours: isPlant ? (at.originalCloseHours != null ? Number(at.originalCloseHours) : (at.originalHours ?? at.agreedHours ?? 0)) : undefined,
           
           assetId: at.assetId,
           assetType: at.assetType,

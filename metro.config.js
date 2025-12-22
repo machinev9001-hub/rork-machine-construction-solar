@@ -34,12 +34,4 @@ config.transformer = {
 // Reduce max workers to prevent memory issues during web bundling
 config.maxWorkers = 2;
 
-// Improve caching to prevent unnecessary rebuilds
-config.cacheStores = [
-  ...(config.cacheStores || []),
-];
-
-// Reset cache on config changes
-config.resetCache = false;
-
 module.exports = withRorkMetro(config);

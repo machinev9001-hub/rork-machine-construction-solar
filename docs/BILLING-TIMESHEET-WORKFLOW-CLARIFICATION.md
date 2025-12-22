@@ -70,10 +70,11 @@
 - Shows original vs adjusted entries if applicable
 - Provides download or email options
 
-**Current Issues:**
-- PDF shows empty table (no rows)
-- Groups are being passed but dateGroups array is empty
-- Need to investigate data transformation in PlantAssetsTimesheetsTab
+**✅ Fixed Issues (2025-12-22):**
+- ✅ PDF was recalculating hours from meter readings instead of using pre-calculated agreed hours
+- ✅ Added `billingResultsByDate` map to store pre-calculated billable hours from EPH generation
+- ✅ Updated PDF data preparation to include `actualHours` and `billableHours` fields
+- ✅ PDF now uses agreed hours directly without recalculation from open/close meter readings
 
 ## Data Flow
 

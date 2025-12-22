@@ -724,6 +724,8 @@ export default function BillingConfigScreen() {
             let billableStrikeDayHours = 0;
 
             const billingResults: BillableHoursResult[] = [];
+            // Create a map from date to billing result for later lookup in PDF generation
+            const billingResultsByDate = new Map<string, BillableHoursResult>();
 
             // Use effective entries for billing calculations (only one per date based on hierarchy)
             effectiveEntries.forEach((entry) => {
@@ -749,6 +751,7 @@ export default function BillingConfigScreen() {
                 billingCalcConfig
               );
               billingResults.push(billingResult);
+              billingResultsByDate.set(entry.date, billingResult);
 
               console.log(`[EPH] Entry ${entry.date}: actual=${actualHours}h, billable=${billingResult.billableHours}h, rule=${billingResult.appliedRule}`);
 
@@ -813,6 +816,7 @@ export default function BillingConfigScreen() {
               estimatedCost: totalBillableHours * rate,
               rawTimesheets: dedupedEntries,
               billingResults,
+              billingResultsByDate,
             };
           })
         );
@@ -1042,9 +1046,12 @@ export default function BillingConfigScreen() {
       const groups = selectedAssets.map(record => {
         const rawTimesheets = ephTimesheets.get(record.assetId) || record.rawTimesheets || [];
         const timesheets = deduplicateTimesheetEntries(rawTimesheets);
+        const billingResultsByDate = record.billingResultsByDate || new Map<string, BillableHoursResult>();
+        
         console.log('[PDF] Asset', record.assetId, record.assetType, record.plantNumber, 'has', rawTimesheets.length, 'raw timesheets');
         console.log('[PDF] Sample timesheet data:', rawTimesheets[0]);
         console.log('[PDF] After dedup:', timesheets.length, 'entries');
+        console.log('[PDF] Billing results available:', billingResultsByDate.size, 'dates');
         console.log('[PDF] Timesheets:', timesheets.map(ts => ({
           date: ts.date,
           operator: ts.operatorName,
@@ -1057,39 +1064,60 @@ export default function BillingConfigScreen() {
           key: record.assetId,
           title: record.assetType,
           subtitle: record.plantNumber || record.registrationNumber || record.assetId,
-          entries: timesheets.map((ts: TimesheetEntry) => ({
-            id: ts.id,
-            date: ts.date,
-            operatorName: ts.operatorName,
-            operatorId: ts.operatorName || '',
-            verified: true,
-            verifiedAt: ts.verifiedAt || new Date().toISOString(),
-            verifiedBy: ts.adjustedBy || 'system',
-            masterAccountId: user?.masterAccountId || '',
-            siteId: user?.siteId || '',
-            type: 'plant_hours' as const,
-            openHours: parseFloat(ts.openHours) || 0,
-            closeHours: parseFloat(ts.closeHours) || 0,
-            totalHours: ts.totalHours || 0,
-            isBreakdown: ts.isBreakdown,
-            inclementWeather: ts.isRainDay,
-            hasAttachment: false,
-            assetId: record.assetId,
-            assetType: record.assetType,
-            plantNumber: record.plantNumber,
-            registrationNumber: record.registrationNumber,
-            ownerId: selectedSubcontractor,
-            ownerType: 'subcontractor' as const,
-            ownerName: subcontractor?.name,
-            hasOriginalEntry: ts.hasOriginalEntry,
-            originalEntryData: ts.originalEntryData,
-            isAdjustment: ts.isAdjustment,
-            originalEntryId: ts.originalEntryId,
-            adjustedBy: ts.adjustedBy,
-            adjustedAt: ts.adjustedAt,
-          })),
+          entries: timesheets.map((ts: TimesheetEntry) => {
+            // Get the billing result for this date to populate actualHours and billableHours
+            const billingResult = billingResultsByDate.get(ts.date);
+            
+            return {
+              id: ts.id,
+              date: ts.date,
+              operatorName: ts.operatorName,
+              operatorId: ts.operatorName || '',
+              verified: true,
+              verifiedAt: ts.verifiedAt || new Date().toISOString(),
+              verifiedBy: ts.adjustedBy || 'system',
+              masterAccountId: user?.masterAccountId || '',
+              siteId: user?.siteId || '',
+              type: 'plant_hours' as const,
+              openHours: parseFloat(ts.openHours) || 0,
+              closeHours: parseFloat(ts.closeHours) || 0,
+              totalHours: ts.totalHours || 0,
+              // Use pre-calculated hours from billing logic - DO NOT recalculate in PDF
+              actualHours: billingResult?.actualHours ?? ts.totalHours ?? 0,
+              billableHours: billingResult?.billableHours ?? ts.totalHours ?? 0,
+              assetRate: record.rate,
+              totalCost: (billingResult?.billableHours ?? ts.totalHours ?? 0) * record.rate,
+              billingRule: billingResult?.appliedRule,
+              isBreakdown: ts.isBreakdown,
+              inclementWeather: ts.isRainDay,
+              isRainDay: ts.isRainDay,
+              isStrikeDay: ts.isStrikeDay,
+              isPublicHoliday: ts.isPublicHoliday,
+              hasAttachment: false,
+              assetId: record.assetId,
+              assetType: record.assetType,
+              plantNumber: record.plantNumber,
+              registrationNumber: record.registrationNumber,
+              ownerId: selectedSubcontractor,
+              ownerType: 'subcontractor' as const,
+              ownerName: subcontractor?.name,
+              hasOriginalEntry: ts.hasOriginalEntry,
+              originalEntryData: ts.originalEntryData,
+              isAdjustment: ts.isAdjustment,
+              originalEntryId: ts.originalEntryId,
+              adjustedBy: ts.adjustedBy,
+              adjustedAt: ts.adjustedAt,
+              notes: ts.notes || ts.adminNotes || ts.billingNotes,
+            };
+          }),
           dateGroups: timesheets.map((ts: TimesheetEntry) => {
             const hasAdjustment = ts.hasOriginalEntry || ts.isAdjustment || Boolean(ts.adjustedBy);
+            // Get billing result for this date
+            const billingResult = billingResultsByDate.get(ts.date);
+            // Also get billing result for original entry if it exists
+            const originalBillingResult = ts.originalEntryData?.date 
+              ? billingResultsByDate.get(ts.originalEntryData.date)
+              : undefined;
             
             if (hasAdjustment && ts.originalEntryData) {
               return {
@@ -1102,6 +1130,12 @@ export default function BillingConfigScreen() {
                   openHours: parseFloat(String(ts.originalEntryData.openHours || 0)),
                   closeHours: parseFloat(String(ts.originalEntryData.closeHours || ts.originalEntryData.closingHours || 0)),
                   totalHours: ts.originalEntryData.totalHours || 0,
+                  // For original entry, use totalHours as actualHours since it wasn't agreed
+                  actualHours: ts.originalEntryData.totalHours || 0,
+                  billableHours: originalBillingResult?.billableHours ?? ts.originalEntryData.totalHours ?? 0,
+                  assetRate: record.rate,
+                  totalCost: (originalBillingResult?.billableHours ?? ts.originalEntryData.totalHours ?? 0) * record.rate,
+                  billingRule: originalBillingResult?.appliedRule,
                   isBreakdown: ts.originalEntryData.isBreakdown,
                   inclementWeather: ts.originalEntryData.isRainDay,
                   isRainDay: ts.originalEntryData.isRainDay,
@@ -1117,6 +1151,12 @@ export default function BillingConfigScreen() {
                   openHours: parseFloat(String(ts.openHours || 0)),
                   closeHours: parseFloat(String(ts.closeHours || ts.closingHours || 0)),
                   totalHours: ts.totalHours || 0,
+                  // Use pre-calculated billing hours - this is the agreed version
+                  actualHours: billingResult?.actualHours ?? ts.totalHours ?? 0,
+                  billableHours: billingResult?.billableHours ?? ts.totalHours ?? 0,
+                  assetRate: record.rate,
+                  totalCost: (billingResult?.billableHours ?? ts.totalHours ?? 0) * record.rate,
+                  billingRule: billingResult?.appliedRule,
                   isBreakdown: ts.isBreakdown,
                   inclementWeather: ts.isRainDay,
                   isRainDay: ts.isRainDay,
@@ -1138,6 +1178,12 @@ export default function BillingConfigScreen() {
                   openHours: parseFloat(String(ts.openHours || 0)),
                   closeHours: parseFloat(String(ts.closeHours || ts.closingHours || 0)),
                   totalHours: ts.totalHours || 0,
+                  // Use pre-calculated billing hours
+                  actualHours: billingResult?.actualHours ?? ts.totalHours ?? 0,
+                  billableHours: billingResult?.billableHours ?? ts.totalHours ?? 0,
+                  assetRate: record.rate,
+                  totalCost: (billingResult?.billableHours ?? ts.totalHours ?? 0) * record.rate,
+                  billingRule: billingResult?.appliedRule,
                   isBreakdown: ts.isBreakdown,
                   inclementWeather: ts.isRainDay,
                   isRainDay: ts.isRainDay,
@@ -2437,48 +2483,119 @@ export default function BillingConfigScreen() {
       const groups = selectedAssets.map(record => {
         const timesheets = ephTimesheets.get(record.assetId) || [];
         const dedupedTimesheets = deduplicateTimesheetEntries(timesheets);
+        const billingResultsByDate = record.billingResultsByDate || new Map<string, BillableHoursResult>();
         
         return {
           key: record.assetId,
           title: record.assetType,
           subtitle: record.plantNumber || record.registrationNumber || record.assetId,
-          entries: dedupedTimesheets.map(ts => ({
-            id: ts.id,
-            date: ts.date,
-            operatorName: ts.operatorName,
-            operatorId: ts.operatorName || '',
-            verified: true,
-            verifiedAt: ts.verifiedAt || new Date().toISOString(),
-            verifiedBy: ts.adjustedBy || 'system',
-            masterAccountId: user?.masterAccountId || '',
-            siteId: user?.siteId || '',
-            type: 'plant_hours' as const,
-            openHours: parseFloat(ts.openHours) || 0,
-            closeHours: parseFloat(ts.closeHours) || 0,
-            totalHours: ts.totalHours || 0,
-            isBreakdown: ts.isBreakdown,
-            inclementWeather: ts.isRainDay,
-            hasAttachment: false,
-            assetId: record.assetId,
-            assetType: record.assetType,
-            plantNumber: record.plantNumber,
-            registrationNumber: record.registrationNumber,
-            ownerId: selectedSubcontractor,
-            ownerType: 'subcontractor' as const,
-            ownerName: subcontractor?.name,
-            hasOriginalEntry: ts.hasOriginalEntry,
-            originalEntryData: ts.originalEntryData,
-            isAdjustment: ts.isAdjustment,
-            originalEntryId: ts.originalEntryId,
-            adjustedBy: ts.adjustedBy,
-            adjustedAt: ts.adjustedAt,
-          })),
-          dateGroups: dedupedTimesheets.map(ts => ({
-            date: ts.date,
-            adjustmentEntry: ts.hasOriginalEntry || ts.isAdjustment ? ts as any : undefined,
-            originalEntry: ts.originalEntryData ? { ...ts.originalEntryData, id: ts.originalEntryId || ts.id, date: ts.date } as any : undefined,
-            agreedEntry: undefined,
-          })),
+          entries: dedupedTimesheets.map(ts => {
+            // Get the billing result for this date to populate actualHours and billableHours
+            const billingResult = billingResultsByDate.get(ts.date);
+            
+            return {
+              id: ts.id,
+              date: ts.date,
+              operatorName: ts.operatorName,
+              operatorId: ts.operatorName || '',
+              verified: true,
+              verifiedAt: ts.verifiedAt || new Date().toISOString(),
+              verifiedBy: ts.adjustedBy || 'system',
+              masterAccountId: user?.masterAccountId || '',
+              siteId: user?.siteId || '',
+              type: 'plant_hours' as const,
+              openHours: parseFloat(ts.openHours) || 0,
+              closeHours: parseFloat(ts.closeHours) || 0,
+              totalHours: ts.totalHours || 0,
+              // Use pre-calculated hours from billing logic - DO NOT recalculate in PDF
+              actualHours: billingResult?.actualHours ?? ts.totalHours ?? 0,
+              billableHours: billingResult?.billableHours ?? ts.totalHours ?? 0,
+              assetRate: record.rate,
+              totalCost: (billingResult?.billableHours ?? ts.totalHours ?? 0) * record.rate,
+              billingRule: billingResult?.appliedRule,
+              isBreakdown: ts.isBreakdown,
+              inclementWeather: ts.isRainDay,
+              isRainDay: ts.isRainDay,
+              isStrikeDay: ts.isStrikeDay,
+              isPublicHoliday: ts.isPublicHoliday,
+              hasAttachment: false,
+              assetId: record.assetId,
+              assetType: record.assetType,
+              plantNumber: record.plantNumber,
+              registrationNumber: record.registrationNumber,
+              ownerId: selectedSubcontractor,
+              ownerType: 'subcontractor' as const,
+              ownerName: subcontractor?.name,
+              hasOriginalEntry: ts.hasOriginalEntry,
+              originalEntryData: ts.originalEntryData,
+              isAdjustment: ts.isAdjustment,
+              originalEntryId: ts.originalEntryId,
+              adjustedBy: ts.adjustedBy,
+              adjustedAt: ts.adjustedAt,
+              notes: ts.notes || ts.adminNotes || ts.billingNotes,
+            };
+          }),
+          dateGroups: dedupedTimesheets.map(ts => {
+            // Get billing result for this date
+            const billingResult = billingResultsByDate.get(ts.date);
+            // Also get billing result for original entry if it exists
+            const originalBillingResult = ts.originalEntryData?.date 
+              ? billingResultsByDate.get(ts.originalEntryData.date)
+              : undefined;
+            
+            const adjustmentEntry = (ts.hasOriginalEntry || ts.isAdjustment) ? {
+              ...ts,
+              id: ts.id,
+              date: ts.date,
+              operatorName: ts.operatorName,
+              openHours: parseFloat(String(ts.openHours || 0)),
+              closeHours: parseFloat(String(ts.closeHours || ts.closingHours || 0)),
+              totalHours: ts.totalHours || 0,
+              // Use pre-calculated billing hours
+              actualHours: billingResult?.actualHours ?? ts.totalHours ?? 0,
+              billableHours: billingResult?.billableHours ?? ts.totalHours ?? 0,
+              assetRate: record.rate,
+              totalCost: (billingResult?.billableHours ?? ts.totalHours ?? 0) * record.rate,
+              billingRule: billingResult?.appliedRule,
+              isBreakdown: ts.isBreakdown,
+              inclementWeather: ts.isRainDay,
+              isRainDay: ts.isRainDay,
+              isStrikeDay: ts.isStrikeDay,
+              isPublicHoliday: ts.isPublicHoliday,
+              notes: ts.notes || ts.adminNotes || ts.billingNotes,
+              adjustedBy: ts.adjustedBy,
+              adjustedAt: ts.adjustedAt,
+            } as any : undefined;
+            
+            const originalEntry = ts.originalEntryData ? {
+              ...ts.originalEntryData,
+              id: ts.originalEntryId || ts.id,
+              date: ts.date,
+              operatorName: ts.originalEntryData.operatorName || ts.operatorName,
+              openHours: parseFloat(String(ts.originalEntryData.openHours || 0)),
+              closeHours: parseFloat(String(ts.originalEntryData.closeHours || ts.originalEntryData.closingHours || 0)),
+              totalHours: ts.originalEntryData.totalHours || 0,
+              // For original entry, use totalHours as actualHours
+              actualHours: ts.originalEntryData.totalHours || 0,
+              billableHours: originalBillingResult?.billableHours ?? ts.originalEntryData.totalHours ?? 0,
+              assetRate: record.rate,
+              totalCost: (originalBillingResult?.billableHours ?? ts.originalEntryData.totalHours ?? 0) * record.rate,
+              billingRule: originalBillingResult?.appliedRule,
+              isBreakdown: ts.originalEntryData.isBreakdown,
+              inclementWeather: ts.originalEntryData.isRainDay,
+              isRainDay: ts.originalEntryData.isRainDay,
+              isStrikeDay: ts.originalEntryData.isStrikeDay,
+              isPublicHoliday: ts.originalEntryData.isPublicHoliday,
+              notes: ts.originalEntryData.notes,
+            } as any : undefined;
+            
+            return {
+              date: ts.date,
+              adjustmentEntry,
+              originalEntry,
+              agreedEntry: undefined,
+            };
+          }),
         };
       });
       

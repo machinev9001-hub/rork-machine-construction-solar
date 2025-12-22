@@ -1,5 +1,19 @@
 # EPH/Timesheet Agreement System - Implementation Summary
 
+## ✅ Recently Completed (2025-12-22)
+
+### PDF Billing Calculation Fix
+- **Issue**: PDF was recalculating hours from meter readings instead of using pre-calculated agreed hours from the actual timesheet
+- **Root Cause**: `billing-config.tsx` was not passing `actualHours` and `billableHours` to the PDF generator, causing it to fall back to recalculating from `openHours` and `closeHours`
+- **Fix Applied**:
+  - Added `billingResultsByDate` Map to store pre-calculated billable hours during EPH generation
+  - Updated PDF data preparation in `handleGeneratePDFReport` to populate `actualHours` and `billableHours` fields
+  - Updated "Send to Subcontractor" PDF generation to use the same fix
+  - PDF now correctly uses agreed hours without recalculation from meter readings
+- **Files Changed**:
+  - `app/billing-config.tsx`: Added billing results mapping and updated PDF data structure
+  - `docs/BILLING-TIMESHEET-WORKFLOW-CLARIFICATION.md`: Updated with fix details
+
 ## ✅ Completed
 
 ### 1. Documentation

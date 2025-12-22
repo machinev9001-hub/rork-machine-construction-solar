@@ -6,7 +6,7 @@ const config = getDefaultConfig(__dirname);
 // Optimize for web platform to prevent bundler restart loops
 config.resolver = {
   ...config.resolver,
-  // Disable source maps in web production to reduce bundle processing
+  // Explicitly define platforms for proper module resolution
   platforms: ['ios', 'android', 'web'],
   // Add platform-specific extensions
   sourceExts: [...(config.resolver?.sourceExts || []), 'jsx', 'js', 'ts', 'tsx', 'json'],
@@ -22,7 +22,7 @@ config.transformer = {
     keep_classnames: true,
     keep_fnames: true,
   },
-  // Reduce worker count to prevent memory exhaustion
+  // Enable transform optimizations for better web performance
   getTransformOptions: async () => ({
     transform: {
       experimentalImportSupport: false,
@@ -36,7 +36,7 @@ config.maxWorkers = 2;
 
 // Improve caching to prevent unnecessary rebuilds
 config.cacheStores = [
-  ...((config.cacheStores || []).filter(store => store)),
+  ...(config.cacheStores || []),
 ];
 
 // Reset cache on config changes

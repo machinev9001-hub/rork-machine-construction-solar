@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Truck, User, FileDown, ChevronDown, ChevronUp, AlertCircle, Calendar, FileText, CheckSquare, Square } from 'lucide-react-native';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -192,51 +192,48 @@ export default function PlantAssetsTimesheetsTab({
   }, [user?.siteId, user?.masterAccountId]);
 
   const loadBillingConfig = useCallback(async () => {
-    if (!user?.masterAccountId || !user?.siteId) return;
+    if (!user?.masterAccountId) return;
 
     try {
-      const billingConfigRef = collection(db, 'billingConfigs');
-      const q = query(
-        billingConfigRef,
-        where('masterAccountId', '==', user.masterAccountId),
-        where('siteId', '==', user.siteId)
+      // Load from same path as billing-config.tsx for consistency
+      const configDoc = await getDoc(
+        doc(db, 'masterAccounts', user.masterAccountId, 'billingConfig', 'default')
       );
-      const snapshot = await getDocs(q);
       
-      if (!snapshot.empty) {
-        const configData = snapshot.docs[0].data();
+      if (configDoc.exists()) {
+        const configData = configDoc.data();
         const config: BillingConfigForCalculation = {
           weekdays: {
-            minHours: configData.machineHours?.weekdayMinimum ?? 0,
+            minHours: configData.weekdays?.minHours ?? 0,
           },
           saturday: {
-            minHours: configData.machineHours?.saturdayMinimum ?? 0,
+            minHours: configData.saturday?.minHours ?? 0,
           },
           sunday: {
-            minHours: configData.machineHours?.saturdayMinimum ?? 0,
+            minHours: configData.sunday?.minHours ?? 0,
           },
           publicHolidays: {
-            minHours: 0,
+            minHours: configData.publicHolidays?.minHours ?? 0,
           },
           rainDays: {
-            enabled: true,
-            minHours: configData.machineHours?.rainDayHours ?? 0,
+            enabled: configData.rainDays?.enabled ?? true,
+            minHours: configData.rainDays?.minHours ?? 0,
           },
           breakdown: {
-            enabled: true,
+            enabled: configData.breakdown?.enabled ?? true,
           },
         };
-        console.log('[PlantAssetsTimesheetsTab] Loaded billing config:', config);
+        console.log('[PlantAssetsTimesheetsTab] Loaded billing config from masterAccounts path:', config);
         setBillingConfig(config);
       } else {
-        console.log('[PlantAssetsTimesheetsTab] No billing config found');
+        console.log('[PlantAssetsTimesheetsTab] No billing config found at masterAccounts path');
         setBillingConfig(null);
       }
     } catch (error) {
       console.error('[PlantAssetsTimesheetsTab] Error loading billing config:', error);
       setBillingConfig(null);
     }
-  }, [user?.masterAccountId, user?.siteId]);
+  }, [user?.masterAccountId]);
 
   const loadPlantAssets = async (subcontractorId: string) => {
     if (!user?.siteId || !user?.masterAccountId) return;

@@ -2506,15 +2506,15 @@ export default function BillingConfigScreen() {
           </View>
           <View style={styles.ephDivider} />
           <View style={styles.ephInfoRow}>
-            <Text style={styles.ephInfoLabel}>Normal Hours:</Text>
-            <Text style={styles.ephInfoValue}>{item.totalActualHours}h</Text>
+            <Text style={styles.ephInfoLabel}>Actual Clock Hours:</Text>
+            <Text style={styles.ephInfoValue}>{item.totalActualHours.toFixed(1)}h</Text>
           </View>
           <View style={styles.ephInfoRow}>
-            <Text style={styles.ephTotalLabel}>Total Billable Hours:</Text>
-            <Text style={styles.ephTotalValue}>{item.totalBillableHours}h</Text>
+            <Text style={styles.ephTotalLabel}>Billable Hours (per config):</Text>
+            <Text style={styles.ephTotalValue}>{item.totalBillableHours.toFixed(1)}h</Text>
           </View>
           <View style={styles.ephInfoRow}>
-            <Text style={styles.ephTotalLabel}>Estimated Cost:</Text>
+            <Text style={styles.ephTotalLabel}>Total Cost:</Text>
             <Text style={styles.ephCostValue}>R{item.estimatedCost.toFixed(2)}</Text>
           </View>
         </View>
@@ -2522,35 +2522,52 @@ export default function BillingConfigScreen() {
         {isExpanded && (
           <View style={styles.ephExpandedContent}>
             <View style={styles.ephDivider} />
-            <Text style={styles.ephBreakdownTitle}>Hours Breakdown</Text>
+            <Text style={styles.ephBreakdownTitle}>Hours Breakdown (Actual → Billable)</Text>
             <View style={styles.ephGrid}>
+              <View style={styles.ephGridHeader}>
+                <Text style={styles.ephGridHeaderLabel}>Day Type</Text>
+                <Text style={styles.ephGridHeaderValue}>Actual</Text>
+                <Text style={styles.ephGridHeaderValue}>Billable</Text>
+              </View>
               <View style={styles.ephRow}>
-                <Text style={styles.ephLabel}>Normal Hours:</Text>
-                <Text style={styles.ephValue}>{item.actualNormalHours}h → {item.billableNormalHours}h</Text>
+                <Text style={styles.ephLabel}>Weekdays:</Text>
+                <Text style={styles.ephValueActual}>{item.actualNormalHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableNormalHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Saturday:</Text>
-                <Text style={styles.ephValue}>{item.actualSaturdayHours}h → {item.billableSaturdayHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualSaturdayHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableSaturdayHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Sunday:</Text>
-                <Text style={styles.ephValue}>{item.actualSundayHours}h → {item.billableSundayHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualSundayHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableSundayHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Public Holidays:</Text>
-                <Text style={styles.ephValue}>{item.actualPublicHolidayHours}h → {item.billablePublicHolidayHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualPublicHolidayHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billablePublicHolidayHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Breakdown:</Text>
-                <Text style={styles.ephValue}>{item.actualBreakdownHours}h → {item.billableBreakdownHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualBreakdownHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableBreakdownHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Rain Days:</Text>
-                <Text style={styles.ephValue}>{item.actualRainDayHours}h → {item.billableRainDayHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualRainDayHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableRainDayHours.toFixed(1)}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Strike Days:</Text>
-                <Text style={styles.ephValue}>{item.actualStrikeDayHours}h → {item.billableStrikeDayHours}h</Text>
+                <Text style={styles.ephValueActual}>{item.actualStrikeDayHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillable}>{item.billableStrikeDayHours.toFixed(1)}h</Text>
+              </View>
+              <View style={[styles.ephRow, styles.ephTotalRow]}>
+                <Text style={[styles.ephLabel, styles.ephTotalLabelBold]}>TOTALS:</Text>
+                <Text style={styles.ephValueActualTotal}>{item.totalActualHours.toFixed(1)}h</Text>
+                <Text style={styles.ephValueBillableTotal}>{item.totalBillableHours.toFixed(1)}h</Text>
               </View>
             </View>
             
@@ -3271,6 +3288,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#1e293b',
+  },
+  ephGridHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  ephGridHeaderLabel: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#64748b',
+    textTransform: 'uppercase' as const,
+  },
+  ephGridHeaderValue: {
+    width: 70,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#64748b',
+    textTransform: 'uppercase' as const,
+    textAlign: 'right' as const,
+  },
+  ephValueActual: {
+    width: 70,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: '#64748b',
+    textAlign: 'right' as const,
+  },
+  ephValueBillable: {
+    width: 70,
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#10b981',
+    textAlign: 'right' as const,
+  },
+  ephTotalRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  ephTotalLabelBold: {
+    fontWeight: '700' as const,
+    color: '#1e293b',
+  },
+  ephValueActualTotal: {
+    width: 70,
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#475569',
+    textAlign: 'right' as const,
+  },
+  ephValueBillableTotal: {
+    width: 70,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#10b981',
+    textAlign: 'right' as const,
   },
 
   ephTotalLabel: {

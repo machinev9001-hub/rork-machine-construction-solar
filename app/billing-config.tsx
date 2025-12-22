@@ -28,6 +28,7 @@ import { agreePlantAssetTimesheet, getAgreedTimesheetByOriginalId, directApprove
 import { generateTimesheetPDF, downloadTimesheetPDF, emailTimesheetPDF } from '@/utils/timesheetPdfGenerator';
 import { createPendingEdit, getAllPendingEditsByAssetId, supersedePendingEdit, EPHPendingEdit } from '@/utils/ephPendingEditsManager';
 import { sendEPHToSubcontractor } from '@/utils/ephEmailService';
+import { calculateBillableHours, BillingConfigForCalculation, BillableHoursResult } from '@/utils/billableHoursCalculator';
 
 type BillingMethod = 'PER_HOUR' | 'MINIMUM_BILLING';
 
@@ -65,16 +66,27 @@ type EPHRecord = {
   registrationNumber?: string;
   rate: number;
   rateType: 'wet' | 'dry';
-  normalHours: number;
-  saturdayHours: number;
-  sundayHours: number;
-  publicHolidayHours: number;
-  breakdownHours: number;
-  rainDayHours: number;
-  strikeDayHours: number;
+  // Actual/Normal hours (raw clock hours)
+  actualNormalHours: number;
+  actualSaturdayHours: number;
+  actualSundayHours: number;
+  actualPublicHolidayHours: number;
+  actualBreakdownHours: number;
+  actualRainDayHours: number;
+  actualStrikeDayHours: number;
+  totalActualHours: number;
+  // Billable hours (calculated based on billing config rules)
+  billableNormalHours: number;
+  billableSaturdayHours: number;
+  billableSundayHours: number;
+  billablePublicHolidayHours: number;
+  billableBreakdownHours: number;
+  billableRainDayHours: number;
+  billableStrikeDayHours: number;
   totalBillableHours: number;
   estimatedCost: number;
   rawTimesheets: TimesheetEntry[];
+  billingResults: BillableHoursResult[];
 };
 
 type TimesheetEntry = {
@@ -597,17 +609,21 @@ export default function BillingConfigScreen() {
     async (assets: PlantAsset[], subcontractorId: string) => {
       console.log('[EPH] Generating EPH report for date range:', startDate.toISOString(), 'to', endDate.toISOString());
       console.log('[EPH] Assets to process:', assets.length);
+      console.log('[EPH] Using billing config:', JSON.stringify(config, null, 2));
+
+      const billingCalcConfig: BillingConfigForCalculation = {
+        weekdays: { minHours: config.weekdays.minHours || 0 },
+        saturday: { minHours: config.saturday.minHours || 0 },
+        sunday: { minHours: config.sunday.minHours || 0 },
+        publicHolidays: { minHours: config.publicHolidays.minHours || 0 },
+        rainDays: { enabled: config.rainDays.enabled, minHours: config.rainDays.minHours },
+        breakdown: { enabled: config.breakdown?.enabled ?? true },
+      };
 
       try {
         const ephRecords: EPHRecord[] = await Promise.all(
           assets.map(async (asset) => {
             console.log('[EPH] Processing asset:', asset.assetId, asset.type, asset.plantNumber);
-            console.log('[EPH] Query parameters:');
-            console.log('[EPH]  - masterAccountId:', user?.masterAccountId);
-            console.log('[EPH]  - siteId:', user?.siteId);
-            console.log('[EPH]  - assetId:', asset.assetId);
-            console.log('[EPH]  - type:', 'plant_hours');
-            console.log('[EPH]  - date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
             const timesheetQuery = query(
               collection(db, 'verifiedTimesheets'),
               where('masterAccountId', '==', user?.masterAccountId),
@@ -621,28 +637,6 @@ export default function BillingConfigScreen() {
             const timesheetSnapshot = await getDocs(timesheetQuery);
             console.log('[EPH] Found', timesheetSnapshot.docs.length, 'verified timesheets for asset:', asset.assetId);
             
-            if (timesheetSnapshot.docs.length === 0) {
-              console.log('[EPH] ⚠️ No timesheets found. Checking if any verifiedTimesheets exist for this asset...');
-              const checkQuery = query(
-                collection(db, 'verifiedTimesheets'),
-                where('assetId', '==', asset.assetId),
-                where('type', '==', 'plant_hours')
-              );
-              const checkSnapshot = await getDocs(checkQuery);
-              console.log('[EPH] Total verifiedTimesheets for this asset (any date/account):', checkSnapshot.docs.length);
-              if (checkSnapshot.docs.length > 0) {
-                const sample = checkSnapshot.docs[0].data();
-                console.log('[EPH] Sample timesheet:', {
-                  date: sample.date,
-                  masterAccountId: sample.masterAccountId,
-                  assetId: sample.assetId,
-                  type: sample.type,
-                  operatorName: sample.operatorName,
-                  totalHours: sample.totalHours,
-                });
-              }
-            }
-            
             const rawEntries = timesheetSnapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
@@ -655,32 +649,28 @@ export default function BillingConfigScreen() {
             });
             
             const dedupedEntries = deduplicateTimesheetEntries(rawEntries);
-            console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries (removed', rawEntries.length - dedupedEntries.length, 'duplicates)');
-            
-            const agreedIds = new Set<string>();
-            for (const entry of dedupedEntries) {
-              const existingAgreed = await getAgreedTimesheetByOriginalId(entry.id);
-              if (existingAgreed) {
-                agreedIds.add(entry.id);
-              }
-            }
-            
-            setAgreedTimesheetIds(prev => {
-              const newSet = new Set(prev);
-              agreedIds.forEach(id => newSet.add(id));
-              return newSet;
-            });
+            console.log('[EPH] After deduplication:', dedupedEntries.length, 'entries');
 
-            let normalHours = 0;
-            let saturdayHours = 0;
-            let sundayHours = 0;
-            let publicHolidayHours = 0;
-            let breakdownHours = 0;
-            let rainDayHours = 0;
-            let strikeDayHours = 0;
+            let actualNormalHours = 0;
+            let actualSaturdayHours = 0;
+            let actualSundayHours = 0;
+            let actualPublicHolidayHours = 0;
+            let actualBreakdownHours = 0;
+            let actualRainDayHours = 0;
+            let actualStrikeDayHours = 0;
+
+            let billableNormalHours = 0;
+            let billableSaturdayHours = 0;
+            let billableSundayHours = 0;
+            let billablePublicHolidayHours = 0;
+            let billableBreakdownHours = 0;
+            let billableRainDayHours = 0;
+            let billableStrikeDayHours = 0;
+
+            const billingResults: BillableHoursResult[] = [];
 
             dedupedEntries.forEach((entry) => {
-              const hours = entry.totalHours || 0;
+              const actualHours = entry.totalHours || 0;
               const date = new Date(entry.date);
               const dayOfWeek = date.getDay();
               const isBreakdown = entry.isBreakdown || false;
@@ -688,33 +678,57 @@ export default function BillingConfigScreen() {
               const isStrikeDay = entry.isStrikeDay || false;
               const isPublicHoliday = entry.isPublicHoliday || false;
 
+              const billingResult = calculateBillableHours(
+                {
+                  startTime: entry.openHours,
+                  endTime: entry.closeHours,
+                  date: entry.date,
+                  isBreakdown,
+                  isRainDay,
+                  isInclementWeather: isRainDay,
+                  isPublicHoliday,
+                  totalHours: actualHours,
+                },
+                billingCalcConfig
+              );
+              billingResults.push(billingResult);
+
+              console.log(`[EPH] Entry ${entry.date}: actual=${actualHours}h, billable=${billingResult.billableHours}h, rule=${billingResult.appliedRule}`);
+
               if (isBreakdown) {
-                breakdownHours += hours;
+                actualBreakdownHours += actualHours;
+                billableBreakdownHours += billingResult.billableHours;
               } else if (isRainDay) {
-                rainDayHours += hours;
+                actualRainDayHours += actualHours;
+                billableRainDayHours += billingResult.billableHours;
               } else if (isStrikeDay) {
-                strikeDayHours += hours;
+                actualStrikeDayHours += actualHours;
+                billableStrikeDayHours += billingResult.billableHours;
               } else if (isPublicHoliday) {
-                publicHolidayHours += hours;
+                actualPublicHolidayHours += actualHours;
+                billablePublicHolidayHours += billingResult.billableHours;
               } else if (dayOfWeek === 6) {
-                saturdayHours += hours;
+                actualSaturdayHours += actualHours;
+                billableSaturdayHours += billingResult.billableHours;
               } else if (dayOfWeek === 0) {
-                sundayHours += hours;
+                actualSundayHours += actualHours;
+                billableSundayHours += billingResult.billableHours;
               } else {
-                normalHours += hours;
+                actualNormalHours += actualHours;
+                billableNormalHours += billingResult.billableHours;
               }
             });
 
             const rate = asset.dryRate || asset.wetRate || 0;
             const rateType = asset.dryRate ? 'dry' : 'wet';
-            const totalBillableHours =
-              normalHours +
-              saturdayHours +
-              sundayHours +
-              publicHolidayHours +
-              breakdownHours +
-              rainDayHours +
-              strikeDayHours;
+            
+            const totalActualHours = actualNormalHours + actualSaturdayHours + actualSundayHours + 
+              actualPublicHolidayHours + actualBreakdownHours + actualRainDayHours + actualStrikeDayHours;
+            
+            const totalBillableHours = billableNormalHours + billableSaturdayHours + billableSundayHours + 
+              billablePublicHolidayHours + billableBreakdownHours + billableRainDayHours + billableStrikeDayHours;
+
+            console.log(`[EPH] Asset ${asset.assetId}: totalActual=${totalActualHours}h, totalBillable=${totalBillableHours}h, cost=R${(totalBillableHours * rate).toFixed(2)}`);
 
             return {
               assetId: asset.assetId,
@@ -723,16 +737,25 @@ export default function BillingConfigScreen() {
               registrationNumber: asset.registrationNumber,
               rate,
               rateType: rateType as 'wet' | 'dry',
-              normalHours,
-              saturdayHours,
-              sundayHours,
-              publicHolidayHours,
-              breakdownHours,
-              rainDayHours,
-              strikeDayHours,
+              actualNormalHours,
+              actualSaturdayHours,
+              actualSundayHours,
+              actualPublicHolidayHours,
+              actualBreakdownHours,
+              actualRainDayHours,
+              actualStrikeDayHours,
+              totalActualHours,
+              billableNormalHours,
+              billableSaturdayHours,
+              billableSundayHours,
+              billablePublicHolidayHours,
+              billableBreakdownHours,
+              billableRainDayHours,
+              billableStrikeDayHours,
               totalBillableHours,
               estimatedCost: totalBillableHours * rate,
               rawTimesheets: dedupedEntries,
+              billingResults,
             };
           })
         );
@@ -742,7 +765,7 @@ export default function BillingConfigScreen() {
         console.error('Error generating EPH report:', error);
       }
     },
-    [endDate, startDate, user?.masterAccountId]
+    [endDate, startDate, user?.masterAccountId, user?.siteId, config]
   );
 
   const loadPlantAssets = useCallback(
@@ -2483,6 +2506,10 @@ export default function BillingConfigScreen() {
           </View>
           <View style={styles.ephDivider} />
           <View style={styles.ephInfoRow}>
+            <Text style={styles.ephInfoLabel}>Normal Hours:</Text>
+            <Text style={styles.ephInfoValue}>{item.totalActualHours}h</Text>
+          </View>
+          <View style={styles.ephInfoRow}>
             <Text style={styles.ephTotalLabel}>Total Billable Hours:</Text>
             <Text style={styles.ephTotalValue}>{item.totalBillableHours}h</Text>
           </View>
@@ -2499,31 +2526,31 @@ export default function BillingConfigScreen() {
             <View style={styles.ephGrid}>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Normal Hours:</Text>
-                <Text style={styles.ephValue}>{item.normalHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualNormalHours}h → {item.billableNormalHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Saturday:</Text>
-                <Text style={styles.ephValue}>{item.saturdayHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualSaturdayHours}h → {item.billableSaturdayHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Sunday:</Text>
-                <Text style={styles.ephValue}>{item.sundayHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualSundayHours}h → {item.billableSundayHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Public Holidays:</Text>
-                <Text style={styles.ephValue}>{item.publicHolidayHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualPublicHolidayHours}h → {item.billablePublicHolidayHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Breakdown:</Text>
-                <Text style={styles.ephValue}>{item.breakdownHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualBreakdownHours}h → {item.billableBreakdownHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Rain Days:</Text>
-                <Text style={styles.ephValue}>{item.rainDayHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualRainDayHours}h → {item.billableRainDayHours}h</Text>
               </View>
               <View style={styles.ephRow}>
                 <Text style={styles.ephLabel}>Strike Days:</Text>
-                <Text style={styles.ephValue}>{item.strikeDayHours}h</Text>
+                <Text style={styles.ephValue}>{item.actualStrikeDayHours}h → {item.billableStrikeDayHours}h</Text>
               </View>
             </View>
             

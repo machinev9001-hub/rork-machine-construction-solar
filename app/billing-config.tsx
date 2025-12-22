@@ -87,6 +87,8 @@ type EPHRecord = {
   estimatedCost: number;
   rawTimesheets: TimesheetEntry[];
   billingResults: BillableHoursResult[];
+  billingResultsByDate?: Map<string, BillableHoursResult>;
+  billingResultsById?: Map<string, BillableHoursResult>;
 };
 
 type TimesheetEntry = {
@@ -724,10 +726,32 @@ export default function BillingConfigScreen() {
             let billableStrikeDayHours = 0;
 
             const billingResults: BillableHoursResult[] = [];
-            // Create a map from date to billing result for later lookup in PDF generation
+            // Create a map from date to billing result for EPH totals (uses effective entries only)
             const billingResultsByDate = new Map<string, BillableHoursResult>();
+            // Create a map from entry ID to billing result for PDF generation (each entry needs its own calculation)
+            const billingResultsById = new Map<string, BillableHoursResult>();
 
-            // Use effective entries for billing calculations (only one per date based on hierarchy)
+            // Calculate billing for ALL deduplicated entries (for PDF - each row needs its own billable hours)
+            dedupedEntries.forEach((entry) => {
+              const entryActualHours = entry.totalHours || 0;
+              const entryBillingResult = calculateBillableHours(
+                {
+                  startTime: entry.openHours,
+                  endTime: entry.closeHours,
+                  date: entry.date,
+                  isBreakdown: entry.isBreakdown || false,
+                  isRainDay: entry.isRainDay || false,
+                  isInclementWeather: entry.isRainDay || false,
+                  isPublicHoliday: entry.isPublicHoliday || false,
+                  totalHours: entryActualHours,
+                },
+                billingCalcConfig
+              );
+              billingResultsById.set(entry.id, entryBillingResult);
+              console.log(`[EPH] Entry ID ${entry.id} (${entry.date}): actual=${entryActualHours}h, billable=${entryBillingResult.billableHours}h`);
+            });
+
+            // Use effective entries for EPH TOTALS (only one per date based on hierarchy)
             effectiveEntries.forEach((entry) => {
               const actualHours = entry.totalHours || 0;
               const date = new Date(entry.date);
@@ -752,8 +776,10 @@ export default function BillingConfigScreen() {
               );
               billingResults.push(billingResult);
               billingResultsByDate.set(entry.date, billingResult);
+              // Also store by ID for effective entries (in case lookup by ID is needed)
+              billingResultsById.set(entry.id, billingResult);
 
-              console.log(`[EPH] Entry ${entry.date}: actual=${actualHours}h, billable=${billingResult.billableHours}h, rule=${billingResult.appliedRule}`);
+              console.log(`[EPH] Effective Entry ${entry.date} (${entry.id}): actual=${actualHours}h, billable=${billingResult.billableHours}h, rule=${billingResult.appliedRule}`);
 
               if (isBreakdown) {
                 actualBreakdownHours += actualHours;
@@ -817,6 +843,7 @@ export default function BillingConfigScreen() {
               rawTimesheets: dedupedEntries,
               billingResults,
               billingResultsByDate,
+              billingResultsById,
             };
           })
         );

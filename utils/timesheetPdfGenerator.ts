@@ -119,11 +119,25 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     return `R${value.toFixed(2)}`;
   };
 
-  // Helper to get agreed hours - use actualHours directly (which is agreedHours)
-  // Do NOT recalculate from open/close meter readings
-  const getDisplayHours = (entry: any): number => {
-    // actualHours contains the agreed hours for billing
-    return entry?.actualHours ?? entry?.agreedHours ?? entry?.totalHours ?? 0;
+  // Get actual hours for display
+  // Priority: Calculate from meters if valid, otherwise use stored actualHours
+  const getActualHours = (entry: any): number => {
+    // Convert to numbers - Firestore may store as strings
+    const open = entry?.openHours != null ? Number(entry.openHours) : NaN;
+    const close = entry?.closeHours != null ? Number(entry.closeHours) : NaN;
+    
+    // Calculate from meters if BOTH are valid numbers and close >= open
+    // Allow open to be 0 (meter can start from 0)
+    if (!isNaN(open) && !isNaN(close) && open >= 0 && close >= 0 && close >= open) {
+      const meterHours = close - open;
+      console.log('[PDF] Calculated from meters:', open, '->', close, '=', meterHours);
+      return meterHours;
+    }
+    
+    // Fallback: use the stored actual hours (agreed/approved value)
+    const actualHours = entry?.actualHours ?? entry?.agreedHours ?? entry?.totalHours ?? 0;
+    console.log('[PDF] Fallback to stored actualHours:', actualHours, '(openHours:', entry?.openHours, 'closeHours:', entry?.closeHours, ')');
+    return actualHours;
   };
 
   const groupsByAssetType = new Map<string, TimesheetGroup[]>();
@@ -140,8 +154,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     const subtotal = groups.reduce((sum, group) => {
       return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
         const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-        // Use agreed hours directly - don't recalculate
-        return groupSum + getDisplayHours(entry);
+        // Use meter hours for actual display
+        return groupSum + getActualHours(entry);
       }, 0);
     }, 0);
     assetTypeSubtotals.set(assetType, subtotal);
@@ -168,7 +182,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${originalEntry!.operatorName}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.openHours ?? '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${originalEntry!.closeHours ?? '-'}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(originalEntry).toFixed(1)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getActualHours(originalEntry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${originalEntry!.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(originalEntry!.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(originalEntry!.totalCost)}</td>
@@ -185,7 +199,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${adjustedEntry!.operatorName}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.openHours ?? '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${adjustedEntry!.closeHours ?? '-'}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(adjustedEntry).toFixed(1)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getActualHours(adjustedEntry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${adjustedEntry!.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(adjustedEntry!.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(adjustedEntry!.totalCost)}</td>
@@ -203,7 +217,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
               <td style="padding: 8px; border: 1px solid #dee2e6;">${entry.operatorName}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.openHours ?? '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${entry.closeHours ?? '-'}</td>
-              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getDisplayHours(entry).toFixed(1)}</td>
+              <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold;">${getActualHours(entry).toFixed(1)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #10b981;">${entry.billableHours?.toFixed(1) || '-'}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right;">${formatCurrency(entry.assetRate)}</td>
               <td style="padding: 8px; border: 1px solid #dee2e6; text-align: right; font-weight: bold; color: #1e3a8a;">${formatCurrency(entry.totalCost)}</td>
@@ -236,8 +250,8 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
   const totalHours = filteredGroups.reduce((sum, group) => {
     return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
       const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-      // Use agreed hours directly - don't recalculate from meter readings
-      return groupSum + getDisplayHours(entry);
+      // Use meter hours for actual total
+      return groupSum + getActualHours(entry);
     }, 0);
   }, 0);
 

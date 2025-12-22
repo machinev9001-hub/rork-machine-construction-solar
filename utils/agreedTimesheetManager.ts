@@ -30,6 +30,8 @@ type CreateAgreedTimesheetParams = {
   originalOvertimeHours?: number;
   originalSundayHours?: number;
   originalPublicHolidayHours?: number;
+  originalOpenHours?: number;
+  originalCloseHours?: number;
 };
 
 export async function createAgreedTimesheet(params: CreateAgreedTimesheetParams): Promise<string> {
@@ -60,6 +62,8 @@ export async function createAgreedTimesheet(params: CreateAgreedTimesheetParams)
     companyId: params.companyId,
     subcontractorId: params.subcontractorId,
     subcontractorName: params.subcontractorName,
+    originalOpenHours: params.originalOpenHours,
+    originalCloseHours: params.originalCloseHours,
     status: 'approved_for_billing',
     agreedAt: Timestamp.now(),
     agreedBy: params.agreedBy,
@@ -228,6 +232,7 @@ export async function agreePlantAssetTimesheet(
   agreedByRole?: 'Operator' | 'Plant Manager' | 'Admin'
 ): Promise<string> {
   console.log('[agreedTimesheetManager] Creating agreed plant asset timesheet:', originalTimesheet.id, 'type:', approvalType || 'digital', 'role:', agreedByRole || 'Admin');
+  console.log('[agreedTimesheetManager] Original meter readings - open:', originalTimesheet.openHours, 'close:', originalTimesheet.closeHours);
 
   const params: CreateAgreedTimesheetParams = {
     originalTimesheetId: originalTimesheet.id!,
@@ -247,6 +252,8 @@ export async function agreePlantAssetTimesheet(
     companyId: originalTimesheet.companyId,
     agreedBy,
     agreedByRole: agreedByRole || 'Admin',
+    originalOpenHours: originalTimesheet.openHours,
+    originalCloseHours: originalTimesheet.closeHours,
   };
 
   const agreedTimesheetId = await createAgreedTimesheet(params);

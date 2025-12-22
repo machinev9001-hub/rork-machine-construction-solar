@@ -576,6 +576,8 @@ export type AgreedTimesheet = {
   originalOvertimeHours?: number;
   originalSundayHours?: number;
   originalPublicHolidayHours?: number;
+  originalOpenHours?: number;
+  originalCloseHours?: number;
   hoursDifference: number;
   originalNotes?: string;
   adminNotes?: string;

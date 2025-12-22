@@ -99,7 +99,11 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "machine-construction-solar",
+      "shortName": "MACHINE",
+      "description": "Business Tracker app for industry sectors",
+      "output": "static"
     }
   }
 }

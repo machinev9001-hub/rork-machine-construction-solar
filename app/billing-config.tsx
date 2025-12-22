@@ -2163,7 +2163,9 @@ export default function BillingConfigScreen() {
           agreedHours: data.agreedHours,
           agreedNotes: data.agreedNotes,
         },
-        agreedByIdentifier
+        agreedByIdentifier,
+        'digital',
+        'Admin'
       );
 
       Alert.alert('Success', 'Hours agreed successfully and ready for billing.');

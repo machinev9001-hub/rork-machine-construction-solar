@@ -133,7 +133,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
     const subtotal = groups.reduce((sum, group) => {
       return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
         const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-        return groupSum + (entry?.totalHours || 0);
+        return groupSum + (entry?.actualHours || entry?.totalHours || 0);
       }, 0);
     }, 0);
     assetTypeSubtotals.set(assetType, subtotal);
@@ -228,7 +228,7 @@ const generatePlantHoursHTML = (groups: TimesheetGroup[], options: ReportOptions
   const totalHours = filteredGroups.reduce((sum, group) => {
     return sum + group.dateGroups.reduce((groupSum, dateGroup) => {
       const entry = dateGroup.adjustmentEntry || dateGroup.originalEntry;
-      return groupSum + (entry?.totalHours || 0);
+      return groupSum + (entry?.actualHours || entry?.totalHours || 0);
     }, 0);
   }, 0);
 

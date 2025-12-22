@@ -588,6 +588,7 @@ export type AgreedTimesheet = {
   status: 'approved_for_billing' | 'disputed' | 'rejected';
   agreedAt: any;
   agreedBy: string;
+  agreedByRole?: 'Operator' | 'Plant Manager' | 'Admin';
   approvedForBillingAt?: any;
   approvedForBillingBy?: string;
   createdAt: any;

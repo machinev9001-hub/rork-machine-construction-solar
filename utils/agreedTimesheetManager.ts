@@ -21,6 +21,7 @@ type CreateAgreedTimesheetParams = {
   subcontractorId?: string;
   subcontractorName?: string;
   agreedBy: string;
+  agreedByRole?: 'Operator' | 'Plant Manager' | 'Admin';
   agreedNormalHours?: number;
   agreedOvertimeHours?: number;
   agreedSundayHours?: number;
@@ -62,6 +63,7 @@ export async function createAgreedTimesheet(params: CreateAgreedTimesheetParams)
     status: 'approved_for_billing',
     agreedAt: Timestamp.now(),
     agreedBy: params.agreedBy,
+    agreedByRole: params.agreedByRole,
     approvedForBillingAt: Timestamp.now(),
     approvedForBillingBy: params.agreedBy,
     createdAt: Timestamp.now(),

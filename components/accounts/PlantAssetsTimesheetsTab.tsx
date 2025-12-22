@@ -285,15 +285,57 @@ export default function PlantAssetsTimesheetsTab({
 
       console.log('[PlantAssetsTimesheetsTab] Fetching agreed timesheets from', fromDateStr, 'to', toDateStr);
       
+      const getRolePriority = (role?: string): number => {
+        if (role === 'Admin' || role === 'admin') return 3;
+        if (role === 'Plant Manager') return 2;
+        if (role === 'Operator') return 1;
+        return 0;
+      };
+
+      const deduplicateByAssetAndDate = (timesheets: any[]): any[] => {
+        const groupedMap = new Map<string, any[]>();
+        
+        timesheets.forEach(ts => {
+          const key = `${ts.assetId || ts.operatorId}-${ts.date}`;
+          if (!groupedMap.has(key)) {
+            groupedMap.set(key, []);
+          }
+          groupedMap.get(key)!.push(ts);
+        });
+        
+        const deduplicated: any[] = [];
+        groupedMap.forEach((entries, key) => {
+          if (entries.length === 1) {
+            deduplicated.push(entries[0]);
+          } else {
+            entries.sort((a, b) => {
+              const priorityA = getRolePriority(a.agreedByRole);
+              const priorityB = getRolePriority(b.agreedByRole);
+              if (priorityB !== priorityA) return priorityB - priorityA;
+              const timeA = a.agreedAt?.toDate?.()?.getTime() || 0;
+              const timeB = b.agreedAt?.toDate?.()?.getTime() || 0;
+              return timeB - timeA;
+            });
+            console.log('[PlantAssetsTimesheetsTab] Deduplicating', key, '- keeping entry with role:', entries[0].agreedByRole, 'hours:', entries[0].agreedHours);
+            deduplicated.push(entries[0]);
+          }
+        });
+        
+        return deduplicated;
+      };
+      
       const agreedTimesheets = await getAgreedTimesheetsByDateRange(
         user.masterAccountId,
         fromDateStr,
         toDateStr
       );
 
-      console.log('[PlantAssetsTimesheetsTab] Query returned', agreedTimesheets.length, 'agreed timesheets');
+      console.log('[PlantAssetsTimesheetsTab] Query returned', agreedTimesheets.length, 'agreed timesheets (before deduplication)');
       
-      const uniqueAssetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
+      const deduplicatedTimesheets = deduplicateByAssetAndDate(agreedTimesheets);
+      console.log('[PlantAssetsTimesheetsTab] After deduplication:', deduplicatedTimesheets.length, 'agreed timesheets');
+      
+      const uniqueAssetIds = [...new Set(deduplicatedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
       const ratesMap = new Map<string, { dryRate?: number; wetRate?: number; dailyRate?: number }>();
       
       if (uniqueAssetIds.length > 0) {
@@ -320,8 +362,8 @@ export default function PlantAssetsTimesheetsTab({
       }
       
       const fuelLogsMap = new Map<string, any>();
-      if (agreedTimesheets.length > 0) {
-        const assetIds = [...new Set(agreedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
+      if (deduplicatedTimesheets.length > 0) {
+        const assetIds = [...new Set(deduplicatedTimesheets.filter(at => at.timesheetType === 'plant_asset').map(at => at.assetId))];
         
         if (assetIds.length > 0) {
           console.log('[PlantAssetsTimesheetsTab] Fetching fuel logs for', assetIds.length, 'assets');
@@ -347,19 +389,10 @@ export default function PlantAssetsTimesheetsTab({
       }
       
       const getActualHoursBasedOnPriority = (agreedTimesheet: any): number => {
-        if (agreedTimesheet.agreedByRole === 'Admin' || agreedTimesheet.agreedByRole === 'admin') {
-          return agreedTimesheet.agreedHours;
-        }
-        if (agreedTimesheet.agreedByRole === 'Plant Manager' && agreedTimesheet.originalHours !== undefined) {
-          return agreedTimesheet.agreedHours;
-        }
-        if (agreedTimesheet.originalHours !== undefined) {
-          return agreedTimesheet.originalHours;
-        }
         return agreedTimesheet.agreedHours;
       };
       
-      let loadedTimesheets: VerifiedTimesheet[] = agreedTimesheets.map(at => {
+      let loadedTimesheets: VerifiedTimesheet[] = deduplicatedTimesheets.map(at => {
         const isPlant = at.timesheetType === 'plant_asset';
         const hasAdjustment = at.originalHours !== at.agreedHours;
         

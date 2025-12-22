@@ -159,9 +159,11 @@ export default function PlantAssetsTimesheetsTab({
   }, [tempSubcontractor]);
 
   useEffect(() => {
-    loadVerifiedTimesheets();
+    if (billingConfig !== null || !user?.masterAccountId) {
+      loadVerifiedTimesheets();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.siteId, user?.masterAccountId, viewMode, filters]);
+  }, [user?.siteId, user?.masterAccountId, viewMode, filters, billingConfig]);
 
   useEffect(() => {
     groupTimesheets();
@@ -341,23 +343,29 @@ export default function PlantAssetsTimesheetsTab({
       if (uniqueAssetIds.length > 0) {
         console.log('[PlantAssetsTimesheetsTab] Fetching rates for', uniqueAssetIds.length, 'assets');
         const plantAssetsRef = collection(db, 'plantAssets');
-        const plantAssetsQuery = query(
-          plantAssetsRef,
-          where('masterAccountId', '==', user.masterAccountId),
-          where('assetId', 'in', uniqueAssetIds.slice(0, 10))
-        );
-        const plantAssetsSnapshot = await getDocs(plantAssetsQuery);
         
-        plantAssetsSnapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.assetId) {
-            ratesMap.set(data.assetId, {
-              dryRate: data.dryRate,
-              wetRate: data.wetRate,
-              dailyRate: data.dailyRate,
-            });
-          }
-        });
+        // Handle more than 10 assets by batching queries
+        const batchSize = 10;
+        for (let i = 0; i < uniqueAssetIds.length; i += batchSize) {
+          const batch = uniqueAssetIds.slice(i, i + batchSize);
+          const plantAssetsQuery = query(
+            plantAssetsRef,
+            where('masterAccountId', '==', user.masterAccountId),
+            where('assetId', 'in', batch)
+          );
+          const plantAssetsSnapshot = await getDocs(plantAssetsQuery);
+          
+          plantAssetsSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.assetId) {
+              ratesMap.set(data.assetId, {
+                dryRate: data.dryRate,
+                wetRate: data.wetRate,
+                dailyRate: data.dailyRate,
+              });
+            }
+          });
+        }
         console.log('[PlantAssetsTimesheetsTab] Loaded rates for', ratesMap.size, 'assets');
       }
       

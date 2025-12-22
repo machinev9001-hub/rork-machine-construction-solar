@@ -103,7 +103,7 @@
       "name": "machine-construction-solar",
       "shortName": "MACHINE",
       "description": "Business Tracker app for industry sectors",
-      "output": "static",
+      "output": "single",
       "themeColor": "#ffffff"
     }
   }

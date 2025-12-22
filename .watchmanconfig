@@ -9,7 +9,11 @@
     "__tests__/coverage",
     "jest-results",
     ".cache",
-    "docs"
+    "docs",
+    ".expo-shared",
+    "ios/Pods",
+    "android/build",
+    "android/.gradle"
   ],
-  "settle": 2000
+  "settle": 3000
 }

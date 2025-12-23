@@ -7,14 +7,13 @@
   "icon": "./assets/images/icon.png",
   "scheme": "projectmanagementtracker",
   "userInterfaceStyle": "automatic",
+  "newArchEnabled": true,
   "splash": {
     "image": "./assets/images/splash-icon.png",
     "resizeMode": "contain",
     "backgroundColor": "#ffffff"
   },
-  "assetBundlePatterns": [
-    "**/*"
-  ],
+  "assetBundlePatterns": ["**/*"],
   "plugins": [
     "expo-router",
     [
@@ -57,9 +56,7 @@
       "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
       "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
       "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-      "UIBackgroundModes": [
-        "location"
-      ]
+      "UIBackgroundModes": ["location"]
     },
     "entitlements": {
       "com.apple.developer.networking.wifi-info": true

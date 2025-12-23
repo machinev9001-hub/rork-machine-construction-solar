@@ -58,7 +58,16 @@
     "UIBackgroundModes": ["location"]
   },
   "entitlements": {
-    "com.apple.developer.networking.wifi-info": true
+    "com.apple.developer.networking.wifi-info": true,
+    "com": {
+      "apple": {
+        "developer": {
+          "networking": {
+            "wifi-info": true
+          }
+        }
+      }
+    }
   },
   "usesIcloudStorage": true
 },
@@ -86,7 +95,12 @@
 },
 "web": {
   "bundler": "metro",
-  "favicon": "./assets/images/favicon.png"
+  "favicon": "./assets/images/favicon.png",
+  "name": "machine-construction-solar",
+  "shortName": "MACHINE",
+  "description": "Business Tracker app for industry sectors",
+  "output": "single",
+  "themeColor": "#ffffff"
 }
 }
 }

@@ -3,11 +3,13 @@ const { withRorkMetro } = require("@rork-ai/toolkit-sdk/metro");
 
 const config = getDefaultConfig(__dirname);
 
-// Ensure web platform is properly supported
-if (config.resolver) {
-  config.resolver.platforms = ['ios', 'android', 'web'];
+const wrappedConfig = withRorkMetro(config);
+
+// Ensure web platform is properly supported after Rork wrapper
+if (wrappedConfig.resolver) {
+  wrappedConfig.resolver.platforms = ['ios', 'android', 'web'];
 } else {
-  config.resolver = { platforms: ['ios', 'android', 'web'] };
+  wrappedConfig.resolver = { platforms: ['ios', 'android', 'web'] };
 }
 
-module.exports = withRorkMetro(config);
+module.exports = wrappedConfig;

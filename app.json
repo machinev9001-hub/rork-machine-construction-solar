@@ -100,10 +100,16 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",
-      "name": "machine-construction-solar",
+      "name": "MACHINE Business Tracker",
       "shortName": "MACHINE",
       "description": "Business Tracker app for industry sectors",
-      "output": "single",
+      "lang": "en",
+      "dir": "ltr",
+      "scope": "/",
+      "startUrl": "/",
+      "display": "standalone",
+      "orientation": "portrait",
+      "backgroundColor": "#ffffff",
       "themeColor": "#ffffff"
     }
   }

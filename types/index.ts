@@ -47,7 +47,11 @@ export type Company = {
   status: 'Active' | 'Inactive' | 'Archived';
   createdAt: any;
   updatedAt?: any;
-  createdBy: string;
+  createdBy: string; // Master Account ID of creator
+  // Multi-owner support - now handled in companyOwnership collection
+  // Individual owners and their percentages are in separate collection
+  totalOwnershipPercentage?: number; // Should always be 100
+  ownerCount?: number; // Number of owners
 };
 
 export type CompanyUser = {
@@ -79,6 +83,20 @@ export type SubContractorUser = {
   isLocked?: boolean;
 };
 
+// National ID Verification Status
+export type IDVerificationStatus = 
+  | 'UNVERIFIED'
+  | 'PENDING_REVIEW'
+  | 'VERIFIED'
+  | 'REJECTED';
+
+// Duplicate ID Detection Status
+export type DuplicateIDStatus =
+  | 'NONE'
+  | 'DUPLICATE_DETECTED'
+  | 'UNDER_REVIEW'
+  | 'RESOLVED';
+
 export type MasterAccount = {
   id: string;
   masterId: string;
@@ -87,6 +105,22 @@ export type MasterAccount = {
   companyIds: string[];
   currentCompanyId?: string;
   createdAt: any;
+  // National ID Verification Fields
+  nationalIdNumber?: string; // Unique national ID number
+  idVerificationStatus: IDVerificationStatus;
+  idVerifiedAt?: any; // Timestamp when ID was verified
+  idVerifiedBy?: string; // Admin/system who verified
+  idDocumentUrl?: string; // URL to uploaded ID document
+  duplicateIdStatus: DuplicateIDStatus;
+  // Contact information
+  contactEmail?: string;
+  contactPhone?: string;
+  // Restriction flags
+  canOwnCompanies: boolean; // Requires VERIFIED status
+  canReceivePayouts: boolean; // Requires VERIFIED status
+  canApproveOwnershipChanges: boolean; // Requires VERIFIED status
+  restrictionReason?: string; // Reason if restricted
+  restrictedUntil?: any; // Temporary restriction expiry
 };
 
 export type User = {
@@ -916,5 +950,205 @@ export type GridCellProgress = {
 };
 
 export type TimesheetWorkflowStatus = 'pending_eph' | 'in_negotiation' | 'approved_for_billing' | 'rejected';
+
+// ============================================================================
+// MASTER ACCOUNT & COMPANY OWNERSHIP SYSTEM
+// ============================================================================
+
+/**
+ * Company Ownership - Defines ownership percentages for master accounts
+ * Supports multi-owner companies with percentage-based ownership
+ */
+export type CompanyOwnership = {
+  id: string;
+  companyId: string;
+  masterAccountId: string;
+  masterAccountName: string; // Denormalized for performance
+  ownershipPercentage: number; // Must be between 0-100
+  status: 'active' | 'pending' | 'suspended' | 'revoked';
+  votingRights: boolean; // Can vote on company decisions
+  economicRights: boolean; // Receives financial benefits
+  transferRestrictions?: string; // Any restrictions on transfer
+  grantedAt: any;
+  grantedBy: string; // Master Account ID who granted ownership
+  approvedAt?: any;
+  approvedBy?: string; // Required for ownership changes
+  revokedAt?: any;
+  revokedBy?: string;
+  revocationReason?: string;
+  notes?: string;
+  createdAt: any;
+  updatedAt?: any;
+};
+
+/**
+ * Company Role - Defines functional roles separate from ownership
+ * A master account can have both ownership and roles
+ */
+export type CompanyRole = {
+  id: string;
+  companyId: string;
+  masterAccountId: string;
+  masterAccountName: string; // Denormalized
+  role: 'Director' | 'Admin' | 'Manager' | 'Viewer' | 'Custom';
+  customRoleName?: string; // For custom roles
+  permissions: string[]; // Array of permission strings
+  status: 'active' | 'suspended' | 'revoked';
+  assignedAt: any;
+  assignedBy: string; // Master Account ID
+  revokedAt?: any;
+  revokedBy?: string;
+  notes?: string;
+  createdAt: any;
+  updatedAt?: any;
+};
+
+/**
+ * Master ID Verification - Tracks ID document verification process
+ */
+export type MasterIDVerification = {
+  id: string;
+  masterAccountId: string;
+  nationalIdNumber: string;
+  documentType: 'national_id' | 'passport' | 'drivers_license' | 'other';
+  documentUrl: string; // Storage URL for uploaded document
+  storagePath: string; // Firebase storage path
+  status: IDVerificationStatus;
+  submittedAt: any;
+  reviewedAt?: any;
+  reviewedBy?: string; // Admin ID who reviewed
+  reviewNotes?: string;
+  rejectionReason?: string;
+  verifiedAt?: any;
+  expiryDate?: any; // If document has expiry
+  metadata?: {
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+  };
+  createdAt: any;
+  updatedAt?: any;
+};
+
+/**
+ * Fraud Dispute - Handles duplicate national ID conflicts
+ */
+export type FraudDispute = {
+  id: string;
+  nationalIdNumber: string; // The disputed ID number
+  reportedBy: string; // Master Account ID reporting fraud
+  reportedByName: string;
+  reportedByEmail?: string;
+  existingAccountId?: string; // The existing account with this ID
+  existingAccountName?: string;
+  newAccountId: string; // The new account attempting to use same ID
+  newAccountName: string;
+  status: 'pending' | 'under_investigation' | 'resolved' | 'dismissed';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  disputeType: 'duplicate_id' | 'identity_theft' | 'data_error' | 'other';
+  explanation: string; // Explanation from reporter
+  supportingDocuments?: {
+    url: string;
+    storagePath: string;
+    fileName: string;
+    uploadedAt: any;
+  }[];
+  investigationNotes?: string;
+  resolution?: 'verified_original' | 'verified_new' | 'both_legitimate' | 'both_blocked' | 'data_corrected';
+  resolvedAt?: any;
+  resolvedBy?: string; // Admin ID
+  resolutionDetails?: string;
+  actionTaken?: string; // What action was taken (merge, block, etc.)
+  reportedAt: any;
+  createdAt: any;
+  updatedAt?: any;
+};
+
+/**
+ * Ownership Change Request - Multi-owner approval workflow
+ */
+export type OwnershipChangeRequest = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  requestType: 'add_owner' | 'remove_owner' | 'change_percentage' | 'transfer_ownership';
+  requestedBy: string; // Master Account ID
+  requestedByName: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  // Change details
+  targetMasterAccountId: string; // Account being added/removed/changed
+  targetMasterAccountName: string;
+  currentOwnershipPercentage?: number;
+  proposedOwnershipPercentage?: number;
+  transferToMasterAccountId?: string; // For transfers
+  transferToMasterAccountName?: string;
+  // Approval workflow
+  requiredApprovals: number; // How many approvals needed
+  currentApprovals: number; // How many received
+  approvers: {
+    masterAccountId: string;
+    masterAccountName: string;
+    approvedAt?: any;
+    rejectedAt?: any;
+    reason?: string;
+  }[];
+  // Metadata
+  reason: string;
+  notes?: string;
+  createdAt: any;
+  approvedAt?: any;
+  rejectedAt?: any;
+  processedAt?: any;
+  processedBy?: string;
+};
+
+/**
+ * Enhanced Audit Log for Master Account Operations
+ */
+export type MasterAccountAuditLog = {
+  id: string;
+  masterAccountId: string;
+  masterAccountName: string;
+  companyId?: string; // If action is company-specific
+  companyName?: string;
+  siteId?: string; // If action is site-specific
+  siteName?: string;
+  actionType: 
+    | 'master_account_created'
+    | 'master_account_verified'
+    | 'id_document_uploaded'
+    | 'id_verification_approved'
+    | 'id_verification_rejected'
+    | 'duplicate_id_detected'
+    | 'fraud_dispute_created'
+    | 'company_created'
+    | 'company_ownership_added'
+    | 'company_ownership_removed'
+    | 'company_ownership_changed'
+    | 'company_role_assigned'
+    | 'company_role_revoked'
+    | 'ownership_change_requested'
+    | 'ownership_change_approved'
+    | 'ownership_change_rejected'
+    | 'payout_processed'
+    | 'asset_edit'
+    | 'timesheet_approval'
+    | 'user_role_change'
+    | 'restriction_applied'
+    | 'restriction_lifted'
+    | 'other';
+  actionDescription: string;
+  performedBy: string; // Master Account ID or system
+  performedByName: string;
+  targetEntity?: string; // ID of entity being acted upon
+  targetEntityType?: 'master_account' | 'company' | 'ownership' | 'role' | 'site' | 'asset' | 'user' | 'timesheet';
+  previousValue?: string; // JSON string of previous state
+  newValue?: string; // JSON string of new state
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, any>; // Additional context
+  timestamp: any;
+  createdAt: any;
+};
 
 

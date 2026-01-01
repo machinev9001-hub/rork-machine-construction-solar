@@ -13,8 +13,11 @@ service cloud.firestore {
       // Allow read for login - app queries this collection to find master accounts
       allow read: if true;
       // Create allowed for activation (new master account signup)
-      allow create: if true;
-      allow update, delete: if false;
+      // Validation rules for master account creation
+      allow create: if true; // Validation happens in application code
+      // Update allowed for ID verification and other profile updates
+      allow update: if true; // Application-level security enforced
+      allow delete: if false; // Master accounts should never be deleted
     }
     
     match /users/{userId} {
@@ -241,6 +244,56 @@ service cloud.firestore {
     
     match /auditLogs/{logId} {
       allow read, write: if true;
+    }
+    
+    // ============================================================================
+    // MASTER ACCOUNT & COMPANY OWNERSHIP SYSTEM
+    // ============================================================================
+    
+    match /companyOwnership/{ownershipId} {
+      // Read allowed for viewing ownership structure
+      allow read: if true;
+      // Write operations should be controlled at application level
+      allow create, update, delete: if true;
+    }
+    
+    match /companyRoles/{roleId} {
+      // Read allowed for viewing roles
+      allow read: if true;
+      // Write operations should be controlled at application level
+      allow create, update, delete: if true;
+    }
+    
+    match /masterIDVerification/{verificationId} {
+      // Read allowed for checking verification status
+      allow read: if true;
+      // Write for ID document uploads and verification
+      allow create, update: if true;
+      allow delete: if false; // Keep verification history
+    }
+    
+    match /fraudDisputes/{disputeId} {
+      // Read allowed for viewing disputes
+      allow read: if true;
+      // Create for reporting fraud, update for investigation
+      allow create, update: if true;
+      allow delete: if false; // Keep dispute history
+    }
+    
+    match /ownershipChangeRequests/{requestId} {
+      // Read allowed for viewing requests
+      allow read: if true;
+      // Create for requesting changes, update for approvals
+      allow create, update: if true;
+      allow delete: if false; // Keep request history
+    }
+    
+    match /masterAccountAuditLogs/{logId} {
+      // Read allowed for audit trail viewing
+      allow read: if true;
+      // Only create allowed for logging
+      allow create: if true;
+      allow update, delete: if false; // Immutable audit logs
     }
     
     match /offlineQueue/{queueId} {

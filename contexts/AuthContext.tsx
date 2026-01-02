@@ -37,6 +37,13 @@ export type MasterAccount = {
   companyIds: string[];
   currentCompanyId?: string;
   createdAt: any;
+  // National ID Verification Fields (NEW - with defaults for backward compatibility)
+  nationalIdNumber?: string;
+  idVerificationStatus?: 'UNVERIFIED' | 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED';
+  duplicateIdStatus?: 'NONE' | 'DUPLICATE_DETECTED' | 'UNDER_REVIEW' | 'RESOLVED';
+  canOwnCompanies?: boolean;
+  canReceivePayouts?: boolean;
+  canApproveOwnershipChanges?: boolean;
 };
 
 export type User = {
@@ -584,6 +591,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             companyId: codeValidation.activationCode?.companyId,
             companyName: codeValidation.activationCode?.companyName,
             companyIds: [],
+            // New ID verification fields with safe defaults
+            idVerificationStatus: 'UNVERIFIED',
+            duplicateIdStatus: 'NONE',
+            canOwnCompanies: false, // Requires verification
+            canReceivePayouts: false, // Requires verification
+            canApproveOwnershipChanges: false, // Requires verification
             createdAt: serverTimestamp(),
           });
 
@@ -614,6 +627,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         name,
         pin: pinHash,
         companyIds: [],
+        idVerificationStatus: 'UNVERIFIED',
+        duplicateIdStatus: 'NONE',
+        canOwnCompanies: false,
+        canReceivePayouts: false,
+        canApproveOwnershipChanges: false,
         createdAt: serverTimestamp(),
       };
 
